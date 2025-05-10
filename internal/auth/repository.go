@@ -1,0 +1,90 @@
+package auth
+
+import (
+	"context"
+	"database/sql"
+
+	"github.com/ferdiebergado/slim/internal/user"
+)
+
+type Repository struct {
+	db *sql.DB
+}
+
+func NewRepository(db *sql.DB) *Repository {
+	return &Repository{db: db}
+}
+
+const QueryUserCreate = `
+INSERT INTO users (email, password_hash)
+VALUES ($1, $2)
+RETURNING id, email, created_at, updated_at
+`
+
+func (r *Repository) CreateUser(ctx context.Context, params CreateUserParams) (user.User, error) {
+	var u user.User
+	if err := r.db.QueryRowContext(ctx, QueryUserCreate, params.Email, params.PasswordHash).
+		Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		return user.User{}, err
+	}
+	return u, nil
+}
+
+const QueryUserFindByEmail = `
+SELECT id, email, password_hash, created_at, updated_at, verified_at FROM users
+WHERE email = $1
+LIMIT 1
+`
+
+func (r *Repository) FindUserByEmail(ctx context.Context, email string) (user.User, error) {
+	var u user.User
+	row := r.db.QueryRowContext(ctx, QueryUserFindByEmail, email)
+	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt, &u.VerifiedAt)
+	if err != nil {
+		return user.User{}, err
+	}
+	return u, nil
+}
+
+const QueryUserVerify = `
+UPDATE users
+SET verified_at = NOW()
+WHERE id = $1
+`
+
+func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
+	_, err := r.db.ExecContext(ctx, QueryUserVerify, userID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+const QueryUserList = "SELECT id, email, verified_at, created_at, updated_at FROM users"
+
+func (r *Repository) ListUsers(ctx context.Context) ([]user.User, error) {
+	rows, err := r.db.QueryContext(ctx, QueryUserList)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []user.User
+	for rows.Next() {
+		var u user.User
+		if err := rows.Scan(&u.ID, &u.Email, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}

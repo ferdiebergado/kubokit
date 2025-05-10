@@ -1,0 +1,41 @@
+{
+  "server": {
+    "url": "http://localhost:8080",
+    "port": 8080,
+    "read_timeout": 10,
+    "write_timeout": 20,
+    "idle_timeout": 10,
+    "shutdown_timeout": 5
+  },
+  "db": {
+    "driver": "pgx",
+    "max_open_conns": 30,
+    "max_idle_conns": 10,
+    "conn_max_idletime": 10,
+    "conn_max_lifetime": 30,
+    "ping_timeout": 5
+  },
+  "jwt": {
+    "jti_length": 32,
+    "issuer": "example.com",
+    "ttl": "15m",
+    "refresh_ttl": "24h"
+  },
+  "cookie": {
+    "name": "refresh_token",
+    "max_age": "24h"
+  },
+  "email": {
+    "templates": "web/templates",
+    "layout": "layout.html",
+    "sender": "test@example.com",
+    "verify_ttl": "5m"
+  },
+  "argon2": {
+    "memory": 65536,
+    "iterations": 3,
+    "threads": 2,
+    "salt_length": 16,
+    "key_length": 32
+  }
+}

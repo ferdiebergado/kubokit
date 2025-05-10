@@ -1,0 +1,96 @@
+package middleware
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"sync"
+)
+
+type SafeResponseWriter struct {
+	http.ResponseWriter
+	ctx           context.Context
+	mu            sync.Mutex
+	status        int
+	headerWritten bool
+	bytesSent     int
+}
+
+func NewSafeResponseWriter(ctx context.Context, w http.ResponseWriter) *SafeResponseWriter {
+	return &SafeResponseWriter{
+		ResponseWriter: w,
+		ctx:            ctx,
+		status:         http.StatusOK,
+	}
+}
+
+func (w *SafeResponseWriter) WriteHeader(statusCode int) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	ctxErr := w.ctx.Err()
+
+	if ctxErr != nil {
+		checkCtxErr(ctxErr)
+		return
+	}
+
+	if w.headerWritten {
+		return
+	}
+
+	w.ResponseWriter.WriteHeader(statusCode)
+	w.status = statusCode
+	w.headerWritten = true
+}
+
+func (w *SafeResponseWriter) Write(b []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	ctxErr := w.ctx.Err()
+	if ctxErr != nil {
+		checkCtxErr(ctxErr)
+		return 0, nil
+	}
+
+	if !w.headerWritten {
+		slog.Warn("invoked Write() without WriteHeader(statusCode)")
+		w.ResponseWriter.WriteHeader(http.StatusOK)
+		w.status = http.StatusOK
+		w.headerWritten = true
+	}
+
+	if w.status >= http.StatusInternalServerError {
+		slog.Warn("ignoring write due to server error")
+		return 0, nil
+	}
+
+	n, err := w.ResponseWriter.Write(b)
+	w.bytesSent += n
+	return n, err
+}
+
+func (w *SafeResponseWriter) Status() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.status
+}
+
+func (w *SafeResponseWriter) BytesWritten() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.bytesSent
+}
+
+func checkCtxErr(ctxErr error) {
+	if errors.Is(ctxErr, context.Canceled) {
+		slog.Warn("request has been cancelled")
+		return
+	}
+
+	if errors.Is(ctxErr, context.DeadlineExceeded) {
+		slog.Warn("request timed out")
+		return
+	}
+}

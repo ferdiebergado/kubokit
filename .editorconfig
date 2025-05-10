@@ -1,0 +1,55 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# Top-most EditorConfig file
+root = true
+
+# Set default settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = tab
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Go-specific settings
+[*.go]
+indent_style = tab  # Go's official style is tabs
+tab_width = 8      # Go's official style is 8-space tabs
+insert_final_newline = true # Important for go fmt
+trim_trailing_whitespace = true
+
+# JSON, YAML, and other common config files
+[*.{json,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Markdown and related files
+[*.md]
+trim_trailing_whitespace = false
+insert_final_newline = true
+
+# Makefile (Makefiles must use tabs)
+[Makefile]
+indent_style = tab
+tab_width = 8
+
+# HTML files (common in Go web projects)
+[*.html]
+indent_style = space
+indent_size = 2
+
+# JavaScript settings
+[*.{js,jsx,ts,tsx}]
+indent_style = space
+indent_size = 2
+quote_type = single
+
+[.gitignore]
+trim_trailing_whitespace = false
+insert_final_newline = false
+
+[go.mod]
+indent_style = space
+indent_size = 4
+tab_width = 4
