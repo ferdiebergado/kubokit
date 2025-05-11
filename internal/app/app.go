@@ -16,24 +16,37 @@ import (
 	"github.com/ferdiebergado/slim/internal/user"
 )
 
-type apiServer struct {
-	options     *config.Options
-	db          *sql.DB
-	router      contract.Router
-	server      *http.Server
-	middlewares []func(http.Handler) http.Handler
-	signer      contract.Signer
-	mailer      contract.Mailer
-	hasher      contract.Hasher
-	stop        context.CancelFunc
+type Providers struct {
+	Signer    contract.Signer
+	Mailer    contract.Mailer
+	Validator contract.Validator
+	Hasher    contract.Hasher
+	Router    contract.Router
 }
 
-func newAPIServer(baseCtx context.Context, opts *config.Options, db *sql.DB, signer contract.Signer, mailer contract.Mailer, hasher contract.Hasher, router contract.Router, middlewares []func(http.Handler) http.Handler) *apiServer {
+type apiServer struct {
+	server      *http.Server
+	options     *config.Options
+	middlewares []func(http.Handler) http.Handler
+	stop        context.CancelFunc
+	db          *sql.DB
+	signer      contract.Signer
+	mailer      contract.Mailer
+	validator   contract.Validator
+	hasher      contract.Hasher
+	router      contract.Router
+}
+
+func newAPIServer(
+	baseCtx context.Context,
+	opts *config.Options,
+	db *sql.DB, providers *Providers,
+	middlewares []func(http.Handler) http.Handler) *apiServer {
 	serverCtx, stop := context.WithCancel(baseCtx)
 	serverOpts := opts.Server
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", serverOpts.Port),
-		Handler: router,
+		Handler: providers.Router,
 		BaseContext: func(_ net.Listener) context.Context {
 			return serverCtx
 		},
@@ -45,10 +58,11 @@ func newAPIServer(baseCtx context.Context, opts *config.Options, db *sql.DB, sig
 	return &apiServer{
 		options:     opts,
 		db:          db,
-		signer:      signer,
-		mailer:      mailer,
-		hasher:      hasher,
-		router:      router,
+		signer:      providers.Signer,
+		mailer:      providers.Mailer,
+		validator:   providers.Validator,
+		hasher:      providers.Hasher,
+		router:      providers.Router,
 		server:      server,
 		middlewares: middlewares,
 		stop:        stop,
@@ -75,7 +89,7 @@ func (a *apiServer) setupRoutes() {
 	}
 	authService := auth.NewService(authRepo, authProviders, a.options)
 	authHandler := auth.NewHandler(authService, a.signer, a.options)
-	mountAuthRoutes(a.router, authHandler)
+	mountAuthRoutes(a.router, authHandler, a.validator)
 }
 
 func (a *apiServer) Start() chan error {
