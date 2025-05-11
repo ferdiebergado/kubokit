@@ -8,6 +8,7 @@ import (
 	contextx "github.com/ferdiebergado/slim/internal/context"
 	"github.com/ferdiebergado/slim/internal/contract"
 	httpx "github.com/ferdiebergado/slim/internal/http"
+	"github.com/ferdiebergado/slim/internal/message"
 )
 
 func RequireAuth(signer contract.Signer) func(http.Handler) http.Handler {
@@ -15,13 +16,13 @@ func RequireAuth(signer contract.Signer) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tokenStr, err := extractBearerToken(r.Header.Get("Authorization"))
 			if err != nil || tokenStr == "" {
-				httpx.Fail(w, http.StatusUnauthorized, err, "Invalid credentials.")
+				httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
 				return
 			}
 
 			sub, err := signer.Verify(tokenStr)
 			if err != nil {
-				httpx.Fail(w, http.StatusUnauthorized, err, "Invalid credentials.")
+				httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
 				return
 			}
 

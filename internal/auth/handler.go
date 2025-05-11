@@ -13,6 +13,7 @@ import (
 	"github.com/ferdiebergado/slim/internal/contract"
 	errx "github.com/ferdiebergado/slim/internal/error"
 	httpx "github.com/ferdiebergado/slim/internal/http"
+	"github.com/ferdiebergado/slim/internal/message"
 
 	"github.com/ferdiebergado/slim/internal/user"
 )
@@ -61,7 +62,7 @@ type RegisterUserResponse struct {
 }
 
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
-	req, _ := contextx.ParamsFromContext[RegisterUserRequest](r.Context())
+	_, req, _ := contextx.ParamsFromContext[RegisterUserRequest](r.Context())
 	params := RegisterUserParams{
 		Email:    req.Email,
 		Password: req.Password,
@@ -69,7 +70,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.service.RegisterUser(r.Context(), params)
 	if err != nil {
 		if errors.Is(err, ErrUserExists) {
-			httpx.Fail(w, http.StatusUnprocessableEntity, err, "User already exists.")
+			httpx.Fail(w, http.StatusUnprocessableEntity, err, "User already exists.", nil)
 			return
 		}
 
@@ -81,13 +82,13 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	msg := "Thank you for registering. A verification link was sent to your email."
 	data := &RegisterUserResponse{
 		ID:        user.ID,
 		Email:     user.Email,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}
-	msg := "Thank you for registering. A verification link was sent to your email."
 	httpx.OK(w, http.StatusCreated, &msg, data)
 }
 
@@ -95,13 +96,13 @@ func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 
 	if token == "" {
-		httpx.Fail(w, http.StatusBadRequest, ErrInvalidToken, "Invalid credentials.")
+		httpx.Fail(w, http.StatusBadRequest, ErrInvalidToken, message.InvalidUser, nil)
 		return
 	}
 
 	if err := h.service.VerifyUser(r.Context(), token); err != nil {
 		if errors.Is(err, ErrInvalidToken) {
-			httpx.Fail(w, http.StatusBadRequest, ErrInvalidToken, "Invalid credentials.")
+			httpx.Fail(w, http.StatusBadRequest, ErrInvalidToken, message.InvalidUser, nil)
 			return
 		}
 		response.ServerError(w, err)
@@ -129,7 +130,7 @@ type UserLoginResponse struct {
 }
 
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
-	req, _ := contextx.ParamsFromContext[UserLoginRequest](r.Context())
+	_, req, _ := contextx.ParamsFromContext[UserLoginRequest](r.Context())
 	params := LoginUserParams{
 		Email:    req.Email,
 		Password: req.Password,
@@ -137,12 +138,12 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	accessToken, refreshToken, err := h.service.LoginUser(r.Context(), params)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
-			httpx.Fail(w, http.StatusUnauthorized, err, "Invalid username/password.")
+			httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
 			return
 		}
 
 		if errors.Is(err, ErrUserNotVerified) {
-			httpx.Fail(w, http.StatusUnauthorized, err, "Invalid username/password.")
+			httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
 			return
 		}
 
@@ -162,23 +163,23 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   int(cookieCfg.MaxAge.Seconds()),
 	})
 
-	msg := "Registration successful!"
+	msg := "Logged in."
 	data := &UserLoginResponse{
 		AccessToken: accessToken,
 	}
 	httpx.OK(w, http.StatusOK, &msg, data)
 }
 
-func (h *Handler) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(h.cfg.Cookie.Name)
 	if err != nil {
-		httpx.Fail(w, http.StatusUnauthorized, err, "Invalid credentials.")
+		httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
 		return
 	}
 
 	userID, err := h.signer.Verify(cookie.Value)
 	if err != nil {
-		httpx.Fail(w, http.StatusUnauthorized, err, "Invalid credentials.")
+		httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
 		return
 	}
 
@@ -196,11 +197,10 @@ func (h *Handler) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w, http.StatusOK, &msg, data)
 }
 
-func (h *Handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 	cookieName := h.cfg.Cookie.Name
-	_, err := r.Cookie(cookieName)
-	if err != nil {
-		response.ServerError(w, err)
+	if _, err := r.Cookie(cookieName); err != nil {
+		httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
 		return
 	}
 
