@@ -20,6 +20,7 @@ import (
 	httpx "github.com/ferdiebergado/slim/internal/http"
 	"github.com/ferdiebergado/slim/internal/middleware"
 	"github.com/ferdiebergado/slim/internal/security"
+	"github.com/ferdiebergado/slim/internal/validation"
 )
 
 func Run(baseCtx context.Context) error {
@@ -60,8 +61,17 @@ func Run(baseCtx context.Context) error {
 		middleware.InjectWriter,
 		goexpress.RecoverFromPanic,
 		middleware.LogRequest,
+		middleware.CheckContentType,
 	}
-	apiServer := newAPIServer(baseCtx, opts, dbConn, signer, mailer, hasher, router, middlewares)
+	validator := validation.NewPlaygroundValidator()
+	providers := &Providers{
+		Signer:    signer,
+		Hasher:    hasher,
+		Mailer:    mailer,
+		Router:    router,
+		Validator: validator,
+	}
+	apiServer := newAPIServer(baseCtx, opts, dbConn, providers, middlewares)
 	apiErr := apiServer.Start()
 
 	select {
@@ -76,35 +86,34 @@ func Run(baseCtx context.Context) error {
 }
 
 func createMailer(opts *config.EmailOptions) (contract.Mailer, error) {
-	const fmtErr = "%s environment variable is not set"
 	const (
-		envUser = "SMTP_USER"
-		envPass = "SMTP_PASS"
 		envHost = "SMTP_HOST"
 		envPort = "SMTP_PORT"
+		envUser = "SMTP_USER"
+		envPass = "SMTP_PASS"
 	)
 
-	smtpUser, ok := os.LookupEnv(envUser)
-	if !ok {
-		return nil, fmt.Errorf(fmtErr, envUser)
+	smtpHost, err := getEnv(envHost)
+	if err != nil {
+		return nil, err
 	}
 
-	smtpPass, ok := os.LookupEnv(envPass)
-	if !ok {
-		return nil, fmt.Errorf(fmtErr, envPass)
-	}
-
-	smtpHost, ok := os.LookupEnv(envHost)
-	if !ok {
-		return nil, fmt.Errorf(fmtErr, envHost)
-	}
-
-	smtpPortStr, ok := os.LookupEnv(envPort)
-	if !ok {
-		return nil, fmt.Errorf(fmtErr, envPort)
+	smtpPortStr, err := getEnv(envPort)
+	if err != nil {
+		return nil, err
 	}
 
 	smtpPort, err := strconv.Atoi(smtpPortStr)
+	if err != nil {
+		return nil, err
+	}
+
+	smtpUser, err := getEnv(envUser)
+	if err != nil {
+		return nil, err
+	}
+
+	smtpPass, err := getEnv(envPass)
 	if err != nil {
 		return nil, err
 	}
@@ -121,4 +130,13 @@ func createMailer(opts *config.EmailOptions) (contract.Mailer, error) {
 		return nil, err
 	}
 	return mailer, nil
+}
+
+func getEnv(envVar string) (string, error) {
+	const fmtErr = "%s environment variable is not set"
+	val, ok := os.LookupEnv(envVar)
+	if !ok {
+		return "", fmt.Errorf(fmtErr, val)
+	}
+	return val, nil
 }
