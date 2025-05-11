@@ -50,26 +50,17 @@ func Run(baseCtx context.Context) error {
 	if securityKey == "" {
 		return errors.New("environment variable KEY is not set")
 	}
-	signer := security.NewSigner(securityKey, opts.JWT)
-	mailer, err := createMailer(opts.Email)
+
+	providers, err := setupProviders(opts, securityKey)
 	if err != nil {
 		return err
 	}
-	hasher := security.NewArgon2Hasher(opts.Argon2, securityKey)
-	router := httpx.NewGoexpressRouter()
+
 	middlewares := []func(http.Handler) http.Handler{
 		middleware.InjectWriter,
 		goexpress.RecoverFromPanic,
 		middleware.LogRequest,
 		middleware.CheckContentType,
-	}
-	validator := validation.NewPlaygroundValidator()
-	providers := &Providers{
-		Signer:    signer,
-		Hasher:    hasher,
-		Mailer:    mailer,
-		Router:    router,
-		Validator: validator,
 	}
 	apiServer := newAPIServer(baseCtx, opts, dbConn, providers, middlewares)
 	apiErr := apiServer.Start()
@@ -139,4 +130,22 @@ func getEnv(envVar string) (string, error) {
 		return "", fmt.Errorf(fmtErr, val)
 	}
 	return val, nil
+}
+
+func setupProviders(opts *config.Options, securityKey string) (*Providers, error) {
+	signer := security.NewSigner(securityKey, opts.JWT)
+	mailer, err := createMailer(opts.Email)
+	if err != nil {
+		return nil, err
+	}
+	hasher := security.NewArgon2Hasher(opts.Argon2, securityKey)
+	router := httpx.NewGoexpressRouter()
+	validator := validation.NewPlaygroundValidator()
+	return &Providers{
+		Signer:    signer,
+		Hasher:    hasher,
+		Mailer:    mailer,
+		Router:    router,
+		Validator: validator,
+	}, nil
 }
