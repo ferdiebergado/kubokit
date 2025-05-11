@@ -17,8 +17,8 @@ func NewContextWithParams(baseCtx context.Context, params any) context.Context {
 	return context.WithValue(baseCtx, paramsCtxKey, params)
 }
 
-func ParamsFromContext[T any](ctx context.Context) (T, bool) {
+func ParamsFromContext[T any](ctx context.Context) (any, T, bool) {
 	val := ctx.Value(paramsCtxKey)
 	params, ok := val.(T)
-	return params, ok
+	return val, params, ok
 }
