@@ -13,7 +13,7 @@ func main() {
 	ctx := context.Background()
 
 	if err := app.Run(ctx); err != nil {
-		slog.Error("fatal error", "reason", err)
+		slog.Error("Application failed to start.", "reason", err)
 		os.Exit(1)
 	}
 }
