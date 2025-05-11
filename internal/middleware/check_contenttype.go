@@ -15,7 +15,7 @@ func CheckContentType(next http.Handler) http.Handler {
 		contentType := r.Header.Get(httpx.HeaderContentType)
 
 		if contentType != httpx.MimeJSON {
-			httpx.Fail(w, http.StatusNotAcceptable, fmt.Errorf("invalid content-type: %s", contentType), message.InvalidInput, nil)
+			httpx.Fail(w, http.StatusUnsupportedMediaType, fmt.Errorf("unsupported content-type: %s", contentType), message.InvalidInput, nil)
 			return
 		}
 
