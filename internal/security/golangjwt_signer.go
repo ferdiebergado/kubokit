@@ -8,15 +8,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type JWTSigner struct {
+type GolangJWTSigner struct {
 	method jwt.SigningMethod
 	key    string
 	jtiLen uint32
 	issuer string
 }
 
-func NewSigner(key string, cfg *config.JWTOptions) *JWTSigner {
-	return &JWTSigner{
+func NewGolangJWTSigner(key string, cfg *config.JWTOptions) *GolangJWTSigner {
+	return &GolangJWTSigner{
 		method: jwt.SigningMethodHS256,
 		key:    key,
 		jtiLen: cfg.JTILength,
@@ -24,7 +24,7 @@ func NewSigner(key string, cfg *config.JWTOptions) *JWTSigner {
 	}
 }
 
-func (s *JWTSigner) Sign(subject string, audience []string, duration time.Duration) (string, error) {
+func (s *GolangJWTSigner) Sign(subject string, audience []string, duration time.Duration) (string, error) {
 	id, err := GenerateRandomBytesEncoded(s.jtiLen)
 	if err != nil {
 		return "", err
@@ -46,7 +46,7 @@ func (s *JWTSigner) Sign(subject string, audience []string, duration time.Durati
 	return token.SignedString([]byte(s.key))
 }
 
-func (s *JWTSigner) Verify(tokenString string) (string, error) {
+func (s *GolangJWTSigner) Verify(tokenString string) (string, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(_ *jwt.Token) (any, error) {
 		return []byte(s.key), nil
 	}, jwt.WithValidMethods([]string{s.method.Alg()}))

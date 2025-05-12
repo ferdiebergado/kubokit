@@ -133,7 +133,7 @@ func getEnv(envVar string) (string, error) {
 }
 
 func setupProviders(opts *config.Options, securityKey string) (*Providers, error) {
-	signer := security.NewSigner(securityKey, opts.JWT)
+	signer := security.NewGolangJWTSigner(securityKey, opts.JWT)
 	mailer, err := createMailer(opts.Email)
 	if err != nil {
 		return nil, err
