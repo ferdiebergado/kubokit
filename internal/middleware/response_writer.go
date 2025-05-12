@@ -2,10 +2,11 @@ package middleware
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 	"sync"
+
+	errx "github.com/ferdiebergado/kubokit/internal/error"
 )
 
 type SafeResponseWriter struct {
@@ -30,8 +31,7 @@ func (w *SafeResponseWriter) WriteHeader(statusCode int) {
 	defer w.mu.Unlock()
 	ctxErr := w.ctx.Err()
 
-	if ctxErr != nil {
-		checkCtxErr(ctxErr)
+	if errx.IsContextError(ctxErr) {
 		return
 	}
 
@@ -49,8 +49,7 @@ func (w *SafeResponseWriter) Write(b []byte) (int, error) {
 	defer w.mu.Unlock()
 
 	ctxErr := w.ctx.Err()
-	if ctxErr != nil {
-		checkCtxErr(ctxErr)
+	if errx.IsContextError(ctxErr) {
 		return 0, nil
 	}
 
@@ -81,16 +80,4 @@ func (w *SafeResponseWriter) BytesWritten() int {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.bytesSent
-}
-
-func checkCtxErr(ctxErr error) {
-	if errors.Is(ctxErr, context.Canceled) {
-		slog.Warn("request has been cancelled")
-		return
-	}
-
-	if errors.Is(ctxErr, context.DeadlineExceeded) {
-		slog.Warn("request timed out")
-		return
-	}
 }
