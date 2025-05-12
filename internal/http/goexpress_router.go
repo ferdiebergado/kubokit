@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/ferdiebergado/goexpress"
-	"github.com/ferdiebergado/slim/internal/contract"
+	"github.com/ferdiebergado/kubokit/internal/contract"
 )
 
 var _ contract.Router = &GoexpressRouter{}
@@ -60,12 +60,15 @@ func (r *GoexpressRouter) Use(middleware func(next http.Handler) http.Handler) {
 
 func (r *GoexpressRouter) Group(prefix string, handlerFunc func(r contract.Router),
 	middlewares ...func(next http.Handler) http.Handler) {
-	handlerFunc(r)
+	gr := NewGoexpressRouter()
+	handlerFunc(gr)
 
-	prefix = strings.TrimSuffix(prefix, "/")
-	if prefix == "" {
-		prefix = "/"
+	const sep = "/"
+	path := prefix
+	if !strings.HasSuffix(path, sep) {
+		path += sep
 	}
+	prefix = strings.TrimSuffix(prefix, sep)
 
-	r.handler.Handle(prefix+"/", http.StripPrefix(prefix, r), middlewares...)
+	r.handler.Handle(path, http.StripPrefix(prefix, gr), middlewares...)
 }
