@@ -1,6 +1,6 @@
 {
   "server": {
-    "url": "http://localhost:8080",
+    "url": "localhost:8080",
     "port": 8080,
     "read_timeout": 10,
     "write_timeout": 20,
