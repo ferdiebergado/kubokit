@@ -8,11 +8,11 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-type PlaygroundValidator struct {
+type GoPlaygroundValidator struct {
 	v *validator.Validate
 }
 
-func NewPlaygroundValidator() *PlaygroundValidator {
+func NewGoPlaygroundValidator() *GoPlaygroundValidator {
 	v := validator.New()
 
 	// register function to get tag name from json tags.
@@ -24,12 +24,12 @@ func NewPlaygroundValidator() *PlaygroundValidator {
 		return name
 	})
 
-	return &PlaygroundValidator{
+	return &GoPlaygroundValidator{
 		v: v,
 	}
 }
 
-func (va *PlaygroundValidator) ValidateStruct(s any) map[string]string {
+func (va *GoPlaygroundValidator) ValidateStruct(s any) map[string]string {
 	err := va.v.Struct(s)
 	if err == nil {
 		return nil

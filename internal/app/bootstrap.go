@@ -140,7 +140,7 @@ func setupProviders(opts *config.Options, securityKey string) (*Providers, error
 	}
 	hasher := security.NewArgon2Hasher(opts.Argon2, securityKey)
 	router := httpx.NewGoexpressRouter()
-	validator := validation.NewPlaygroundValidator()
+	validator := validation.NewGoPlaygroundValidator()
 	return &Providers{
 		Signer:    signer,
 		Hasher:    hasher,
