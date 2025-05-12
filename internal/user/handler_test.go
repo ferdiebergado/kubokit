@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ferdiebergado/slim/internal/db"
-	httpx "github.com/ferdiebergado/slim/internal/http"
-	"github.com/ferdiebergado/slim/internal/user"
+	"github.com/ferdiebergado/kubokit/internal/db"
+	httpx "github.com/ferdiebergado/kubokit/internal/http"
+	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 type stubService struct {

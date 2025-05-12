@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ferdiebergado/slim/internal/db"
-	"github.com/ferdiebergado/slim/internal/user"
+	"github.com/ferdiebergado/kubokit/internal/db"
+	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 type stubRepo struct {

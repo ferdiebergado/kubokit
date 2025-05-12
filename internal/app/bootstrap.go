@@ -13,14 +13,14 @@ import (
 
 	"github.com/ferdiebergado/goexpress"
 	"github.com/ferdiebergado/gopherkit/env"
-	"github.com/ferdiebergado/slim/internal/config"
-	"github.com/ferdiebergado/slim/internal/contract"
-	"github.com/ferdiebergado/slim/internal/db"
-	"github.com/ferdiebergado/slim/internal/email"
-	httpx "github.com/ferdiebergado/slim/internal/http"
-	"github.com/ferdiebergado/slim/internal/middleware"
-	"github.com/ferdiebergado/slim/internal/security"
-	"github.com/ferdiebergado/slim/internal/validation"
+	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/contract"
+	"github.com/ferdiebergado/kubokit/internal/db"
+	"github.com/ferdiebergado/kubokit/internal/email"
+	httpx "github.com/ferdiebergado/kubokit/internal/http"
+	"github.com/ferdiebergado/kubokit/internal/middleware"
+	"github.com/ferdiebergado/kubokit/internal/security"
+	"github.com/ferdiebergado/kubokit/internal/validation"
 )
 
 func Run(baseCtx context.Context) error {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ferdiebergado/slim/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/golang-jwt/jwt/v5"
 )
 

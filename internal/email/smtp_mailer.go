@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ferdiebergado/slim/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/config"
 )
 
 type templateMap map[string]*template.Template

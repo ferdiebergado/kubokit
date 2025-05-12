@@ -1,10 +1,10 @@
 package app
 
 import (
-	"github.com/ferdiebergado/slim/internal/auth"
-	"github.com/ferdiebergado/slim/internal/contract"
-	"github.com/ferdiebergado/slim/internal/middleware"
-	"github.com/ferdiebergado/slim/internal/user"
+	"github.com/ferdiebergado/kubokit/internal/auth"
+	"github.com/ferdiebergado/kubokit/internal/contract"
+	"github.com/ferdiebergado/kubokit/internal/middleware"
+	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 func mountUserRoutes(router contract.Router, handler *user.Handler, signer contract.Signer) {

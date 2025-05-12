@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	contextx "github.com/ferdiebergado/slim/internal/context"
-	httpx "github.com/ferdiebergado/slim/internal/http"
-	"github.com/ferdiebergado/slim/internal/message"
+	contextx "github.com/ferdiebergado/kubokit/internal/context"
+	httpx "github.com/ferdiebergado/kubokit/internal/http"
+	"github.com/ferdiebergado/kubokit/internal/message"
 )
 
 func DecodePayload[T any]() func(next http.Handler) http.Handler {

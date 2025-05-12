@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	timex "github.com/ferdiebergado/slim/internal/time"
+	timex "github.com/ferdiebergado/kubokit/internal/time"
 )
 
 type ServerOptions struct {

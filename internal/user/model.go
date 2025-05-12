@@ -3,7 +3,7 @@ package user
 import (
 	"time"
 
-	"github.com/ferdiebergado/slim/internal/db"
+	"github.com/ferdiebergado/kubokit/internal/db"
 )
 
 type User struct {

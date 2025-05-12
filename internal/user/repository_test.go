@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/ferdiebergado/gopherkit/env"
-	"github.com/ferdiebergado/slim/internal/db"
-	"github.com/ferdiebergado/slim/internal/user"
+	"github.com/ferdiebergado/kubokit/internal/db"
+	"github.com/ferdiebergado/kubokit/internal/user"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 

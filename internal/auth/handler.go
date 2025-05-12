@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/gopherkit/http/response"
-	"github.com/ferdiebergado/slim/internal/config"
-	contextx "github.com/ferdiebergado/slim/internal/context"
-	"github.com/ferdiebergado/slim/internal/contract"
-	errx "github.com/ferdiebergado/slim/internal/error"
-	httpx "github.com/ferdiebergado/slim/internal/http"
-	"github.com/ferdiebergado/slim/internal/message"
+	"github.com/ferdiebergado/kubokit/internal/config"
+	contextx "github.com/ferdiebergado/kubokit/internal/context"
+	"github.com/ferdiebergado/kubokit/internal/contract"
+	errx "github.com/ferdiebergado/kubokit/internal/error"
+	httpx "github.com/ferdiebergado/kubokit/internal/http"
+	"github.com/ferdiebergado/kubokit/internal/message"
 
-	"github.com/ferdiebergado/slim/internal/user"
+	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 const maskChar = "*"

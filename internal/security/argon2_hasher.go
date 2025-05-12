@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ferdiebergado/slim/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/config"
 	"golang.org/x/crypto/argon2"
 )
 

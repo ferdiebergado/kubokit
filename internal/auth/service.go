@@ -8,9 +8,9 @@ import (
 	"log/slog"
 	"reflect"
 
-	"github.com/ferdiebergado/slim/internal/config"
-	"github.com/ferdiebergado/slim/internal/contract"
-	"github.com/ferdiebergado/slim/internal/user"
+	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/contract"
+	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 var (

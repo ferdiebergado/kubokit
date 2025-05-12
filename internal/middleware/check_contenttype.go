@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	httpx "github.com/ferdiebergado/slim/internal/http"
-	"github.com/ferdiebergado/slim/internal/message"
+	httpx "github.com/ferdiebergado/kubokit/internal/http"
+	"github.com/ferdiebergado/kubokit/internal/message"
 )
 
 func CheckContentType(next http.Handler) http.Handler {

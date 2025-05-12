@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/ferdiebergado/slim/internal/user"
+	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 type Repository struct {

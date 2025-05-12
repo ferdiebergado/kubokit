@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/ferdiebergado/slim/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/config"
 )
 
 // Connect creates and validates a database connection.

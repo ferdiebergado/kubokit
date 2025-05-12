@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/ferdiebergado/slim/internal/app"
+	"github.com/ferdiebergado/kubokit/internal/app"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
