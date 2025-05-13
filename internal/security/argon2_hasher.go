@@ -10,6 +10,8 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
+const variant = "argon2id"
+
 type Argon2Hasher struct {
 	memory     uint32
 	iterations uint32
@@ -46,7 +48,7 @@ func (h *Argon2Hasher) Hash(plain string) (string, error) {
 	hashBase64 := base64.RawStdEncoding.EncodeToString(hash)
 
 	// Return the formatted password hash
-	encoded := fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s",
+	encoded := fmt.Sprintf("$%s$v=19$m=%d,t=%d,p=%d$%s$%s", variant,
 		h.memory, h.iterations, h.threads, saltBase64, hashBase64)
 
 	return encoded, nil
@@ -55,7 +57,7 @@ func (h *Argon2Hasher) Hash(plain string) (string, error) {
 // Verify implements Hasher.
 func (h *Argon2Hasher) Verify(plain string, hashed string) (bool, error) {
 	parts := strings.Split(hashed, "$")
-	if len(parts) != 6 || parts[1] != "argon2id" {
+	if len(parts) != 6 || parts[1] != variant {
 		return false, fmt.Errorf("invalid hash format")
 	}
 
@@ -78,7 +80,7 @@ func (h *Argon2Hasher) Verify(plain string, hashed string) (bool, error) {
 
 	hashLen := len(actualHash)
 	if hashLen > int(^uint32(0)) {
-		return false, fmt.Errorf("hash length %d exceeds uint32:", hashLen)
+		return false, fmt.Errorf("hash length %d exceeds uint32", hashLen)
 	}
 
 	computedHash := argon2.IDKey([]byte(plain+h.pepper), salt, time, memory, threads, uint32(hashLen))
