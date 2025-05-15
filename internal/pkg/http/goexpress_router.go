@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/ferdiebergado/goexpress"
-	"github.com/ferdiebergado/kubokit/internal/contract"
+	"github.com/ferdiebergado/kubokit/internal/app/contract"
 )
 
 var _ contract.Router = &GoexpressRouter{}

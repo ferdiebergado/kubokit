@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/db"
-	httpx "github.com/ferdiebergado/kubokit/internal/http"
+	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 

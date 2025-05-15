@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	httpx "github.com/ferdiebergado/kubokit/internal/http"
-	"github.com/ferdiebergado/kubokit/internal/middleware"
+	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
+	"github.com/ferdiebergado/kubokit/internal/pkg/http/middleware"
 )
 
 func TestCheckContentType(t *testing.T) {

@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	contextx "github.com/ferdiebergado/kubokit/internal/context"
-	"github.com/ferdiebergado/kubokit/internal/contract"
-	httpx "github.com/ferdiebergado/kubokit/internal/http"
-	"github.com/ferdiebergado/kubokit/internal/message"
+	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
+	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 )
 
 func RequireAuth(signer contract.Signer) func(http.Handler) http.Handler {

@@ -8,8 +8,8 @@ import (
 	"net/http"
 
 	contextx "github.com/ferdiebergado/kubokit/internal/context"
-	httpx "github.com/ferdiebergado/kubokit/internal/http"
-	"github.com/ferdiebergado/kubokit/internal/message"
+	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
+	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 )
 
 func DecodePayload[T any]() func(next http.Handler) http.Handler {

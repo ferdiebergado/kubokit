@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/gopherkit/http/response"
-	httpx "github.com/ferdiebergado/kubokit/internal/http"
+	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
 )
 
 type service interface {

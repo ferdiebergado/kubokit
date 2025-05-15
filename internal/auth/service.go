@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"reflect"
 
+	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/ferdiebergado/kubokit/internal/config"
-	"github.com/ferdiebergado/kubokit/internal/contract"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 

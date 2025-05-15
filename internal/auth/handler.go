@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/gopherkit/http/response"
+	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	contextx "github.com/ferdiebergado/kubokit/internal/context"
-	"github.com/ferdiebergado/kubokit/internal/contract"
-	errx "github.com/ferdiebergado/kubokit/internal/error"
-	httpx "github.com/ferdiebergado/kubokit/internal/http"
-	"github.com/ferdiebergado/kubokit/internal/message"
+	errx "github.com/ferdiebergado/kubokit/internal/pkg/error"
+	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
+	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 
 	"github.com/ferdiebergado/kubokit/internal/user"
 )

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
-	"github.com/ferdiebergado/kubokit/internal/security"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 )
 
 func TestArgon2Hasher_Hash(t *testing.T) {

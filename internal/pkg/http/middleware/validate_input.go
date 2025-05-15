@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	contextx "github.com/ferdiebergado/kubokit/internal/context"
-	"github.com/ferdiebergado/kubokit/internal/contract"
-	httpx "github.com/ferdiebergado/kubokit/internal/http"
-	"github.com/ferdiebergado/kubokit/internal/message"
+	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
+	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 )
 
 func ValidateInput[T any](validator contract.Validator) func(next http.Handler) http.Handler {
