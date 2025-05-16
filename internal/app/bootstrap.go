@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -19,6 +18,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/email"
 	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
 	"github.com/ferdiebergado/kubokit/internal/pkg/http/middleware"
+	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/validation"
 )
@@ -46,9 +46,10 @@ func Run(baseCtx context.Context) error {
 	}
 	defer dbConn.Close()
 
-	securityKey := os.Getenv("KEY")
-	if securityKey == "" {
-		return errors.New("environment variable KEY is not set")
+	const envKey = "KEY"
+	securityKey, ok := os.LookupEnv(envKey)
+	if !ok {
+		return fmt.Errorf(message.EnvErrFmt, envKey)
 	}
 
 	providers, err := setupProviders(opts, securityKey)
@@ -124,10 +125,9 @@ func createMailer(opts *config.EmailOptions) (contract.Mailer, error) {
 }
 
 func getEnv(envVar string) (string, error) {
-	const fmtErr = "%s environment variable is not set"
 	val, ok := os.LookupEnv(envVar)
 	if !ok {
-		return "", fmt.Errorf(fmtErr, val)
+		return "", fmt.Errorf(message.EnvErrFmt, val)
 	}
 	return val, nil
 }
