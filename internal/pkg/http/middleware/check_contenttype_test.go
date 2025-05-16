@@ -43,10 +43,10 @@ func TestCheckContentType(t *testing.T) {
 				req.Header.Set(httpx.HeaderContentType, tt.contentType)
 			}
 			rr := httptest.NewRecorder()
-			fakeMW := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				_, _ = w.Write([]byte("test"))
 			})
-			middleware.CheckContentType(fakeMW).ServeHTTP(rr, req)
+			middleware.CheckContentType(handler).ServeHTTP(rr, req)
 
 			res := rr.Result()
 			defer res.Body.Close()
