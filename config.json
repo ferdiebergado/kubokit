@@ -2,19 +2,19 @@
   "server": {
     "url": "localhost:8080",
     "port": 8080,
-    "read_timeout": 10,
-    "write_timeout": 20,
-    "idle_timeout": 10,
-    "shutdown_timeout": 5,
+    "read_timeout": "10s",
+    "write_timeout": "20s",
+    "idle_timeout": "10s",
+    "shutdown_timeout": "5s",
     "max_body_bytes": 1024000
   },
   "db": {
     "driver": "pgx",
     "max_open_conns": 30,
     "max_idle_conns": 10,
-    "conn_max_idletime": 10,
-    "conn_max_lifetime": 30,
-    "ping_timeout": 5
+    "conn_max_idletime": "10s",
+    "conn_max_lifetime": "30s",
+    "ping_timeout": "5s"
   },
   "jwt": {
     "jti_length": 32,

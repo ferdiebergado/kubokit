@@ -12,22 +12,22 @@ import (
 )
 
 type ServerOptions struct {
-	URL             string `json:"url,omitempty"`
-	Port            int    `json:"port,omitempty"`
-	ReadTimeout     int    `json:"read_timeout,omitempty"`
-	WriteTimeout    int    `json:"write_timeout,omitempty"`
-	IdleTimeout     int    `json:"idle_timeout,omitempty"`
-	ShutdownTimeout int    `json:"shutdown_timeout,omitempty"`
-	MaxBodyBytes    int64  `json:"max_body_bytes,omitempty"`
+	URL             string         `json:"url,omitempty"`
+	Port            int            `json:"port,omitempty"`
+	ReadTimeout     timex.Duration `json:"read_timeout,omitempty"`
+	WriteTimeout    timex.Duration `json:"write_timeout,omitempty"`
+	IdleTimeout     timex.Duration `json:"idle_timeout,omitempty"`
+	ShutdownTimeout timex.Duration `json:"shutdown_timeout,omitempty"`
+	MaxBodyBytes    int64          `json:"max_body_bytes,omitempty"`
 }
 
 type DBOptions struct {
-	Driver          string `json:"driver,omitempty"`
-	MaxOpenConns    int    `json:"max_open_conns,omitempty"`
-	MaxIdleConns    int    `json:"max_idle_conns,omitempty"`
-	ConnMaxIdleTime int    `json:"conn_max_idle_time,omitempty"`
-	ConnMaxLifetime int    `json:"conn_max_lifetime,omitempty"`
-	PingTimeout     int    `json:"ping_timeout,omitempty"`
+	Driver          string         `json:"driver,omitempty"`
+	MaxOpenConns    int            `json:"max_open_conns,omitempty"`
+	MaxIdleConns    int            `json:"max_idle_conns,omitempty"`
+	ConnMaxIdleTime timex.Duration `json:"conn_max_idle_time,omitempty"`
+	ConnMaxLifetime timex.Duration `json:"conn_max_lifetime,omitempty"`
+	PingTimeout     timex.Duration `json:"ping_timeout,omitempty"`
 }
 
 type JWTOptions struct {

@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/ferdiebergado/kubokit/internal/auth"
@@ -50,9 +49,9 @@ func newAPIServer(
 		BaseContext: func(_ net.Listener) context.Context {
 			return serverCtx
 		},
-		ReadTimeout:  time.Duration(serverOpts.ReadTimeout) * time.Second,
-		WriteTimeout: time.Duration(serverOpts.WriteTimeout) * time.Second,
-		IdleTimeout:  time.Duration(serverOpts.IdleTimeout) * time.Second,
+		ReadTimeout:  serverOpts.ReadTimeout.Duration,
+		WriteTimeout: serverOpts.WriteTimeout.Duration,
+		IdleTimeout:  serverOpts.IdleTimeout.Duration,
 	}
 
 	return &apiServer{
@@ -111,7 +110,7 @@ func (a *apiServer) Shutdown(baseCtx context.Context) error {
 	slog.Info("Server shutting down...")
 	defer a.stop()
 
-	shutdownCtx, cancel := context.WithTimeout(baseCtx, time.Duration(a.options.Server.ShutdownTimeout)*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(baseCtx, a.options.Server.ShutdownTimeout.Duration)
 	defer cancel()
 	if err := a.server.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown server: %w", err)

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
 )
@@ -30,10 +29,10 @@ func Connect(ctx context.Context, opts *config.DBOptions) (*sql.DB, error) {
 
 	conn.SetMaxOpenConns(opts.MaxOpenConns)
 	conn.SetMaxIdleConns(opts.MaxIdleConns)
-	conn.SetConnMaxIdleTime(time.Duration(opts.ConnMaxIdleTime) * time.Second)
-	conn.SetConnMaxLifetime(time.Duration(opts.ConnMaxLifetime) * time.Second)
+	conn.SetConnMaxIdleTime(opts.ConnMaxIdleTime.Duration)
+	conn.SetConnMaxLifetime(opts.ConnMaxLifetime.Duration)
 
-	pingCtx, cancel := context.WithTimeout(ctx, time.Duration(opts.PingTimeout)*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, opts.PingTimeout.Duration)
 	defer cancel()
 
 	if err := conn.PingContext(pingCtx); err != nil {
