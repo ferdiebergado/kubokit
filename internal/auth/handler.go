@@ -10,7 +10,6 @@ import (
 	"github.com/ferdiebergado/gopherkit/http/response"
 	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/ferdiebergado/kubokit/internal/config"
-	contextx "github.com/ferdiebergado/kubokit/internal/context"
 	errx "github.com/ferdiebergado/kubokit/internal/pkg/error"
 	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
@@ -62,7 +61,7 @@ type RegisterUserResponse struct {
 }
 
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
-	_, req, _ := contextx.ParamsFromContext[RegisterUserRequest](r.Context())
+	_, req, _ := httpx.ParamsFromContext[RegisterUserRequest](r.Context())
 	params := RegisterUserParams{
 		Email:    req.Email,
 		Password: req.Password,
@@ -130,7 +129,7 @@ type UserLoginResponse struct {
 }
 
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
-	_, req, _ := contextx.ParamsFromContext[UserLoginRequest](r.Context())
+	_, req, _ := httpx.ParamsFromContext[UserLoginRequest](r.Context())
 	params := LoginUserParams{
 		Email:    req.Email,
 		Password: req.Password,

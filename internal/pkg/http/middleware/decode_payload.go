@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	contextx "github.com/ferdiebergado/kubokit/internal/context"
 	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 )
@@ -38,7 +37,7 @@ func DecodePayload[T any](bodySize int64) func(next http.Handler) http.Handler {
 
 			slog.Info("Payload decoded", slog.Any("payload", &decoded))
 
-			ctx := contextx.NewContextWithParams(r.Context(), decoded)
+			ctx := httpx.NewContextWithParams(r.Context(), decoded)
 			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)
 		})

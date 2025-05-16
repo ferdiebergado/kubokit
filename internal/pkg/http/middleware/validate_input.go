@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/ferdiebergado/kubokit/internal/app/contract"
-	contextx "github.com/ferdiebergado/kubokit/internal/context"
 	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 )
@@ -16,7 +15,7 @@ func ValidateInput[T any](validator contract.Validator) func(next http.Handler) 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			slog.Info("Validating input...")
-			ctxVal, params, ok := contextx.ParamsFromContext[T](r.Context())
+			ctxVal, params, ok := httpx.ParamsFromContext[T](r.Context())
 
 			if !ok {
 				var t T

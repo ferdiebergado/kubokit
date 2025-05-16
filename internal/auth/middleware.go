@@ -1,4 +1,4 @@
-package middleware
+package auth
 
 import (
 	"errors"
@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/ferdiebergado/kubokit/internal/app/contract"
-	contextx "github.com/ferdiebergado/kubokit/internal/context"
 	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
+	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 func RequireAuth(signer contract.Signer) func(http.Handler) http.Handler {
@@ -20,14 +20,14 @@ func RequireAuth(signer contract.Signer) func(http.Handler) http.Handler {
 				return
 			}
 
-			sub, err := signer.Verify(tokenStr)
+			userID, err := signer.Verify(tokenStr)
 			if err != nil {
 				httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
 				return
 			}
 
-			userCtx := contextx.NewContextWithUser(r.Context(), sub)
-			r = r.WithContext(userCtx)
+			ctx := user.NewContextWithUser(r.Context(), userID)
+			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)
 		})
 	}

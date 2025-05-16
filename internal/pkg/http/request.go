@@ -1,17 +1,10 @@
-package context
+package http
 
 import "context"
 
 type ctxKey int
 
-const (
-	userCtxKey ctxKey = iota + 1
-	paramsCtxKey
-)
-
-func NewContextWithUser(baseCtx context.Context, user string) context.Context {
-	return context.WithValue(baseCtx, userCtxKey, user)
-}
+const paramsCtxKey = iota
 
 func NewContextWithParams(baseCtx context.Context, params any) context.Context {
 	return context.WithValue(baseCtx, paramsCtxKey, params)
