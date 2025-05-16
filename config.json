@@ -5,7 +5,8 @@
     "read_timeout": 10,
     "write_timeout": 20,
     "idle_timeout": 10,
-    "shutdown_timeout": 5
+    "shutdown_timeout": 5,
+    "max_body_bytes": 1024000
   },
   "db": {
     "driver": "pgx",

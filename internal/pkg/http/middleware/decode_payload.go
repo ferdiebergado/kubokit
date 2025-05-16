@@ -12,11 +12,11 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 )
 
-func DecodePayload[T any]() func(next http.Handler) http.Handler {
+func DecodePayload[T any](bodySize int64) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			slog.Info("Decoding json payload...")
-			r.Body = http.MaxBytesReader(w, r.Body, 1024*10)
+			r.Body = http.MaxBytesReader(w, r.Body, bodySize)
 			decoder := json.NewDecoder(r.Body)
 			decoder.DisallowUnknownFields()
 			var decoded T

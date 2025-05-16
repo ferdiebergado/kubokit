@@ -89,7 +89,7 @@ func (a *apiServer) setupRoutes() {
 	}
 	authService := auth.NewService(authRepo, authProviders, a.options)
 	authHandler := auth.NewHandler(authService, a.signer, a.options)
-	mountAuthRoutes(a.router, authHandler, a.validator)
+	mountAuthRoutes(a.router, authHandler, a.validator, a.options.Server.MaxBodyBytes)
 }
 
 func (a *apiServer) Start() chan error {

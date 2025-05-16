@@ -18,6 +18,7 @@ type ServerOptions struct {
 	WriteTimeout    int    `json:"write_timeout,omitempty"`
 	IdleTimeout     int    `json:"idle_timeout,omitempty"`
 	ShutdownTimeout int    `json:"shutdown_timeout,omitempty"`
+	MaxBodyBytes    int64  `json:"max_body_bytes,omitempty"`
 }
 
 type DBOptions struct {
