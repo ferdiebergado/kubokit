@@ -25,7 +25,7 @@ else echo ""; \
 fi)
 
 # Container of the postgres database
-DB_CONTAINER := slimdb
+DB_CONTAINER := kubokitdb
 DB_IMAGE := postgres:17.0-alpine3.20
 
 # Path for db migrations
