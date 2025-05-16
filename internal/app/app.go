@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/ferdiebergado/kubokit/internal/auth"
@@ -24,16 +25,17 @@ type Providers struct {
 }
 
 type apiServer struct {
-	server      *http.Server
-	options     *config.Options
-	middlewares []func(http.Handler) http.Handler
-	stop        context.CancelFunc
-	db          *sql.DB
-	signer      contract.Signer
-	mailer      contract.Mailer
-	validator   contract.Validator
-	hasher      contract.Hasher
-	router      contract.Router
+	server          *http.Server
+	options         *config.Options
+	middlewares     []func(http.Handler) http.Handler
+	stop            context.CancelFunc
+	shutdownTimeout time.Duration
+	db              *sql.DB
+	signer          contract.Signer
+	mailer          contract.Mailer
+	validator       contract.Validator
+	hasher          contract.Hasher
+	router          contract.Router
 }
 
 func newAPIServer(
@@ -55,16 +57,17 @@ func newAPIServer(
 	}
 
 	return &apiServer{
-		options:     opts,
-		db:          db,
-		signer:      providers.Signer,
-		mailer:      providers.Mailer,
-		validator:   providers.Validator,
-		hasher:      providers.Hasher,
-		router:      providers.Router,
-		server:      server,
-		middlewares: middlewares,
-		stop:        stop,
+		options:         opts,
+		db:              db,
+		signer:          providers.Signer,
+		mailer:          providers.Mailer,
+		validator:       providers.Validator,
+		hasher:          providers.Hasher,
+		router:          providers.Router,
+		server:          server,
+		middlewares:     middlewares,
+		stop:            stop,
+		shutdownTimeout: serverOpts.ShutdownTimeout.Duration,
 	}
 }
 
@@ -110,7 +113,7 @@ func (a *apiServer) Shutdown(baseCtx context.Context) error {
 	slog.Info("Server shutting down...")
 	defer a.stop()
 
-	shutdownCtx, cancel := context.WithTimeout(baseCtx, a.options.Server.ShutdownTimeout.Duration)
+	shutdownCtx, cancel := context.WithTimeout(baseCtx, a.shutdownTimeout)
 	defer cancel()
 	if err := a.server.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown server: %w", err)
