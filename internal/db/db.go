@@ -11,7 +11,7 @@ import (
 )
 
 // Connect creates and validates a database connection.
-func Connect(ctx context.Context, opts *config.DBOptions) (*sql.DB, error) {
+func Connect(ctx context.Context, opts *config.DB) (*sql.DB, error) {
 	slog.Info("Connecting to the database...")
 	const dsnFmt = "postgres://%s:%s@%s:%s/%s?sslmode=%s"
 

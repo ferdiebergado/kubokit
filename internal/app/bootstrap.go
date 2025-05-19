@@ -35,7 +35,7 @@ func Run(baseCtx context.Context) error {
 		}
 	}
 
-	opts, err := config.New("config.json")
+	opts, err := config.Load("config.json")
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func Run(baseCtx context.Context) error {
 	return apiServer.Shutdown(baseCtx)
 }
 
-func createMailer(opts *config.EmailOptions) (contract.Mailer, error) {
+func createMailer(opts *config.Email) (contract.Mailer, error) {
 	const (
 		envHost = "SMTP_HOST"
 		envPort = "SMTP_PORT"
@@ -132,7 +132,7 @@ func getEnv(envVar string) (string, error) {
 	return val, nil
 }
 
-func setupProviders(opts *config.Options, securityKey string) (*Providers, error) {
+func setupProviders(opts *config.Config, securityKey string) (*Providers, error) {
 	signer := security.NewGolangJWTSigner(securityKey, opts.JWT)
 	mailer, err := createMailer(opts.Email)
 	if err != nil {

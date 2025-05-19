@@ -21,7 +21,7 @@ type Argon2Hasher struct {
 	pepper     string
 }
 
-func NewArgon2Hasher(cfg *config.Argon2Options, pepper string) *Argon2Hasher {
+func NewArgon2Hasher(cfg *config.Argon2, pepper string) *Argon2Hasher {
 	return &Argon2Hasher{
 		memory:     cfg.Memory,
 		iterations: cfg.Iterations,

@@ -10,7 +10,7 @@ import (
 
 func TestArgon2Hasher_Hash(t *testing.T) {
 	t.Parallel()
-	opts := &config.Argon2Options{
+	opts := &config.Argon2{
 		Memory:     65535,
 		Iterations: 3,
 		Threads:    2,
@@ -41,7 +41,7 @@ func TestArgon2Hasher_Hash(t *testing.T) {
 
 func TestArgon2Hasher_Verify(t *testing.T) {
 	t.Parallel()
-	opts := &config.Argon2Options{
+	opts := &config.Argon2{
 		Memory:     65535,
 		Iterations: 3,
 		Threads:    2,

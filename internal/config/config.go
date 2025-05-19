@@ -11,7 +11,7 @@ import (
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 )
 
-type ServerOptions struct {
+type Server struct {
 	URL             string         `json:"url,omitempty"`
 	Port            int            `json:"port,omitempty"`
 	ReadTimeout     timex.Duration `json:"read_timeout,omitempty"`
@@ -21,7 +21,7 @@ type ServerOptions struct {
 	MaxBodyBytes    int64          `json:"max_body_bytes,omitempty"`
 }
 
-type DBOptions struct {
+type DB struct {
 	Driver          string         `json:"driver,omitempty"`
 	MaxOpenConns    int            `json:"max_open_conns,omitempty"`
 	MaxIdleConns    int            `json:"max_idle_conns,omitempty"`
@@ -30,26 +30,26 @@ type DBOptions struct {
 	PingTimeout     timex.Duration `json:"ping_timeout,omitempty"`
 }
 
-type JWTOptions struct {
+type JWT struct {
 	JTILength  uint32         `json:"jti_length,omitempty"`
 	Issuer     string         `json:"issuer,omitempty"`
 	TTL        timex.Duration `json:"ttl,omitempty"`
 	RefreshTTL timex.Duration `json:"refresh_ttl,omitempty"`
 }
 
-type CookieOptions struct {
+type Cookie struct {
 	Name   string         `json:"name,omitempty"`
 	MaxAge timex.Duration `json:"max_age,omitempty"`
 }
 
-type EmailOptions struct {
+type Email struct {
 	Templates string         `json:"templates,omitempty"`
 	Layout    string         `json:"layout,omitempty"`
 	Sender    string         `json:"sender,omitempty"`
 	VerifyTTL timex.Duration `json:"verify_ttl,omitempty"`
 }
 
-type Argon2Options struct {
+type Argon2 struct {
 	Memory     uint32 `json:"memory,omitempty"`
 	Iterations uint32 `json:"iterations,omitempty"`
 	Threads    uint8  `json:"threads,omitempty"`
@@ -57,16 +57,16 @@ type Argon2Options struct {
 	KeyLength  uint32 `json:"key_length,omitempty"`
 }
 
-type Options struct {
-	Server *ServerOptions `json:"server,omitempty"`
-	DB     *DBOptions     `json:"db,omitempty"`
-	JWT    *JWTOptions    `json:"jwt,omitempty"`
-	Cookie *CookieOptions `json:"cookie,omitempty"`
-	Email  *EmailOptions  `json:"email,omitempty"`
-	Argon2 *Argon2Options `json:"argon2,omitempty"`
+type Config struct {
+	*Server `json:"server,omitempty"`
+	*DB     `json:"db,omitempty"`
+	*JWT    `json:"jwt,omitempty"`
+	*Cookie `json:"cookie,omitempty"`
+	*Email  `json:"email,omitempty"`
+	*Argon2 `json:"argon2,omitempty"`
 }
 
-func (o *Options) LogValue() slog.Value {
+func (o *Config) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.Any("server", o.Server),
 		slog.Any("db", o.DB),
@@ -77,7 +77,7 @@ func (o *Options) LogValue() slog.Value {
 	)
 }
 
-func New(cfgFile string) (*Options, error) {
+func Load(cfgFile string) (*Config, error) {
 	slog.Info("Loading config...")
 	opts, err := parseCfgFile(cfgFile)
 	if err != nil {
@@ -92,24 +92,24 @@ func New(cfgFile string) (*Options, error) {
 	return opts, nil
 }
 
-func parseCfgFile(cfgFile string) (*Options, error) {
+func parseCfgFile(cfgFile string) (*Config, error) {
 	cfgFile = filepath.Clean(cfgFile)
 	configFile, err := os.ReadFile(cfgFile)
 	if err != nil {
 		return nil, fmt.Errorf("read config file %s: %w", cfgFile, err)
 	}
 
-	var opts Options
-	if err := json.Unmarshal(configFile, &opts); err != nil {
+	var cfg Config
+	if err := json.Unmarshal(configFile, &cfg); err != nil {
 		return nil, fmt.Errorf("decode json config %s: %w", configFile, err)
 	}
 
-	return &opts, nil
+	return &cfg, nil
 }
 
-func overrideWithEnv(opts *Options) error {
+func overrideWithEnv(cfg *Config) error {
 	if url, ok := os.LookupEnv("URL"); ok {
-		opts.Server.URL = url
+		cfg.Server.URL = url
 	}
 
 	if portStr, ok := os.LookupEnv("PORT"); ok {
@@ -117,7 +117,7 @@ func overrideWithEnv(opts *Options) error {
 		if err != nil {
 			return err
 		}
-		opts.Server.Port = port
+		cfg.Server.Port = port
 	}
 	return nil
 }

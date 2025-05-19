@@ -43,10 +43,10 @@ type Service struct {
 	hasher contract.Hasher
 	signer contract.Signer
 	mailer contract.Mailer
-	cfg    *config.Options
+	cfg    *config.Config
 }
 
-func NewService(userRepo repo, provider *Providers, cfg *config.Options) service {
+func NewService(userRepo repo, provider *Providers, cfg *config.Config) service {
 	return &Service{
 		repo:   userRepo,
 		hasher: provider.Hasher,

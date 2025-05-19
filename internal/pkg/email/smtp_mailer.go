@@ -32,7 +32,7 @@ type SMTPMailer struct {
 	templates templateMap
 }
 
-func NewSMTPMailer(cfg *SMTPConfig, opts *config.EmailOptions) (*SMTPMailer, error) {
+func NewSMTPMailer(cfg *SMTPConfig, opts *config.Email) (*SMTPMailer, error) {
 	path := opts.Templates
 	layoutFile := filepath.Join(path, opts.Layout)
 	layoutTmpl := template.Must(template.New("layout").ParseFiles(layoutFile))

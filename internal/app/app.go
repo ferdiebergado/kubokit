@@ -26,7 +26,7 @@ type Providers struct {
 
 type apiServer struct {
 	server          *http.Server
-	options         *config.Options
+	options         *config.Config
 	middlewares     []func(http.Handler) http.Handler
 	stop            context.CancelFunc
 	shutdownTimeout time.Duration
@@ -40,7 +40,7 @@ type apiServer struct {
 
 func newAPIServer(
 	baseCtx context.Context,
-	opts *config.Options,
+	opts *config.Config,
 	db *sql.DB, providers *Providers,
 	middlewares []func(http.Handler) http.Handler) *apiServer {
 	serverCtx, stop := context.WithCancel(baseCtx)

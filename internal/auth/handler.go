@@ -28,10 +28,10 @@ type service interface {
 type Handler struct {
 	service service
 	signer  contract.Signer
-	cfg     *config.Options
+	cfg     *config.Config
 }
 
-func NewHandler(userService service, signer contract.Signer, cfg *config.Options) *Handler {
+func NewHandler(userService service, signer contract.Signer, cfg *config.Config) *Handler {
 	return &Handler{
 		service: userService,
 		signer:  signer,

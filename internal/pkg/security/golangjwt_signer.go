@@ -15,7 +15,7 @@ type GolangJWTSigner struct {
 	issuer string
 }
 
-func NewGolangJWTSigner(key string, cfg *config.JWTOptions) *GolangJWTSigner {
+func NewGolangJWTSigner(key string, cfg *config.JWT) *GolangJWTSigner {
 	return &GolangJWTSigner{
 		method: jwt.SigningMethodHS256,
 		key:    key,
