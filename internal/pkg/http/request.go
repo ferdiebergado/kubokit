@@ -4,7 +4,7 @@ import "context"
 
 type ctxKey int
 
-const paramsCtxKey = iota
+const paramsCtxKey ctxKey = iota
 
 func NewContextWithParams(baseCtx context.Context, params any) context.Context {
 	return context.WithValue(baseCtx, paramsCtxKey, params)
