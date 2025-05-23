@@ -11,7 +11,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-func RequireAuth(signer contract.Signer) func(http.Handler) http.Handler {
+func RequireToken(signer contract.Signer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tokenStr, err := extractBearerToken(r.Header.Get("Authorization"))
