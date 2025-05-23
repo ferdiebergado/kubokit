@@ -11,7 +11,7 @@ import (
 )
 
 // Connect creates and validates a database connection.
-func Connect(ctx context.Context, opts *config.DB) (*sql.DB, error) {
+func Connect(ctx context.Context, cfg *config.DB) (*sql.DB, error) {
 	slog.Info("Connecting to the database...")
 	const dsnFmt = "postgres://%s:%s@%s:%s/%s?sslmode=%s"
 
@@ -22,17 +22,17 @@ func Connect(ctx context.Context, opts *config.DB) (*sql.DB, error) {
 	dbName := os.Getenv("DB_NAME")
 	dbSSL := os.Getenv("DB_SSLMODE")
 
-	conn, err := sql.Open(opts.Driver, fmt.Sprintf(dsnFmt, dbUser, dbPass, dbHost, dbPort, dbName, dbSSL))
+	conn, err := sql.Open(cfg.Driver, fmt.Sprintf(dsnFmt, dbUser, dbPass, dbHost, dbPort, dbName, dbSSL))
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	conn.SetMaxOpenConns(opts.MaxOpenConns)
-	conn.SetMaxIdleConns(opts.MaxIdleConns)
-	conn.SetConnMaxIdleTime(opts.ConnMaxIdleTime.Duration)
-	conn.SetConnMaxLifetime(opts.ConnMaxLifetime.Duration)
+	conn.SetMaxOpenConns(cfg.MaxOpenConns)
+	conn.SetMaxIdleConns(cfg.MaxIdleConns)
+	conn.SetConnMaxIdleTime(cfg.ConnMaxIdleTime.Duration)
+	conn.SetConnMaxLifetime(cfg.ConnMaxLifetime.Duration)
 
-	pingCtx, cancel := context.WithTimeout(ctx, opts.PingTimeout.Duration)
+	pingCtx, cancel := context.WithTimeout(ctx, cfg.PingTimeout.Duration)
 	defer cancel()
 
 	if err := conn.PingContext(pingCtx); err != nil {

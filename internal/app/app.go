@@ -40,24 +40,24 @@ type apiServer struct {
 
 func newAPIServer(
 	baseCtx context.Context,
-	opts *config.Config,
+	cfg *config.Config,
 	db *sql.DB, providers *Providers,
 	middlewares []func(http.Handler) http.Handler) *apiServer {
 	serverCtx, stop := context.WithCancel(baseCtx)
-	serverOpts := opts.Server
+	serverCfg := cfg.Server
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", serverOpts.Port),
+		Addr:    fmt.Sprintf(":%d", serverCfg.Port),
 		Handler: providers.Router,
 		BaseContext: func(_ net.Listener) context.Context {
 			return serverCtx
 		},
-		ReadTimeout:  serverOpts.ReadTimeout.Duration,
-		WriteTimeout: serverOpts.WriteTimeout.Duration,
-		IdleTimeout:  serverOpts.IdleTimeout.Duration,
+		ReadTimeout:  serverCfg.ReadTimeout.Duration,
+		WriteTimeout: serverCfg.WriteTimeout.Duration,
+		IdleTimeout:  serverCfg.IdleTimeout.Duration,
 	}
 
 	return &apiServer{
-		options:         opts,
+		options:         cfg,
 		db:              db,
 		signer:          providers.Signer,
 		mailer:          providers.Mailer,
@@ -67,7 +67,7 @@ func newAPIServer(
 		server:          server,
 		middlewares:     middlewares,
 		stop:            stop,
-		shutdownTimeout: serverOpts.ShutdownTimeout.Duration,
+		shutdownTimeout: serverCfg.ShutdownTimeout.Duration,
 	}
 }
 

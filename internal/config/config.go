@@ -79,17 +79,17 @@ func (o *Config) LogValue() slog.Value {
 
 func Load(cfgFile string) (*Config, error) {
 	slog.Info("Loading config...")
-	opts, err := parseCfgFile(cfgFile)
+	cfg, err := parseCfgFile(cfgFile)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := overrideWithEnv(opts); err != nil {
+	if err := overrideWithEnv(cfg); err != nil {
 		return nil, err
 	}
 
-	slog.Info("Config loaded.", "config_file", cfgFile, slog.Any("config", opts))
-	return opts, nil
+	slog.Info("Config loaded.", "config_file", cfgFile, slog.Any("config", cfg))
+	return cfg, nil
 }
 
 func parseCfgFile(cfgFile string) (*Config, error) {

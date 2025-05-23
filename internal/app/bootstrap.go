@@ -35,12 +35,12 @@ func Run(baseCtx context.Context) error {
 		}
 	}
 
-	opts, err := config.Load("config.json")
+	cfg, err := config.Load("config.json")
 	if err != nil {
 		return err
 	}
 
-	dbConn, err := db.Connect(signalCtx, opts.DB)
+	dbConn, err := db.Connect(signalCtx, cfg.DB)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func Run(baseCtx context.Context) error {
 		return fmt.Errorf(message.EnvErrFmt, envKey)
 	}
 
-	providers, err := setupProviders(opts, securityKey)
+	providers, err := setupProviders(cfg, securityKey)
 	if err != nil {
 		return err
 	}
@@ -60,10 +60,11 @@ func Run(baseCtx context.Context) error {
 	middlewares := []func(http.Handler) http.Handler{
 		middleware.InjectWriter,
 		goexpress.RecoverFromPanic,
+		goexpress.StripTrailingSlashes,
 		middleware.LogRequest,
 		middleware.CheckContentType,
 	}
-	apiServer := newAPIServer(baseCtx, opts, dbConn, providers, middlewares)
+	apiServer := newAPIServer(baseCtx, cfg, dbConn, providers, middlewares)
 	apiErr := apiServer.Start()
 
 	select {
@@ -77,7 +78,7 @@ func Run(baseCtx context.Context) error {
 	return apiServer.Shutdown(baseCtx)
 }
 
-func createMailer(opts *config.Email) (contract.Mailer, error) {
+func createMailer(cfg *config.Email) (contract.Mailer, error) {
 	const (
 		envHost = "SMTP_HOST"
 		envPort = "SMTP_PORT"
@@ -117,7 +118,7 @@ func createMailer(opts *config.Email) (contract.Mailer, error) {
 		Port:     smtpPort,
 	}
 
-	mailer, err := email.NewSMTPMailer(smtpCfg, opts)
+	mailer, err := email.NewSMTPMailer(smtpCfg, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -132,13 +133,13 @@ func getEnv(envVar string) (string, error) {
 	return val, nil
 }
 
-func setupProviders(opts *config.Config, securityKey string) (*Providers, error) {
-	signer := security.NewGolangJWTSigner(securityKey, opts.JWT)
-	mailer, err := createMailer(opts.Email)
+func setupProviders(cfg *config.Config, securityKey string) (*Providers, error) {
+	signer := security.NewGolangJWTSigner(securityKey, cfg.JWT)
+	mailer, err := createMailer(cfg.Email)
 	if err != nil {
 		return nil, err
 	}
-	hasher := security.NewArgon2Hasher(opts.Argon2, securityKey)
+	hasher := security.NewArgon2Hasher(cfg.Argon2, securityKey)
 	router := httpx.NewGoexpressRouter()
 	validator := validation.NewGoPlaygroundValidator()
 	return &Providers{
