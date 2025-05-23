@@ -23,19 +23,30 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/validation"
 )
 
+const (
+	envEnv  = "ENV"
+	envKey  = "KEY"
+	envHost = "SMTP_HOST"
+	envPort = "SMTP_PORT"
+	envUser = "SMTP_USER"
+	envPass = "SMTP_PASS"
+
+	cfgFile = "config.json"
+)
+
 func Run(baseCtx context.Context) error {
 	slog.Info("Initializing...")
 
 	signalCtx, stop := signal.NotifyContext(baseCtx, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer stop()
 
-	if os.Getenv("ENV") != "production" {
+	if envEnv != "production" {
 		if err := env.Load(".env"); err != nil {
 			return fmt.Errorf("load env: %w", err)
 		}
 	}
 
-	cfg, err := config.Load("config.json")
+	cfg, err := config.Load(cfgFile)
 	if err != nil {
 		return err
 	}
@@ -46,7 +57,6 @@ func Run(baseCtx context.Context) error {
 	}
 	defer dbConn.Close()
 
-	const envKey = "KEY"
 	securityKey, ok := os.LookupEnv(envKey)
 	if !ok {
 		return fmt.Errorf(message.EnvErrFmt, envKey)
@@ -79,13 +89,6 @@ func Run(baseCtx context.Context) error {
 }
 
 func createMailer(cfg *config.Email) (contract.Mailer, error) {
-	const (
-		envHost = "SMTP_HOST"
-		envPort = "SMTP_PORT"
-		envUser = "SMTP_USER"
-		envPass = "SMTP_PASS"
-	)
-
 	smtpHost, err := getEnv(envHost)
 	if err != nil {
 		return nil, err
