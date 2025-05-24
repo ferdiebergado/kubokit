@@ -8,7 +8,9 @@ import (
 )
 
 func mountUserRoutes(router contract.Router, handler *user.Handler, signer contract.Signer) {
-	router.Get("/users", handler.ListUsers, middleware.RequireAuth(signer))
+	router.Group("/users", func(r contract.Router) {
+		r.Get("/", handler.ListUsers)
+	}, auth.RequireToken(signer))
 }
 
 func mountAuthRoutes(router contract.Router, handler *auth.Handler, validator contract.Validator, bodySize int64) {
