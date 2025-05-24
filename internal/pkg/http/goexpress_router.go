@@ -2,7 +2,6 @@ package http
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/ferdiebergado/goexpress"
 	"github.com/ferdiebergado/kubokit/internal/app/contract"
@@ -58,17 +57,13 @@ func (r *GoexpressRouter) Use(middleware func(next http.Handler) http.Handler) {
 	r.handler.Use(middleware)
 }
 
-func (r *GoexpressRouter) Group(prefix string, handlerFunc func(r contract.Router),
+func (r *GoexpressRouter) Group(prefix string, fn func(r contract.Router),
 	middlewares ...func(next http.Handler) http.Handler) {
+
 	gr := NewGoexpressRouter()
-	handlerFunc(gr)
+	gr.handler.SetPrefix(prefix)
+	gr.handler.SetMux(r.handler.Mux())
+	gr.handler.SetMiddlewares(append(r.handler.Middlewares(), middlewares...))
 
-	const sep = "/"
-	path := prefix
-	if !strings.HasSuffix(path, sep) {
-		path += sep
-	}
-	prefix = strings.TrimSuffix(prefix, sep)
-
-	r.handler.Handle(path, http.StripPrefix(prefix, gr), middlewares...)
+	fn(gr)
 }
