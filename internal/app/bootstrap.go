@@ -70,7 +70,6 @@ func Run(baseCtx context.Context) error {
 	middlewares := []func(http.Handler) http.Handler{
 		middleware.InjectWriter,
 		goexpress.RecoverFromPanic,
-		goexpress.StripTrailingSlashes,
 		middleware.LogRequest,
 		middleware.CheckContentType,
 	}
