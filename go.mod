@@ -3,10 +3,10 @@ module github.com/ferdiebergado/kubokit
 go 1.23.8
 
 require (
-	github.com/ferdiebergado/goexpress v0.3.5
+	github.com/ferdiebergado/goexpress v0.3.9
 	github.com/ferdiebergado/gopherkit v0.0.9
 	github.com/golang-jwt/jwt/v5 v5.2.2
-	github.com/jackc/pgx/v5 v5.7.4
+	github.com/jackc/pgx/v5 v5.7.5
 	golang.org/x/crypto v0.38.0
 )
 
