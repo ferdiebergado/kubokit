@@ -6,9 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 
 	"github.com/ferdiebergado/goexpress"
 	"github.com/ferdiebergado/gopherkit/env"
@@ -34,11 +32,8 @@ const (
 	cfgFile = "config.json"
 )
 
-func Run(baseCtx context.Context) error {
+func Run(signalCtx context.Context) error {
 	slog.Info("Initializing...")
-
-	signalCtx, stop := signal.NotifyContext(baseCtx, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	defer stop()
 
 	if envEnv != "production" {
 		if err := env.Load(".env"); err != nil {
@@ -73,18 +68,17 @@ func Run(baseCtx context.Context) error {
 		middleware.LogRequest,
 		middleware.CheckContentType,
 	}
-	apiServer := newAPIServer(baseCtx, cfg, dbConn, providers, middlewares)
+	apiServer := newAPIServer(signalCtx, cfg, dbConn, providers, middlewares)
 	apiErr := apiServer.Start()
 
 	select {
 	case <-signalCtx.Done():
 		slog.Info("Shutdown signal received.")
-		stop()
 	case err := <-apiErr:
 		return fmt.Errorf("start server: %w", err)
 	}
 
-	return apiServer.Shutdown(baseCtx)
+	return apiServer.Shutdown()
 }
 
 func createMailer(cfg *config.Email) (contract.Mailer, error) {

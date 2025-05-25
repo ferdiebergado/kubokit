@@ -11,7 +11,7 @@ import (
 )
 
 // Connect creates and validates a database connection.
-func Connect(ctx context.Context, cfg *config.DB) (*sql.DB, error) {
+func Connect(signalCtx context.Context, cfg *config.DB) (*sql.DB, error) {
 	slog.Info("Connecting to the database...")
 	const dsnFmt = "postgres://%s:%s@%s:%s/%s?sslmode=%s"
 
@@ -32,7 +32,7 @@ func Connect(ctx context.Context, cfg *config.DB) (*sql.DB, error) {
 	conn.SetConnMaxIdleTime(cfg.ConnMaxIdleTime.Duration)
 	conn.SetConnMaxLifetime(cfg.ConnMaxLifetime.Duration)
 
-	pingCtx, cancel := context.WithTimeout(ctx, cfg.PingTimeout.Duration)
+	pingCtx, cancel := context.WithTimeout(signalCtx, cfg.PingTimeout.Duration)
 	defer cancel()
 
 	if err := conn.PingContext(pingCtx); err != nil {

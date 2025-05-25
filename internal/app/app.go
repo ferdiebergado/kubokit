@@ -39,11 +39,12 @@ type apiServer struct {
 }
 
 func newAPIServer(
-	baseCtx context.Context,
+	signalCtx context.Context,
 	cfg *config.Config,
 	db *sql.DB, providers *Providers,
 	middlewares []func(http.Handler) http.Handler) *apiServer {
-	serverCtx, stop := context.WithCancel(baseCtx)
+
+	serverCtx, stop := context.WithCancel(signalCtx)
 	serverCfg := cfg.Server
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", serverCfg.Port),
@@ -109,11 +110,11 @@ func (a *apiServer) Start() chan error {
 	return serverErr
 }
 
-func (a *apiServer) Shutdown(baseCtx context.Context) error {
+func (a *apiServer) Shutdown() error {
 	slog.Info("Server shutting down...")
 	defer a.stop()
 
-	shutdownCtx, cancel := context.WithTimeout(baseCtx, a.shutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), a.shutdownTimeout)
 	defer cancel()
 	if err := a.server.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown server: %w", err)
