@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -15,11 +14,9 @@ func ValidateInput[T any](validator contract.Validator) func(next http.Handler) 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			slog.Info("Validating input...")
-			ctxVal, params, ok := httpx.ParamsFromContext[T](r.Context())
+			params, err := httpx.ParamsFromContext[T](r.Context())
 
-			if !ok {
-				var t T
-				err := fmt.Errorf("cannot type assert context value %v to %T", ctxVal, t)
+			if err != nil {
 				httpx.Fail(w, http.StatusBadRequest, err, message.InvalidInput, nil)
 				return
 			}

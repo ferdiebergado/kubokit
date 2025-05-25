@@ -1,6 +1,9 @@
 package http
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 type ctxKey int
 
@@ -10,8 +13,12 @@ func NewContextWithParams(baseCtx context.Context, params any) context.Context {
 	return context.WithValue(baseCtx, paramsCtxKey, params)
 }
 
-func ParamsFromContext[T any](ctx context.Context) (any, T, bool) {
+func ParamsFromContext[T any](ctx context.Context) (T, error) {
 	val := ctx.Value(paramsCtxKey)
 	params, ok := val.(T)
-	return val, params, ok
+	if !ok {
+		var t T
+		return t, fmt.Errorf("params: %v is not a %T", val, t)
+	}
+	return params, nil
 }
