@@ -1,5 +1,5 @@
 # Project Name
-PROJECT_NAME = slim
+PROJECT_NAME = kubokit
 
 # Binary Name
 BINARY_NAME = $(PROJECT_NAME)
