@@ -17,7 +17,6 @@ var (
 	ErrUserNotFound    = errors.New("user not found")
 	ErrUserNotVerified = errors.New("email not verified")
 	ErrUserExists      = errors.New("user already exists")
-	ErrInvalidToken    = errors.New("invalid token")
 )
 
 type CreateUserParams struct {
@@ -30,6 +29,7 @@ type repo interface {
 	FindUserByEmail(ctx context.Context, email string) (user.User, error)
 	VerifyUser(ctx context.Context, userID string) error
 	ListUsers(ctx context.Context) ([]user.User, error)
+	ChangeUserPassword(ctx context.Context, email, newPassword string) error
 }
 
 type Providers struct {
@@ -98,44 +98,46 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 		return user.User{}, fmt.Errorf("create user %s: %w", email, err)
 	}
 
-	go s.sendVerificationEmail(newUser)
+	verifyEmail := &HTMLEmail{
+		Email:    newUser.Email,
+		Subject:  "Verify your email",
+		Title:    "Email verification",
+		Template: "verification",
+		Payload:  newUser.ID,
+		URI:      "/auth/verify",
+	}
+	go s.sendEmail(verifyEmail)
 
 	return newUser, nil
 }
 
-func (s *Service) sendVerificationEmail(user user.User) {
-	slog.Info("Sending verification email...")
+type HTMLEmail struct {
+	Email, Subject, Title, Template, Payload, URI string
+}
 
-	const (
-		title   = "Email verification"
-		subject = "Verify your email"
-	)
+func (s *Service) sendEmail(email *HTMLEmail) {
+	slog.Info("Sending email...")
 
-	audience := s.cfg.Server.URL + "/auth/verify"
+	audience := s.cfg.Server.URL + email.URI
 	ttl := s.cfg.Email.VerifyTTL.Duration
-	token, err := s.signer.Sign(user.ID, []string{audience}, ttl)
+	token, err := s.signer.Sign(email.Payload, []string{audience}, ttl)
 	if err != nil {
 		slog.Error("failed to generate token", "reason", err)
 		return
 	}
 
 	data := map[string]string{
-		"Title":  title,
-		"Header": subject,
+		"Title":  email.Title,
+		"Header": email.Subject,
 		"Link":   audience + "?token=" + token,
 	}
-	if err := s.mailer.SendHTML([]string{user.Email}, subject, "verification", data); err != nil {
+	if err := s.mailer.SendHTML([]string{email.Email}, email.Subject, email.Template, data); err != nil {
 		slog.Error("failed to send email", "reason", err)
 		return
 	}
 }
 
-func (s *Service) VerifyUser(ctx context.Context, token string) error {
-	userID, err := s.signer.Verify(token)
-	if err != nil {
-		return ErrInvalidToken
-	}
-
+func (s *Service) VerifyUser(ctx context.Context, userID string) error {
 	return s.repo.VerifyUser(ctx, userID)
 }
 
@@ -174,4 +176,40 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (access
 	}
 
 	return accessToken, refreshToken, nil
+}
+
+func (s *Service) SendPasswordReset(email string) {
+	resetEmail := &HTMLEmail{
+		Email:    email,
+		Subject:  "Reset Your Password",
+		Title:    "Password Reset",
+		Payload:  email,
+		URI:      "/auth/reset",
+		Template: "reset_password",
+	}
+
+	go s.sendEmail(resetEmail)
+}
+
+type ResetPasswordParams struct {
+	email, oldPassword, newPassword string
+}
+
+func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
+	u, err := s.repo.FindUserByEmail(ctx, params.email)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.hasher.Verify(params.oldPassword, u.PasswordHash)
+	if err != nil {
+		return err
+	}
+
+	newHash, err := s.hasher.Hash(params.newPassword)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.ChangeUserPassword(ctx, u.Email, newHash)
 }

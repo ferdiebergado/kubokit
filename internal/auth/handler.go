@@ -19,10 +19,14 @@ import (
 
 const maskChar = "*"
 
+var errInvalidParams = errors.New("invalid request params")
+
 type service interface {
 	RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error)
 	VerifyUser(ctx context.Context, token string) error
 	LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error)
+	SendPasswordReset(email string)
+	ResetPassword(ctx context.Context, params ResetPasswordParams) error
 }
 
 type Handler struct {
@@ -61,7 +65,12 @@ type RegisterUserResponse struct {
 }
 
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
-	_, req, _ := httpx.ParamsFromContext[RegisterUserRequest](r.Context())
+	req, err := httpx.ParamsFromContext[RegisterUserRequest](r.Context())
+	if err != nil {
+		httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		return
+	}
+
 	params := RegisterUserParams{
 		Email:    req.Email,
 		Password: req.Password,
@@ -92,18 +101,13 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("token")
-
-	if token == "" {
-		httpx.Fail(w, http.StatusBadRequest, ErrInvalidToken, message.InvalidUser, nil)
+	userID, err := user.FromContext(r.Context())
+	if err != nil {
+		httpx.Fail(w, http.StatusBadRequest, err, message.InvalidInput, nil)
 		return
 	}
 
-	if err := h.service.VerifyUser(r.Context(), token); err != nil {
-		if errors.Is(err, ErrInvalidToken) {
-			httpx.Fail(w, http.StatusBadRequest, ErrInvalidToken, message.InvalidUser, nil)
-			return
-		}
+	if err := h.service.VerifyUser(r.Context(), userID); err != nil {
 		response.ServerError(w, err)
 		return
 	}
@@ -129,7 +133,12 @@ type UserLoginResponse struct {
 }
 
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
-	_, req, _ := httpx.ParamsFromContext[UserLoginRequest](r.Context())
+	req, err := httpx.ParamsFromContext[UserLoginRequest](r.Context())
+	if err != nil {
+		httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		return
+	}
+
 	params := LoginUserParams{
 		Email:    req.Email,
 		Password: req.Password,
@@ -214,5 +223,70 @@ func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 	})
 
 	msg := "Logged out."
+	httpx.OK[any](w, http.StatusOK, &msg, nil)
+}
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email,omitempty" validate:"required,email"`
+}
+
+func (r *ForgotPasswordRequest) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("email", maskChar),
+	)
+}
+
+func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	req, err := httpx.ParamsFromContext[ForgotPasswordRequest](r.Context())
+	if err != nil {
+		httpx.Fail(w, http.StatusUnauthorized, errInvalidParams, message.InvalidUser, nil)
+		return
+	}
+
+	h.service.SendPasswordReset(req.Email)
+	msg := message.ResetSent
+	httpx.OK[any](w, http.StatusOK, &msg, nil)
+}
+
+type ResetPasswordRequest struct {
+	CurrentPassword string `json:"current_password,omitempty" validate:"required"`
+	NewPassword     string `json:"new_password,omitempty" validate:"required"`
+	RepeatPassword  string `json:"repeat_password,omitempty" validate:"required,eqfield=NewPassword"`
+}
+
+func (r *ResetPasswordRequest) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("email", maskChar),
+		slog.String("current_password", maskChar),
+		slog.String("new_password", maskChar),
+		slog.String("repeat_password", maskChar),
+	)
+}
+
+func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	email, err := user.FromContext(r.Context())
+	if err != nil {
+		httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		return
+	}
+
+	req, err := httpx.ParamsFromContext[ResetPasswordRequest](r.Context())
+	if err != nil {
+		httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		return
+	}
+
+	params := ResetPasswordParams{
+		email:       email,
+		oldPassword: req.CurrentPassword,
+		newPassword: req.NewPassword,
+	}
+
+	if err := h.service.ResetPassword(r.Context(), params); err != nil {
+		httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		return
+	}
+
+	msg := message.ResetSuccess
 	httpx.OK[any](w, http.StatusOK, &msg, nil)
 }
