@@ -14,9 +14,11 @@ func CheckContentType(next http.Handler) http.Handler {
 		slog.Info("Checking Content-Type...")
 		contentType := r.Header.Get(httpx.HeaderContentType)
 
-		if contentType != httpx.MimeJSON {
-			httpx.Fail(w, http.StatusUnsupportedMediaType, fmt.Errorf("unsupported content-type: %s", contentType), message.InvalidInput, nil)
-			return
+		if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
+			if contentType != httpx.MimeJSON {
+				httpx.Fail(w, http.StatusUnsupportedMediaType, fmt.Errorf("unsupported content-type: %s", contentType), message.InvalidInput, nil)
+				return
+			}
 		}
 
 		slog.Info("Content-Type is valid.")
