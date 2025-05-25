@@ -217,7 +217,7 @@ app-key:
 ## mailhog: Starts mailhog smtp server
 mailhog:
 	@echo "Starting mailhog..."
-	@$(CONTAINER_RUNTIME) run -p 1025:1025 -p 8025:8025 mailhog/mailhog
+	@$(CONTAINER_RUNTIME) run --rm --name mailhog -p 1025:1025 -p 8025:8025 mailhog/mailhog
 
 prod:
 	@GO_FLAGS=-ldflags="-s -w"
