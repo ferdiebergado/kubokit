@@ -84,7 +84,10 @@ func (a *apiServer) setupRoutes() {
 	userHandler := user.NewHandler(userService)
 	mountUserRoutes(a.router, userHandler, a.signer)
 
-	authRepo := auth.NewRepository(a.db)
+	authRepo := &auth.Repository{
+		DB: a.db,
+	}
+
 	authProviders := &auth.Providers{
 		Hasher: a.hasher,
 		Signer: a.signer,

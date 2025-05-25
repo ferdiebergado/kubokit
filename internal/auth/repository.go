@@ -8,11 +8,7 @@ import (
 )
 
 type Repository struct {
-	db *sql.DB
-}
-
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+	DB *sql.DB
 }
 
 const QueryUserCreate = `
@@ -22,9 +18,9 @@ RETURNING id, email, created_at, updated_at
 `
 
 func (r *Repository) CreateUser(ctx context.Context, params CreateUserParams) (user.User, error) {
+	row := r.DB.QueryRowContext(ctx, QueryUserCreate, params.Email, params.PasswordHash)
 	var u user.User
-	if err := r.db.QueryRowContext(ctx, QueryUserCreate, params.Email, params.PasswordHash).
-		Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil {
+	if err := row.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil {
 		return user.User{}, err
 	}
 	return u, nil
@@ -38,9 +34,8 @@ LIMIT 1
 
 func (r *Repository) FindUserByEmail(ctx context.Context, email string) (user.User, error) {
 	var u user.User
-	row := r.db.QueryRowContext(ctx, QueryUserFindByEmail, email)
-	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt, &u.VerifiedAt)
-	if err != nil {
+	row := r.DB.QueryRowContext(ctx, QueryUserFindByEmail, email)
+	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt, &u.VerifiedAt); err != nil {
 		return user.User{}, err
 	}
 	return u, nil
@@ -53,7 +48,7 @@ WHERE id = $1
 `
 
 func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
-	_, err := r.db.ExecContext(ctx, QueryUserVerify, userID)
+	_, err := r.DB.ExecContext(ctx, QueryUserVerify, userID)
 	if err != nil {
 		return err
 	}
@@ -63,7 +58,7 @@ func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
 const QueryUserList = "SELECT id, email, verified_at, created_at, updated_at FROM users"
 
 func (r *Repository) ListUsers(ctx context.Context) ([]user.User, error) {
-	rows, err := r.db.QueryContext(ctx, QueryUserList)
+	rows, err := r.DB.QueryContext(ctx, QueryUserList)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +87,7 @@ func (r *Repository) ListUsers(ctx context.Context) ([]user.User, error) {
 const queryUserChangePassword = "UPDATE users SET password_hash = $1 WHERE email = $2"
 
 func (r *Repository) ChangeUserPassword(ctx context.Context, email, newPassword string) error {
-	res, err := r.db.ExecContext(ctx, queryUserChangePassword, newPassword, email)
+	res, err := r.DB.ExecContext(ctx, queryUserChangePassword, newPassword, email)
 	if err != nil {
 		return err
 	}
