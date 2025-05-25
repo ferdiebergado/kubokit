@@ -1,5 +1,3 @@
-//go:build integration
-
 package user_test
 
 import (
@@ -11,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ferdiebergado/gopherkit/env"
+	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/db"
 	"github.com/ferdiebergado/kubokit/internal/user"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -61,8 +60,12 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	var err error
-	conn, err = db.Connect(context.Background())
+	cfg, err := config.Load("../../config.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	conn, err = db.Connect(context.Background(), cfg.DB)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,7 +88,7 @@ func resetDB() {
 	}
 }
 
-func TestRepository_GetAllUsers(t *testing.T) {
+func TestIntegrationRepository_GetAllUsers(t *testing.T) {
 	t.Parallel()
 	seedUsers(t)
 
@@ -97,11 +100,9 @@ func TestRepository_GetAllUsers(t *testing.T) {
 		t.Errorf("repo.GetAllUsers() = %v, want %v", err, nil)
 	}
 
-	userLen := len(users)
-	wantLen := 3
-
-	if userLen != wantLen {
-		t.Errorf("len(users) = %v, want %v", userLen, wantLen)
+	gotLen, wantLen := len(users), 3
+	if gotLen != wantLen {
+		t.Errorf("len(users) = %v, want %v", gotLen, wantLen)
 	}
 
 	t.Cleanup(resetDB)
