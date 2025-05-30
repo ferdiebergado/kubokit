@@ -33,8 +33,6 @@ const (
 )
 
 func Run(signalCtx context.Context) error {
-	slog.Info("Initializing...")
-
 	if envEnv != "production" {
 		if err := env.Load(".env"); err != nil {
 			return fmt.Errorf("load env: %w", err)
