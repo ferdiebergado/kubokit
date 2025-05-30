@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"log"
 	"log/slog"
-	"os"
 	"testing"
 	"time"
 
@@ -18,33 +17,37 @@ import (
 
 var conn *sql.DB
 
-func TestMain(m *testing.M) {
+func setup() (func(), error) {
 	if err := env.Load("../../.env.testing"); err != nil {
 		log.Fatal(err)
 	}
 
 	cfg, err := config.Load("../../config.json")
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	conn, err = db.Connect(context.Background(), cfg.DB)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	os.Exit(m.Run())
-}
-
-func resetDB() {
-	_, err := conn.Exec("TRUNCATE users")
-	if err != nil {
-		slog.Error("reset db failed", "reason", err)
-	}
+	return func() {
+		_, err := conn.Exec("TRUNCATE users")
+		if err != nil {
+			slog.Error("reset db failed", "reason", err)
+		}
+	}, nil
 }
 
 func TestIntegrationRepository_CreateUser(t *testing.T) {
 	t.Parallel()
+	cleanUp, err := setup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanUp()
+
 	repo := &auth.Repository{
 		DB: conn,
 	}
@@ -66,6 +69,4 @@ func TestIntegrationRepository_CreateUser(t *testing.T) {
 	if u.CreatedAt.IsZero() {
 		t.Errorf("u.CreatedAt = %v, want: %v", u.CreatedAt, time.Now())
 	}
-
-	t.Cleanup(resetDB)
 }
