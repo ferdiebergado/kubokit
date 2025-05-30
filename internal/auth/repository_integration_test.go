@@ -15,24 +15,22 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-var conn *sql.DB
-
-func setup() (func(), error) {
+func setup() (*sql.DB, func(), error) {
 	if err := env.Load("../../.env.testing"); err != nil {
 		log.Fatal(err)
 	}
 
 	cfg, err := config.Load("../../config.json")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	conn, err = db.Connect(context.Background(), cfg.DB)
+	conn, err := db.Connect(context.Background(), cfg.DB)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return func() {
+	return conn, func() {
 		_, err := conn.Exec("TRUNCATE users")
 		if err != nil {
 			slog.Error("reset db failed", "reason", err)
@@ -42,7 +40,7 @@ func setup() (func(), error) {
 
 func TestIntegrationRepository_CreateUser(t *testing.T) {
 	t.Parallel()
-	cleanUp, err := setup()
+	conn, cleanUp, err := setup()
 	if err != nil {
 		t.Fatal(err)
 	}
