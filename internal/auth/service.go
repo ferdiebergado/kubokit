@@ -78,24 +78,25 @@ func (p *LoginUserParams) LogValue() slog.Value {
 }
 
 func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error) {
+	u := user.User{}
 	email := params.Email
 	existing, err := s.repo.FindUserByEmail(ctx, email)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return user.User{}, err
+		return u, err
 	}
 
-	if !reflect.DeepEqual(existing, user.User{}) {
-		return user.User{}, ErrUserExists
+	if !reflect.DeepEqual(existing, u) {
+		return u, ErrUserExists
 	}
 
 	hash, err := s.hasher.Hash(params.Password)
 	if err != nil {
-		return user.User{}, fmt.Errorf("hasher hash: %w", err)
+		return u, fmt.Errorf("hasher hash: %w", err)
 	}
 
 	newUser, err := s.repo.CreateUser(ctx, CreateUserParams{Email: email, PasswordHash: hash})
 	if err != nil {
-		return user.User{}, fmt.Errorf("create user %s: %w", email, err)
+		return u, fmt.Errorf("create user %s: %w", email, err)
 	}
 
 	verifyEmail := &HTMLEmail{
