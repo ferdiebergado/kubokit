@@ -2,6 +2,9 @@ package user_test
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,11 +16,22 @@ import (
 )
 
 type stubService struct {
-	GetAllUsersFunc func(ctx context.Context) ([]user.User, error)
+	ListUsersFunc func(ctx context.Context) ([]user.User, error)
 }
 
-func (s *stubService) GetAllUsers(ctx context.Context) ([]user.User, error) {
-	return s.GetAllUsersFunc(ctx)
+func (s *stubService) CreateUser(ctx context.Context, params user.CreateUserParams) (user.User, error) {
+	panic("not implemented") // TODO: Implement
+}
+
+func (s *stubService) ListUsers(ctx context.Context) ([]user.User, error) {
+	if s.ListUsersFunc == nil {
+		return nil, errors.New("ListUsers not implemented in stub")
+	}
+	return s.ListUsersFunc(ctx)
+}
+
+func (s *stubService) FindUserByEmail(ctx context.Context, email string) (user.User, error) {
+	panic("not implemented") // TODO: Implement
 }
 
 func TestHandler_ListUsers(t *testing.T) {
@@ -38,27 +52,29 @@ func TestHandler_ListUsers(t *testing.T) {
 		},
 	}
 	userService := &stubService{
-		GetAllUsersFunc: func(_ context.Context) ([]user.User, error) {
+		ListUsersFunc: func(_ context.Context) ([]user.User, error) {
 			return users, nil
 		},
 	}
 
-	userHandler := user.NewHandler(userService)
-	listUsersHandler := http.HandlerFunc(userHandler.ListUsers)
-
-	listUsersHandler.ServeHTTP(rr, req)
+	userHandler := &user.Handler{Svc: userService}
+	userHandler.ListUsers(rr, req)
 
 	res := rr.Result()
 	defer res.Body.Close()
 
-	wantStatus := http.StatusOK
-	gotStatus := res.StatusCode
+	wantStatus, gotStatus := http.StatusOK, res.StatusCode
 	if gotStatus != wantStatus {
-		t.Errorf("user.Handler.ListUsers() = %d, got: %d", wantStatus, gotStatus)
+		t.Errorf("\nwant: %d\ngot: %d\n", wantStatus, gotStatus)
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	var apiRes httpx.OKResponse[*user.ListUsersResponse]
-	if err := httpx.DecodeJSON(rr.Body.Bytes(), &apiRes); err != nil {
+	if err := json.Unmarshal(body, &apiRes); err != nil {
 		t.Fatal(err)
 	}
 
@@ -67,13 +83,13 @@ func TestHandler_ListUsers(t *testing.T) {
 	wantLen := len(users)
 	gotLen := len(data.Users)
 	if wantLen != gotLen {
-		t.Errorf("user.Handler.ListUsers() = %d, got: %d user(s)", wantLen, gotLen)
+		t.Errorf("\nwant: %d\ngot: %d\n", wantLen, gotLen)
 	}
 
 	wantEmail := users[0].Email
 	gotEmail := data.Users[0].Email
 
 	if gotEmail != wantEmail {
-		t.Errorf("user.Handler.ListUsers() = %s, got: %s", wantEmail, gotEmail)
+		t.Errorf("\nwant: %s\ngot: %s\n", wantEmail, gotEmail)
 	}
 }

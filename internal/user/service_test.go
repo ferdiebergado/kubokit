@@ -10,14 +10,25 @@ import (
 )
 
 type stubRepo struct {
-	GetAllUsersFunc func(ctx context.Context) ([]user.User, error)
+	ListUsersFunc func(ctx context.Context) ([]user.User, error)
 }
 
-func (m *stubRepo) GetAllUsers(ctx context.Context) ([]user.User, error) {
-	return m.GetAllUsersFunc(ctx)
+func (r *stubRepo) CreateUser(ctx context.Context, params user.CreateUserParams) (user.User, error) {
+	panic("not implemented") // TODO: Implement
 }
 
-func TestService_GetAllUsers(t *testing.T) {
+func (r *stubRepo) ListUsers(ctx context.Context) ([]user.User, error) {
+	if r.ListUsersFunc != nil {
+		return r.ListUsersFunc(ctx)
+	}
+	return nil, nil
+}
+
+func (r *stubRepo) FindUserByEmail(ctx context.Context, email string) (user.User, error) {
+	panic("not implemented") // TODO: Implement
+}
+
+func TestService_ListUsers(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	now := time.Now()
@@ -34,12 +45,12 @@ func TestService_GetAllUsers(t *testing.T) {
 		},
 	}
 	repo := &stubRepo{
-		GetAllUsersFunc: func(_ context.Context) ([]user.User, error) {
+		ListUsersFunc: func(_ context.Context) ([]user.User, error) {
 			return users, nil
 		},
 	}
 	service := user.NewService(repo)
-	allUsers, err := service.GetAllUsers(ctx)
+	allUsers, err := service.ListUsers(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,6 +58,6 @@ func TestService_GetAllUsers(t *testing.T) {
 	wantLen := len(users)
 	gotLen := len(allUsers)
 	if gotLen != wantLen {
-		t.Errorf("want: %d, got: %d users", wantLen, gotLen)
+		t.Errorf("\nwant: %d\n got: %d users", wantLen, gotLen)
 	}
 }

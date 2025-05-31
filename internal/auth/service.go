@@ -13,22 +13,16 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
+var _ Service = &service{}
+
 var (
 	ErrUserNotFound    = errors.New("user not found")
 	ErrUserNotVerified = errors.New("email not verified")
 	ErrUserExists      = errors.New("user already exists")
 )
 
-type CreateUserParams struct {
-	Email        string
-	PasswordHash string
-}
-
-type repo interface {
-	CreateUser(ctx context.Context, params CreateUserParams) (user.User, error)
-	FindUserByEmail(ctx context.Context, email string) (user.User, error)
+type Repository interface {
 	VerifyUser(ctx context.Context, userID string) error
-	ListUsers(ctx context.Context) ([]user.User, error)
 	ChangeUserPassword(ctx context.Context, email, newPassword string) error
 }
 
@@ -38,21 +32,23 @@ type Providers struct {
 	Mailer contract.Mailer
 }
 
-type Service struct {
-	repo   repo
-	hasher contract.Hasher
-	signer contract.Signer
-	mailer contract.Mailer
-	cfg    *config.Config
+type service struct {
+	repo    Repository
+	userSvc user.Service
+	hasher  contract.Hasher
+	signer  contract.Signer
+	mailer  contract.Mailer
+	cfg     *config.Config
 }
 
-func NewService(userRepo repo, provider *Providers, cfg *config.Config) service {
-	return &Service{
-		repo:   userRepo,
-		hasher: provider.Hasher,
-		mailer: provider.Mailer,
-		signer: provider.Signer,
-		cfg:    cfg,
+func NewService(repo Repository, userSvc user.Service, provider *Providers, cfg *config.Config) Service {
+	return &service{
+		repo:    repo,
+		userSvc: userSvc,
+		hasher:  provider.Hasher,
+		mailer:  provider.Mailer,
+		signer:  provider.Signer,
+		cfg:     cfg,
 	}
 }
 
@@ -77,14 +73,15 @@ func (p *LoginUserParams) LogValue() slog.Value {
 	)
 }
 
-func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error) {
+func (s *service) RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error) {
 	u := user.User{}
 	email := params.Email
-	existing, err := s.repo.FindUserByEmail(ctx, email)
+	existing, err := s.userSvc.FindUserByEmail(ctx, email)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return u, err
 	}
 
+	// TODO: Refactor checking of existing user
 	if !reflect.DeepEqual(existing, u) {
 		return u, ErrUserExists
 	}
@@ -94,7 +91,7 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 		return u, fmt.Errorf("hasher hash: %w", err)
 	}
 
-	newUser, err := s.repo.CreateUser(ctx, CreateUserParams{Email: email, PasswordHash: hash})
+	newUser, err := s.userSvc.CreateUser(ctx, user.CreateUserParams{Email: email, PasswordHash: hash})
 	if err != nil {
 		return u, fmt.Errorf("create user %s: %w", email, err)
 	}
@@ -116,7 +113,7 @@ type HTMLEmail struct {
 	Email, Subject, Title, Template, Payload, URI string
 }
 
-func (s *Service) sendEmail(email *HTMLEmail) {
+func (s *service) sendEmail(email *HTMLEmail) {
 	slog.Info("Sending email...")
 
 	audience := s.cfg.Server.URL + email.URI
@@ -138,12 +135,12 @@ func (s *Service) sendEmail(email *HTMLEmail) {
 	}
 }
 
-func (s *Service) VerifyUser(ctx context.Context, userID string) error {
+func (s *service) VerifyUser(ctx context.Context, userID string) error {
 	return s.repo.VerifyUser(ctx, userID)
 }
 
-func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error) {
-	user, err := s.repo.FindUserByEmail(ctx, params.Email)
+func (s *service) LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error) {
+	user, err := s.userSvc.FindUserByEmail(ctx, params.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", "", ErrUserNotFound
@@ -179,7 +176,7 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (access
 	return accessToken, refreshToken, nil
 }
 
-func (s *Service) SendPasswordReset(email string) {
+func (s *service) SendPasswordReset(email string) {
 	resetEmail := &HTMLEmail{
 		Email:    email,
 		Subject:  "Reset Your Password",
@@ -196,8 +193,8 @@ type ResetPasswordParams struct {
 	email, oldPassword, newPassword string
 }
 
-func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
-	u, err := s.repo.FindUserByEmail(ctx, params.email)
+func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
+	u, err := s.userSvc.FindUserByEmail(ctx, params.email)
 	if err != nil {
 		return err
 	}

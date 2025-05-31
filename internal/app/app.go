@@ -81,19 +81,16 @@ func (a *apiServer) registerMiddlewares() {
 func (a *apiServer) setupRoutes() {
 	userRepo := user.NewRepository(a.db)
 	userService := user.NewService(userRepo)
-	userHandler := user.NewHandler(userService)
+	userHandler := &user.Handler{Svc: userService}
 	mountUserRoutes(a.router, userHandler, a.signer)
 
-	authRepo := &auth.Repository{
-		DB: a.db,
-	}
-
+	authRepo := auth.NewRepository(a.db)
 	authProviders := &auth.Providers{
 		Hasher: a.hasher,
 		Signer: a.signer,
 		Mailer: a.mailer,
 	}
-	authService := auth.NewService(authRepo, authProviders, a.options)
+	authService := auth.NewService(authRepo, userService, authProviders, a.options)
 	authHandler := auth.NewHandler(authService, a.signer, a.options)
 	mountAuthRoutes(a.router, authHandler, a.validator, a.signer, a.options.Server.MaxBodyBytes)
 }

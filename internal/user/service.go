@@ -4,20 +4,30 @@ import (
 	"context"
 )
 
-type repo interface {
-	GetAllUsers(ctx context.Context) ([]User, error)
+var _ Service = &service{}
+
+type Repository interface {
+	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
+	ListUsers(ctx context.Context) ([]User, error)
+	FindUserByEmail(ctx context.Context, email string) (User, error)
 }
 
-type Service struct {
-	repo repo
+type service struct {
+	repo Repository
 }
 
-func NewService(repo repo) *Service {
-	return &Service{
-		repo: repo,
-	}
+func NewService(repo Repository) Service {
+	return &service{repo}
 }
 
-func (s *Service) GetAllUsers(ctx context.Context) ([]User, error) {
-	return s.repo.GetAllUsers(ctx)
+func (s *service) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
+	return s.repo.CreateUser(ctx, params)
+}
+
+func (s *service) FindUserByEmail(ctx context.Context, email string) (User, error) {
+	return s.repo.FindUserByEmail(ctx, email)
+}
+
+func (s *service) ListUsers(ctx context.Context) ([]User, error) {
+	return s.repo.ListUsers(ctx)
 }

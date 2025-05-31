@@ -10,18 +10,14 @@ import (
 	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
 )
 
-type service interface {
-	GetAllUsers(ctx context.Context) ([]User, error)
+type Service interface {
+	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
+	ListUsers(ctx context.Context) ([]User, error)
+	FindUserByEmail(ctx context.Context, email string) (User, error)
 }
 
 type Handler struct {
-	service service
-}
-
-func NewHandler(svc service) *Handler {
-	return &Handler{
-		service: svc,
-	}
+	Svc Service
 }
 
 type userData struct {
@@ -38,7 +34,7 @@ type ListUsersResponse struct {
 }
 
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := h.service.GetAllUsers(r.Context())
+	users, err := h.Svc.ListUsers(r.Context())
 	if err != nil {
 		response.ServerError(w, err)
 		return

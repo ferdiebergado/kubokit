@@ -21,7 +21,7 @@ const maskChar = "*"
 
 var errInvalidParams = errors.New("invalid request params")
 
-type service interface {
+type Service interface {
 	RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error)
 	VerifyUser(ctx context.Context, token string) error
 	LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error)
@@ -30,16 +30,16 @@ type service interface {
 }
 
 type Handler struct {
-	service service
-	signer  contract.Signer
-	cfg     *config.Config
+	svc    Service
+	signer contract.Signer
+	cfg    *config.Config
 }
 
-func NewHandler(userService service, signer contract.Signer, cfg *config.Config) *Handler {
+func NewHandler(userSvc Service, signer contract.Signer, cfg *config.Config) *Handler {
 	return &Handler{
-		service: userService,
-		signer:  signer,
-		cfg:     cfg,
+		svc:    userSvc,
+		signer: signer,
+		cfg:    cfg,
 	}
 }
 
@@ -75,7 +75,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		Email:    req.Email,
 		Password: req.Password,
 	}
-	user, err := h.service.RegisterUser(r.Context(), params)
+	user, err := h.svc.RegisterUser(r.Context(), params)
 	if err != nil {
 		if errors.Is(err, ErrUserExists) {
 			httpx.Fail(w, http.StatusUnprocessableEntity, err, "User already exists.", nil)
@@ -107,7 +107,7 @@ func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.VerifyUser(r.Context(), userID); err != nil {
+	if err := h.svc.VerifyUser(r.Context(), userID); err != nil {
 		response.ServerError(w, err)
 		return
 	}
@@ -143,7 +143,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		Email:    req.Email,
 		Password: req.Password,
 	}
-	accessToken, refreshToken, err := h.service.LoginUser(r.Context(), params)
+	accessToken, refreshToken, err := h.svc.LoginUser(r.Context(), params)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
 			httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
@@ -243,7 +243,7 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.service.SendPasswordReset(req.Email)
+	h.svc.SendPasswordReset(req.Email)
 	msg := message.ResetSent
 	httpx.OK[any](w, http.StatusOK, &msg, nil)
 }
@@ -282,7 +282,7 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		newPassword: req.NewPassword,
 	}
 
-	if err := h.service.ResetPassword(r.Context(), params); err != nil {
+	if err := h.svc.ResetPassword(r.Context(), params); err != nil {
 		httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
 		return
 	}
