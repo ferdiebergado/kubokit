@@ -2,14 +2,8 @@ package user_test
 
 import (
 	"context"
-	"database/sql"
-	"log"
-	"log/slog"
-	"os"
 	"testing"
 
-	"github.com/ferdiebergado/gopherkit/env"
-	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/db"
 	"github.com/ferdiebergado/kubokit/internal/user"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -53,57 +47,25 @@ VALUES (
 );
 `
 
-var conn *sql.DB
+func TestIntegrationRepository_GetAllUsers(t *testing.T) {
+	conn, cleanUp := db.Setup(t)
+	defer cleanUp("TRUNCATE users")
 
-func TestMain(m *testing.M) {
-	if err := env.Load("../../.env.testing"); err != nil {
-		log.Fatal(err)
-	}
-
-	cfg, err := config.Load("../../config.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	conn, err = db.Connect(context.Background(), cfg.DB)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	os.Exit(m.Run())
-}
-
-func seedUsers(t *testing.T) {
-	t.Helper()
 	_, err := conn.Exec(sqlUsers)
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func resetDB() {
-	_, err := conn.Exec("TRUNCATE users")
-	if err != nil {
-		slog.Error("reset db failed", "reason", err)
-	}
-}
-
-func TestIntegrationRepository_GetAllUsers(t *testing.T) {
-	t.Parallel()
-	seedUsers(t)
 
 	ctx := context.Background()
 	repo := user.NewRepository(conn)
 
-	users, err := repo.GetAllUsers(ctx)
+	users, err := repo.ListUsers(ctx)
 	if err != nil {
-		t.Errorf("repo.GetAllUsers() = %v, want %v", err, nil)
+		t.Errorf("\ngot: %+v\n want: %+v\n", err, nil)
 	}
 
 	gotLen, wantLen := len(users), 3
 	if gotLen != wantLen {
-		t.Errorf("len(users) = %v, want %v", gotLen, wantLen)
+		t.Errorf("\ngot: %+v\n want: %+v\n", gotLen, wantLen)
 	}
-
-	t.Cleanup(resetDB)
 }
