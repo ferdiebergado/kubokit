@@ -40,14 +40,14 @@ type stubHasher struct {
 }
 
 func (h stubHasher) Hash(plain string) (string, error) {
-	if h.HashFunc != nil {
-		return h.HashFunc(plain)
+	if h.HashFunc == nil {
+		return "", errors.New("Hash is not implemented by stub")
 	}
-	return "", nil
+	return h.HashFunc(plain)
 }
 
 func (h stubHasher) Verify(plain, hash string) (bool, error) {
-	return false, nil
+	panic("not implemented") // TODO: Implement
 }
 
 type stubUserSvc struct {
@@ -112,8 +112,13 @@ func TestService_RegisterUser(t *testing.T) {
 				},
 			}
 
+			hasher := stubHasher{
+				HashFunc: func(plain string) (string, error) {
+					return "hashed", nil
+				},
+			}
 			providers := &auth.Providers{
-				Hasher: stubHasher{},
+				Hasher: hasher,
 			}
 			cfg := &config.Config{}
 
