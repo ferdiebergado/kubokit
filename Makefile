@@ -73,7 +73,7 @@ run: build db
 ## test: Run the unit tests: make test ENV=testing
 test: migrate-up
 	@echo "Running unit tests..."
-	@go test $(GO_FLAGS) $(GO_MODULE_PATH)
+	@go test $(GO_FLAGS) -coverprofile=coverage.out $(GO_MODULE_PATH)
 
 ## test-integration: Run the integration tests: make test-integration ENV=testing
 test-integration: migrate-up
