@@ -1,4 +1,4 @@
-package error
+package errors
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 func IsContextError(err error) bool {
 	if errors.Is(err, context.Canceled) {
-		slog.Warn("request has been cancelled")
+		slog.Warn("request has been canceled")
 		return true
 	}
 
