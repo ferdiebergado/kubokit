@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -35,8 +36,8 @@ func (va *GoPlaygroundValidator) ValidateStruct(s any) map[string]string {
 		return nil
 	}
 
-	valErrs, ok := err.(validator.ValidationErrors)
-	if !ok {
+	var valErrs validator.ValidationErrors
+	if !errors.As(err, &valErrs) {
 		return nil
 	}
 
