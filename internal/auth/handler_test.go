@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -21,10 +22,10 @@ type stubAuthSvc struct {
 }
 
 func (s stubAuthSvc) RegisterUser(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
-	if s.RegisterUserFunc != nil {
-		return s.RegisterUserFunc(ctx, params)
+	if s.RegisterUserFunc == nil {
+		return user.User{}, errors.New("RegisterUser not implemented by stub")
 	}
-	return user.User{}, nil
+	return s.RegisterUserFunc(ctx, params)
 }
 
 func (s *stubAuthSvc) VerifyUser(ctx context.Context, token string) error {
