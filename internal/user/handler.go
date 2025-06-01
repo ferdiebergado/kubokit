@@ -48,7 +48,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w, http.StatusOK, nil, payload)
 }
 
-func transformUser(u User) *userData {
+func transformUser(u *User) *userData {
 	return &userData{
 		ID:         u.ID,
 		Email:      u.Email,
@@ -61,8 +61,8 @@ func transformUser(u User) *userData {
 
 func newListUsersResponse(users []User) *ListUsersResponse {
 	data := make([]userData, 0, len(users))
-	for _, user := range users {
-		tmpUser := transformUser(user)
+	for i := range users {
+		tmpUser := transformUser(&users[i])
 		data = append(data, *tmpUser)
 	}
 
