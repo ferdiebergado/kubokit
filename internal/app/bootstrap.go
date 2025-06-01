@@ -10,7 +10,6 @@ import (
 
 	"github.com/ferdiebergado/goexpress"
 	"github.com/ferdiebergado/gopherkit/env"
-	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/db"
 	"github.com/ferdiebergado/kubokit/internal/pkg/email"
@@ -79,7 +78,7 @@ func Run(signalCtx context.Context) error {
 	return apiServer.Shutdown()
 }
 
-func createMailer(cfg *config.Email) (contract.Mailer, error) {
+func createMailer(cfg *config.Email) (*email.SMTPMailer, error) {
 	smtpHost, err := getEnv(envHost)
 	if err != nil {
 		return nil, err
