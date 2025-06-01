@@ -2,6 +2,7 @@ package user_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -18,10 +19,10 @@ func (r *stubRepo) CreateUser(ctx context.Context, params user.CreateUserParams)
 }
 
 func (r *stubRepo) ListUsers(ctx context.Context) ([]user.User, error) {
-	if r.ListUsersFunc != nil {
-		return r.ListUsersFunc(ctx)
+	if r.ListUsersFunc == nil {
+		return nil, errors.New("ListUsers not implemented by stub")
 	}
-	return nil, nil
+	return r.ListUsersFunc(ctx)
 }
 
 func (r *stubRepo) FindUserByEmail(ctx context.Context, email string) (user.User, error) {
