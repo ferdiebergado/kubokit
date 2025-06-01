@@ -9,10 +9,12 @@ type ctxKey int
 
 const paramsCtxKey ctxKey = iota
 
+//nolint:ireturn //This function needs to return a context.
 func NewContextWithParams(baseCtx context.Context, params any) context.Context {
 	return context.WithValue(baseCtx, paramsCtxKey, params)
 }
 
+// nolint: ireturn //This is a generic function.
 func ParamsFromContext[T any](ctx context.Context) (T, error) {
 	val := ctx.Value(paramsCtxKey)
 	params, ok := val.(T)

@@ -9,6 +9,9 @@ import (
 	errx "github.com/ferdiebergado/kubokit/internal/pkg/errors"
 )
 
+// SafeResponseWriter is an http.ResponseWriter wrapper that prevents wasting resources, race conditions and poor user experience.
+//
+//nolint:containedctx //This ResponseWriter wrapper requires a context to gracefully handle canceled or timed-out requests.
 type SafeResponseWriter struct {
 	http.ResponseWriter
 	ctx           context.Context

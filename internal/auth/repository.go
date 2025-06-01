@@ -25,6 +25,7 @@ func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
 	return nil
 }
 
+//nolint:gosec //G101: No credentials are hardcoded.
 const queryUserChangePassword = "UPDATE users SET password_hash = $1 WHERE email = $2"
 
 func (r *Repository) ChangeUserPassword(ctx context.Context, email, newPassword string) error {

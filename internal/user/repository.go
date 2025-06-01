@@ -55,6 +55,7 @@ func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 	}
 	defer rows.Close()
 
+	//nolint:prealloc //Cannot identify the length of the rows without running another query.
 	var users []User
 	for rows.Next() {
 		var u User

@@ -75,6 +75,7 @@ func Run(signalCtx context.Context) error {
 		return fmt.Errorf("start server: %w", err)
 	}
 
+	//nolint:contextcheck //This function internally passes a context with timeout to the underlying http.Server Shutdown method.
 	return apiServer.Shutdown()
 }
 
