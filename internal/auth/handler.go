@@ -10,7 +10,7 @@ import (
 	"github.com/ferdiebergado/gopherkit/http/response"
 	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/ferdiebergado/kubokit/internal/config"
-	errx "github.com/ferdiebergado/kubokit/internal/pkg/error"
+	errx "github.com/ferdiebergado/kubokit/internal/pkg/errors"
 	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 
@@ -131,10 +131,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params := LoginUserParams{
-		Email:    req.Email,
-		Password: req.Password,
-	}
+	params := LoginUserParams(req)
 	accessToken, refreshToken, err := h.svc.LoginUser(r.Context(), params)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
