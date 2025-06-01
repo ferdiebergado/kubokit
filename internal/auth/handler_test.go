@@ -3,7 +3,6 @@ package auth_test
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -99,13 +98,8 @@ func TestAuthHandler_RegisterUser(t *testing.T) {
 		t.Errorf("\ngot: %d\nwant %d\n", gotStatus, wantStatus)
 	}
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	var apiRes httpx.OKResponse[*auth.RegisterUserResponse]
-	if err := json.Unmarshal(body, &apiRes); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&apiRes); err != nil {
 		t.Fatal(err)
 	}
 

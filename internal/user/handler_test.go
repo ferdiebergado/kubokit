@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -68,13 +67,8 @@ func TestHandler_ListUsers(t *testing.T) {
 		t.Errorf("\nwant: %d\ngot: %d\n", wantStatus, gotStatus)
 	}
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	var apiRes httpx.OKResponse[*user.ListUsersResponse]
-	if err := json.Unmarshal(body, &apiRes); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&apiRes); err != nil {
 		t.Fatal(err)
 	}
 
