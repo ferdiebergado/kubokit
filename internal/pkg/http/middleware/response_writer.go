@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"sync"
 
-	errx "github.com/ferdiebergado/kubokit/internal/pkg/error"
+	errx "github.com/ferdiebergado/kubokit/internal/pkg/errors"
 )
 
 type SafeResponseWriter struct {
