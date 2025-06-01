@@ -35,8 +35,7 @@ type SMTPMailer struct {
 func NewSMTPMailer(cfg *SMTPConfig, opts *config.Email) (*SMTPMailer, error) {
 	path := opts.Templates
 	layoutFile := filepath.Join(path, opts.Layout)
-	layoutTmpl := template.Must(template.New("layout").ParseFiles(layoutFile))
-	tmplMap, err := parsePages(path, layoutTmpl)
+	tmplMap, err := parsePages(path, layoutFile)
 	if err != nil {
 		return nil, err
 	}
@@ -105,8 +104,9 @@ func (e *SMTPMailer) SendPlain(to []string, subject string, body string) error {
 	return e.send(to, subject, body, "text/plain")
 }
 
-func parsePages(templateDir string, layoutTmpl *template.Template) (templateMap, error) {
+func parsePages(templateDir string, layoutFile string) (templateMap, error) {
 	tmplMap := make(templateMap)
+	layoutTmpl := template.Must(template.New("layout").ParseFiles(layoutFile))
 	err := fs.WalkDir(os.DirFS(templateDir), ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
