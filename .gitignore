@@ -25,9 +25,6 @@ go.work.sum
 .env
 .env.testing
 
-# test coverage
-coverage.out
-
 # build binaries
 build/
 
