@@ -75,6 +75,7 @@ func (s *stubUserSvc) FindUserByEmail(ctx context.Context, email string) (user.U
 }
 
 func TestService_RegisterUser(t *testing.T) {
+	t.Parallel()
 	var tests = []struct {
 		name       string
 		testUser   user.User
