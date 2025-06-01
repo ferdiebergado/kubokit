@@ -55,7 +55,7 @@ func (h *Argon2Hasher) Hash(plain string) (string, error) {
 }
 
 // Verify implements Hasher.
-func (h *Argon2Hasher) Verify(plain string, hashed string) (bool, error) {
+func (h *Argon2Hasher) Verify(plain, hashed string) (bool, error) {
 	parts := strings.Split(hashed, "$")
 	if len(parts) != 6 || parts[1] != variant {
 		return false, fmt.Errorf("invalid hash format")

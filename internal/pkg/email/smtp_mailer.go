@@ -50,7 +50,7 @@ func NewSMTPMailer(cfg *SMTPConfig, opts *config.Email) (*SMTPMailer, error) {
 	}, nil
 }
 
-func (e *SMTPMailer) send(to []string, subject string, body string, contentType string) error {
+func (e *SMTPMailer) send(to []string, subject, body, contentType string) error {
 	from := e.from
 	host := e.host
 	auth := smtp.PlainAuth(
@@ -104,7 +104,7 @@ func (e *SMTPMailer) SendPlain(to []string, subject string, body string) error {
 	return e.send(to, subject, body, "text/plain")
 }
 
-func parsePages(templateDir string, layoutFile string) (templateMap, error) {
+func parsePages(templateDir, layoutFile string) (templateMap, error) {
 	tmplMap := make(templateMap)
 	layoutTmpl := template.Must(template.New("layout").ParseFiles(layoutFile))
 	err := fs.WalkDir(os.DirFS(templateDir), ".", func(path string, d fs.DirEntry, err error) error {
