@@ -49,10 +49,14 @@ func TestCheckContentType(t *testing.T) {
 			t.Parallel()
 
 			handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				_, _ = w.Write([]byte(body))
+				_, err := w.Write([]byte(body))
+				if err != nil {
+					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+					return
+				}
 			})
 
-			req, rr := httptest.NewRequest(tt.method, "/test", nil), httptest.NewRecorder()
+			req, rr := httptest.NewRequest(tt.method, "/test", http.NoBody), httptest.NewRecorder()
 			if tt.setHeader {
 				req.Header.Set(httpx.HeaderContentType, tt.contentType)
 			}

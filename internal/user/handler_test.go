@@ -35,7 +35,7 @@ func (s *stubService) FindUserByEmail(ctx context.Context, email string) (user.U
 
 func TestHandler_ListUsers(t *testing.T) {
 	t.Parallel()
-	req := httptest.NewRequest(http.MethodGet, "/users", nil)
+	req := httptest.NewRequest(http.MethodGet, "/users", http.NoBody)
 	rr := httptest.NewRecorder()
 	now := time.Now()
 	users := []user.User{
