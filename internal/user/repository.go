@@ -5,14 +5,10 @@ import (
 	"database/sql"
 )
 
-var _ Repository = &repo{}
+var _ UserRepository = &Repository{}
 
-type repo struct {
+type Repository struct {
 	db *sql.DB
-}
-
-func NewRepository(db *sql.DB) Repository {
-	return &repo{db}
 }
 
 type CreateUserParams struct {
@@ -26,7 +22,7 @@ VALUES ($1, $2)
 RETURNING id, email, created_at, updated_at
 `
 
-func (r *repo) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
+func (r *Repository) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
 	row := r.db.QueryRowContext(ctx, QueryUserCreate, params.Email, params.PasswordHash)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil {
@@ -41,7 +37,7 @@ WHERE email = $1
 LIMIT 1
 `
 
-func (r *repo) FindUserByEmail(ctx context.Context, email string) (User, error) {
+func (r *Repository) FindUserByEmail(ctx context.Context, email string) (User, error) {
 	row := r.db.QueryRowContext(ctx, QueryUserFindByEmail, email)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt, &u.VerifiedAt); err != nil {
@@ -52,7 +48,7 @@ func (r *repo) FindUserByEmail(ctx context.Context, email string) (User, error) 
 
 const QueryUserList = "SELECT id, email, verified_at, created_at, updated_at FROM users"
 
-func (r *repo) ListUsers(ctx context.Context) ([]User, error) {
+func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 	rows, err := r.db.QueryContext(ctx, QueryUserList)
 	if err != nil {
 		return nil, err
@@ -77,4 +73,8 @@ func (r *repo) ListUsers(ctx context.Context) ([]User, error) {
 	}
 
 	return users, nil
+}
+
+func NewRepository(db *sql.DB) *Repository {
+	return &Repository{db}
 }

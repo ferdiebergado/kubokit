@@ -81,7 +81,7 @@ func (a *apiServer) registerMiddlewares() {
 func (a *apiServer) setupRoutes() {
 	userRepo := user.NewRepository(a.db)
 	userService := user.NewService(userRepo)
-	userHandler := &user.Handler{Svc: userService}
+	userHandler := user.NewHandler(userService)
 	mountUserRoutes(a.router, userHandler, a.signer)
 
 	authRepo := auth.NewRepository(a.db)

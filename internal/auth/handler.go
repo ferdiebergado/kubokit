@@ -21,7 +21,7 @@ const maskChar = "*"
 
 var errInvalidParams = errors.New("invalid request params")
 
-type Service interface {
+type AuthService interface {
 	RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error)
 	VerifyUser(ctx context.Context, token string) error
 	LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error)
@@ -30,17 +30,9 @@ type Service interface {
 }
 
 type Handler struct {
-	svc    Service
+	svc    AuthService
 	signer contract.Signer
 	cfg    *config.Config
-}
-
-func NewHandler(userSvc Service, signer contract.Signer, cfg *config.Config) *Handler {
-	return &Handler{
-		svc:    userSvc,
-		signer: signer,
-		cfg:    cfg,
-	}
 }
 
 type RegisterUserRequest struct {
@@ -289,4 +281,12 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	msg := message.ResetSuccess
 	httpx.OK[any](w, http.StatusOK, &msg, nil)
+}
+
+func NewHandler(userSvc AuthService, signer contract.Signer, cfg *config.Config) *Handler {
+	return &Handler{
+		svc:    userSvc,
+		signer: signer,
+		cfg:    cfg,
+	}
 }

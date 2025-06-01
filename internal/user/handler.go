@@ -10,14 +10,18 @@ import (
 	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
 )
 
-type Service interface {
+type UserService interface {
 	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	FindUserByEmail(ctx context.Context, email string) (User, error)
 }
 
 type Handler struct {
-	Svc Service
+	Svc UserService
+}
+
+func NewHandler(svc UserService) *Handler {
+	return &Handler{svc}
 }
 
 type userData struct {

@@ -5,14 +5,10 @@ import (
 	"database/sql"
 )
 
-var _ Repository = &repo{}
+var _ AuthRepository = &Repository{}
 
-type repo struct {
+type Repository struct {
 	db *sql.DB
-}
-
-func NewRepository(db *sql.DB) Repository {
-	return &repo{db}
 }
 
 const QueryUserVerify = `
@@ -21,7 +17,7 @@ SET verified_at = NOW()
 WHERE id = $1
 `
 
-func (r *repo) VerifyUser(ctx context.Context, userID string) error {
+func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
 	_, err := r.db.ExecContext(ctx, QueryUserVerify, userID)
 	if err != nil {
 		return err
@@ -31,7 +27,7 @@ func (r *repo) VerifyUser(ctx context.Context, userID string) error {
 
 const queryUserChangePassword = "UPDATE users SET password_hash = $1 WHERE email = $2"
 
-func (r *repo) ChangeUserPassword(ctx context.Context, email, newPassword string) error {
+func (r *Repository) ChangeUserPassword(ctx context.Context, email, newPassword string) error {
 	res, err := r.db.ExecContext(ctx, queryUserChangePassword, newPassword, email)
 	if err != nil {
 		return err
@@ -47,4 +43,8 @@ func (r *repo) ChangeUserPassword(ctx context.Context, email, newPassword string
 	}
 
 	return nil
+}
+
+func NewRepository(db *sql.DB) *Repository {
+	return &Repository{db}
 }

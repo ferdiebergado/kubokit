@@ -56,7 +56,7 @@ func TestHandler_ListUsers(t *testing.T) {
 		},
 	}
 
-	userHandler := &user.Handler{Svc: userService}
+	userHandler := user.NewHandler(userService)
 	userHandler.ListUsers(rr, req)
 
 	res := rr.Result()
