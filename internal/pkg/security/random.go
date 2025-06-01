@@ -29,7 +29,7 @@ func GenerateRandomBytesEncoded(length uint32) (string, error) {
 
 func CheckUint(i int) error {
 	if i > int(^uint32(0)) {
-		return fmt.Errorf("integer %d exceeds uint32:", i)
+		return fmt.Errorf("integer %d exceeds uint32", i)
 	}
 	return nil
 }
