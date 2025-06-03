@@ -26,7 +26,7 @@ type Providers struct {
 
 type apiServer struct {
 	server          *http.Server
-	options         *config.Config
+	config          *config.Config
 	middlewares     []func(http.Handler) http.Handler
 	stop            context.CancelFunc
 	shutdownTimeout time.Duration
@@ -58,7 +58,7 @@ func newAPIServer(
 	}
 
 	return &apiServer{
-		options:         cfg,
+		config:          cfg,
 		db:              db,
 		signer:          providers.Signer,
 		mailer:          providers.Mailer,
@@ -90,9 +90,9 @@ func (a *apiServer) setupRoutes() {
 		Signer: a.signer,
 		Mailer: a.mailer,
 	}
-	authService := auth.NewService(authRepo, userService, authProviders, a.options)
-	authHandler := auth.NewHandler(authService, a.signer, a.options)
-	mountAuthRoutes(a.router, authHandler, a.validator, a.signer, a.options.Server.MaxBodyBytes)
+	authService := auth.NewService(authRepo, userService, authProviders, a.config)
+	authHandler := auth.NewHandler(authService, a.signer, a.config)
+	mountAuthRoutes(a.router, authHandler, a.validator, a.signer, a.config.Server.MaxBodyBytes)
 }
 
 func (a *apiServer) Start() chan error {
