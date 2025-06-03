@@ -60,7 +60,6 @@ func (s *stubSigner) Verify(tokenString string) (string, error) {
 }
 
 func TestAuthHandler_RegisterUser(t *testing.T) {
-	ctx := context.Background()
 	now := time.Now()
 	testEmail := "test@example.com"
 	testPass := "test"
@@ -86,21 +85,18 @@ func TestAuthHandler_RegisterUser(t *testing.T) {
 		PasswordConfirm: testPass,
 	}
 
-	paramsCtx := httpx.NewContextWithParams(ctx, params)
+	paramsCtx := httpx.NewContextWithParams(context.Background(), params)
 	req := httptest.NewRequestWithContext(paramsCtx, http.MethodPost, "/auth/register", nil)
 	rec := httptest.NewRecorder()
 	authHandler.RegisterUser(rec, req)
 
-	res := rec.Result()
-	defer res.Body.Close()
-
-	wantStatus, gotStatus := http.StatusCreated, res.StatusCode
+	wantStatus, gotStatus := http.StatusCreated, rec.Code
 	if gotStatus != wantStatus {
 		t.Errorf("\ngot: %d\nwant %d\n", gotStatus, wantStatus)
 	}
 
 	var apiRes httpx.OKResponse[*auth.RegisterUserResponse]
-	if err := json.NewDecoder(res.Body).Decode(&apiRes); err != nil {
+	if err := json.NewDecoder(rec.Body).Decode(&apiRes); err != nil {
 		t.Fatal(err)
 	}
 
