@@ -38,40 +38,6 @@ type apiServer struct {
 	router          contract.Router
 }
 
-func newAPIServer(
-	signalCtx context.Context,
-	cfg *config.Config,
-	db *sql.DB, providers *Providers,
-	middlewares []func(http.Handler) http.Handler) *apiServer {
-
-	serverCtx, stop := context.WithCancel(signalCtx)
-	serverCfg := cfg.Server
-	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", serverCfg.Port),
-		Handler: providers.Router,
-		BaseContext: func(_ net.Listener) context.Context {
-			return serverCtx
-		},
-		ReadTimeout:  serverCfg.ReadTimeout.Duration,
-		WriteTimeout: serverCfg.WriteTimeout.Duration,
-		IdleTimeout:  serverCfg.IdleTimeout.Duration,
-	}
-
-	return &apiServer{
-		config:          cfg,
-		db:              db,
-		signer:          providers.Signer,
-		mailer:          providers.Mailer,
-		validator:       providers.Validator,
-		hasher:          providers.Hasher,
-		router:          providers.Router,
-		server:          server,
-		middlewares:     middlewares,
-		stop:            stop,
-		shutdownTimeout: serverCfg.ShutdownTimeout.Duration,
-	}
-}
-
 func (a *apiServer) registerMiddlewares() {
 	for _, mw := range a.middlewares {
 		a.router.Use(mw)
@@ -122,4 +88,38 @@ func (a *apiServer) Shutdown() error {
 
 	slog.Info("Shutdown complete.")
 	return nil
+}
+
+func newAPIServer(
+	signalCtx context.Context,
+	cfg *config.Config,
+	db *sql.DB, providers *Providers,
+	middlewares []func(http.Handler) http.Handler) *apiServer {
+
+	serverCtx, stop := context.WithCancel(signalCtx)
+	serverCfg := cfg.Server
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%d", serverCfg.Port),
+		Handler: providers.Router,
+		BaseContext: func(_ net.Listener) context.Context {
+			return serverCtx
+		},
+		ReadTimeout:  serverCfg.ReadTimeout.Duration,
+		WriteTimeout: serverCfg.WriteTimeout.Duration,
+		IdleTimeout:  serverCfg.IdleTimeout.Duration,
+	}
+
+	return &apiServer{
+		config:          cfg,
+		db:              db,
+		signer:          providers.Signer,
+		mailer:          providers.Mailer,
+		validator:       providers.Validator,
+		hasher:          providers.Hasher,
+		router:          providers.Router,
+		server:          server,
+		middlewares:     middlewares,
+		stop:            stop,
+		shutdownTimeout: serverCfg.ShutdownTimeout.Duration,
+	}
 }

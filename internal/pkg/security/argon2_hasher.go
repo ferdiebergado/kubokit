@@ -24,17 +24,6 @@ type Argon2Hasher struct {
 	pepper     string
 }
 
-func NewArgon2Hasher(cfg *config.Argon2, pepper string) *Argon2Hasher {
-	return &Argon2Hasher{
-		memory:     cfg.Memory,
-		iterations: cfg.Iterations,
-		threads:    cfg.Threads,
-		saltLen:    cfg.SaltLength,
-		keyLen:     cfg.KeyLength,
-		pepper:     pepper,
-	}
-}
-
 // Hash implements Hasher.
 func (h *Argon2Hasher) Hash(plain string) (string, error) {
 	// Generate a random salt
@@ -91,4 +80,15 @@ func (h *Argon2Hasher) Verify(plain, hashed string) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+func NewArgon2Hasher(cfg *config.Argon2, pepper string) *Argon2Hasher {
+	return &Argon2Hasher{
+		memory:     cfg.Memory,
+		iterations: cfg.Iterations,
+		threads:    cfg.Threads,
+		saltLen:    cfg.SaltLength,
+		keyLen:     cfg.KeyLength,
+		pepper:     pepper,
+	}
 }

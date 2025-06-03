@@ -16,23 +16,6 @@ type GoPlaygroundValidator struct {
 	v *validator.Validate
 }
 
-func NewGoPlaygroundValidator() *GoPlaygroundValidator {
-	v := validator.New()
-
-	// register function to get tag name from json tags.
-	v.RegisterTagNameFunc(func(fld reflect.StructField) string {
-		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
-		if name == "-" {
-			return ""
-		}
-		return name
-	})
-
-	return &GoPlaygroundValidator{
-		v: v,
-	}
-}
-
 func (va *GoPlaygroundValidator) ValidateStruct(s any) map[string]string {
 	err := va.v.Struct(s)
 	if err == nil {
@@ -50,6 +33,23 @@ func (va *GoPlaygroundValidator) ValidateStruct(s any) map[string]string {
 	}
 
 	return errMap
+}
+
+func NewGoPlaygroundValidator() *GoPlaygroundValidator {
+	v := validator.New()
+
+	// register function to get tag name from json tags.
+	v.RegisterTagNameFunc(func(fld reflect.StructField) string {
+		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
+		if name == "-" {
+			return ""
+		}
+		return name
+	})
+
+	return &GoPlaygroundValidator{
+		v: v,
+	}
 }
 
 func validationMessage(e validator.FieldError) string {

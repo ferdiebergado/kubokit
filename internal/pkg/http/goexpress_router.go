@@ -13,12 +13,6 @@ type GoexpressRouter struct {
 	handler *goexpress.Router
 }
 
-func NewGoexpressRouter() *GoexpressRouter {
-	return &GoexpressRouter{
-		handler: goexpress.New(),
-	}
-}
-
 func (r *GoexpressRouter) Delete(pattern string, handlerFunc http.HandlerFunc,
 	middlewares ...func(next http.Handler) http.Handler) {
 	r.handler.Delete(pattern, handlerFunc, middlewares...)
@@ -66,4 +60,10 @@ func (r *GoexpressRouter) Group(prefix string, fn func(r contract.Router),
 	gr.handler.SetMiddlewares(append(r.handler.Middlewares(), middlewares...))
 
 	fn(gr)
+}
+
+func NewGoexpressRouter() *GoexpressRouter {
+	return &GoexpressRouter{
+		handler: goexpress.New(),
+	}
 }

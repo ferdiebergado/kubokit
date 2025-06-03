@@ -35,24 +35,6 @@ type SMTPMailer struct {
 	templates templateMap
 }
 
-func NewSMTPMailer(cfg *SMTPConfig, opts *config.Email) (*SMTPMailer, error) {
-	path := opts.Templates
-	layoutFile := filepath.Join(path, opts.Layout)
-	tmplMap, err := parsePages(path, layoutFile)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SMTPMailer{
-		from:      cfg.User,
-		pass:      cfg.Password,
-		host:      cfg.Host,
-		port:      cfg.Port,
-		sender:    opts.Sender,
-		templates: tmplMap,
-	}, nil
-}
-
 func (e *SMTPMailer) send(to []string, subject, body, contentType string) error {
 	from := e.from
 	host := e.host
@@ -105,6 +87,24 @@ func (e *SMTPMailer) SendHTML(to []string, subject string, tmplName string, data
 
 func (e *SMTPMailer) SendPlain(to []string, subject string, body string) error {
 	return e.send(to, subject, body, "text/plain")
+}
+
+func NewSMTPMailer(cfg *SMTPConfig, opts *config.Email) (*SMTPMailer, error) {
+	path := opts.Templates
+	layoutFile := filepath.Join(path, opts.Layout)
+	tmplMap, err := parsePages(path, layoutFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SMTPMailer{
+		from:      cfg.User,
+		pass:      cfg.Password,
+		host:      cfg.Host,
+		port:      cfg.Port,
+		sender:    opts.Sender,
+		templates: tmplMap,
+	}, nil
 }
 
 func parsePages(templateDir, layoutFile string) (templateMap, error) {

@@ -18,15 +18,6 @@ type GolangJWTSigner struct {
 	issuer string
 }
 
-func NewGolangJWTSigner(key string, cfg *config.JWT) *GolangJWTSigner {
-	return &GolangJWTSigner{
-		method: jwt.SigningMethodHS256,
-		key:    key,
-		jtiLen: cfg.JTILength,
-		issuer: cfg.Issuer,
-	}
-}
-
 func (s *GolangJWTSigner) Sign(subject string, audience []string, duration time.Duration) (string, error) {
 	id, err := GenerateRandomBytesEncoded(s.jtiLen)
 	if err != nil {
@@ -63,4 +54,13 @@ func (s *GolangJWTSigner) Verify(tokenString string) (string, error) {
 	}
 
 	return claims.Subject, nil
+}
+
+func NewGolangJWTSigner(key string, cfg *config.JWT) *GolangJWTSigner {
+	return &GolangJWTSigner{
+		method: jwt.SigningMethodHS256,
+		key:    key,
+		jtiLen: cfg.JTILength,
+		issuer: cfg.Issuer,
+	}
 }
