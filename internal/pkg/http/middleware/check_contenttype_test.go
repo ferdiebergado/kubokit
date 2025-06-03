@@ -1,7 +1,6 @@
 package middleware_test
 
 import (
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,37 +10,35 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/http/middleware"
 )
 
-func TestCheckContentType(t *testing.T) {
+func TestMiddleware_CheckContentType(t *testing.T) {
 	t.Parallel()
 
 	const (
-		errMsg = `{"message":"Invalid input."}`
-		body   = "test"
+		defaultContent = "test"
+		errContent     = `{"message":"Invalid input."}`
 	)
 
 	var tests = []struct {
 		name        string
-		contentType string
 		method      string
-		code        int
-		body        string
-		setHeader   bool
+		contentType string
+		wantCode    int
+		wantBody    string
 	}{
-		{"Correct Content-Type Post", httpx.MimeJSON, http.MethodPost, http.StatusOK, body, true},
-		{"Correct Content-Type Put", httpx.MimeJSON, http.MethodPut, http.StatusOK, body, true},
-		{"Correct Content-Type Patch", httpx.MimeJSON, http.MethodPatch, http.StatusOK, body, true},
+		{"Correct Content-Type Post", http.MethodPost, httpx.MimeJSON, http.StatusOK, defaultContent},
+		{"Correct Content-Type Put", http.MethodPut, httpx.MimeJSON, http.StatusOK, defaultContent},
+		{"Correct Content-Type Patch", http.MethodPatch, httpx.MimeJSON, http.StatusOK, defaultContent},
 		{
 			"Correct Content-Type with charset",
-			"application/json; charset=utf-8",
 			http.MethodPost,
+			"application/json; charset=utf-8",
 			http.StatusUnsupportedMediaType,
-			errMsg,
-			true,
+			errContent,
 		},
-		{"Other Content-Type", "text/html; charset=utf-8", http.MethodPost, http.StatusUnsupportedMediaType, errMsg, true},
-		{"Empty Content-Type", "", http.MethodPost, http.StatusUnsupportedMediaType, errMsg, true},
-		{"Header not present", "", http.MethodPost, http.StatusUnsupportedMediaType, errMsg, false},
-		{"Get request", "", http.MethodGet, http.StatusOK, body, false},
+		{"Other Content-Type", http.MethodPost, "text/html; charset=utf-8", http.StatusUnsupportedMediaType, errContent},
+		{"Empty Content-Type", http.MethodPost, "", http.StatusUnsupportedMediaType, errContent},
+		{"Header not present", http.MethodPost, "", http.StatusUnsupportedMediaType, errContent},
+		{"Get request", http.MethodGet, "", http.StatusOK, defaultContent},
 	}
 
 	for _, tt := range tests {
@@ -49,7 +46,7 @@ func TestCheckContentType(t *testing.T) {
 			t.Parallel()
 
 			handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				_, err := w.Write([]byte(body))
+				_, err := w.Write([]byte(defaultContent))
 				if err != nil {
 					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 					return
@@ -57,28 +54,20 @@ func TestCheckContentType(t *testing.T) {
 			})
 
 			req, rr := httptest.NewRequest(tt.method, "/test", http.NoBody), httptest.NewRecorder()
-			if tt.setHeader {
+			if tt.contentType != "" {
 				req.Header.Set(httpx.HeaderContentType, tt.contentType)
 			}
 
 			middleware.CheckContentType(handler).ServeHTTP(rr, req)
 
-			res := rr.Result()
-			defer res.Body.Close()
-
-			wantCode, gotCode := tt.code, res.StatusCode
+			wantCode, gotCode := tt.wantCode, rr.Code
 			if gotCode != wantCode {
 				t.Errorf("CheckContentType() = %d, want: %d", gotCode, wantCode)
 			}
 
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			wantBody, gotBody := tt.body, strings.TrimSuffix(string(body), "\n")
+			wantBody, gotBody := tt.wantBody, strings.TrimSuffix(rr.Body.String(), "\n")
 			if gotBody != wantBody {
-				t.Errorf("rr.Body = %q, want: %q", gotBody, wantBody)
+				t.Errorf("\nrr.Body.Bytes() = %q\nwant: %q\n", gotBody, wantBody)
 			}
 		})
 	}

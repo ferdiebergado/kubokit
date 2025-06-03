@@ -59,30 +59,24 @@ func TestHandler_ListUsers(t *testing.T) {
 	userHandler := user.NewHandler(userService)
 	userHandler.ListUsers(rr, req)
 
-	res := rr.Result()
-	defer res.Body.Close()
-
-	wantStatus, gotStatus := http.StatusOK, res.StatusCode
+	wantStatus, gotStatus := http.StatusOK, rr.Code
 	if gotStatus != wantStatus {
 		t.Errorf("\nwant: %d\ngot: %d\n", wantStatus, gotStatus)
 	}
 
 	var apiRes httpx.OKResponse[*user.ListUsersResponse]
-	if err := json.NewDecoder(res.Body).Decode(&apiRes); err != nil {
+	if err := json.NewDecoder(rr.Body).Decode(&apiRes); err != nil {
 		t.Fatal(err)
 	}
 
 	data := apiRes.Data
 
-	wantLen := len(users)
-	gotLen := len(data.Users)
-	if wantLen != gotLen {
+	wantLen, gotLen := len(users), len(data.Users)
+	if gotLen != wantLen {
 		t.Errorf("\nwant: %d\ngot: %d\n", wantLen, gotLen)
 	}
 
-	wantEmail := users[0].Email
-	gotEmail := data.Users[0].Email
-
+	wantEmail, gotEmail := users[0].Email, data.Users[0].Email
 	if gotEmail != wantEmail {
 		t.Errorf("\nwant: %s\ngot: %s\n", wantEmail, gotEmail)
 	}
