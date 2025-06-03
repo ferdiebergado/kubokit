@@ -26,16 +26,14 @@ func TestArgon2Hasher_Hash(t *testing.T) {
 	}
 
 	parts := strings.Split(hashed, "$")
-	wantLen := 6
-	gotLen := len(parts)
+	wantLen, gotLen := 6, len(parts)
 	if gotLen != wantLen {
-		t.Errorf("len(parts) = %d, want: %d", gotLen, wantLen)
+		t.Errorf("\ngot: %d\nwant: %d\n", gotLen, wantLen)
 	}
 
-	wantHasher := "argon2id"
-	gotHasher := parts[1]
+	wantHasher, gotHasher := "argon2id", parts[1]
 	if gotHasher != wantHasher {
-		t.Errorf("parts[1] = %s, want: %s", gotHasher, wantHasher)
+		t.Errorf("\ngot: %s\nwant: %s\n", gotHasher, wantHasher)
 	}
 }
 
@@ -60,7 +58,7 @@ func TestArgon2Hasher_Verify(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !matches {
-		t.Errorf("hasher.Verify() = %v, want: %v", matches, true)
+		t.Errorf("\ngot: %v\nwant: %v\n", matches, true)
 	}
 
 	matches, err = hasher.Verify("garlic", hashed)
@@ -69,6 +67,6 @@ func TestArgon2Hasher_Verify(t *testing.T) {
 	}
 
 	if matches {
-		t.Errorf("hasher.Verify() = %v, want: %v", matches, false)
+		t.Errorf("\ngot: %v\nwant: %v\n", matches, false)
 	}
 }

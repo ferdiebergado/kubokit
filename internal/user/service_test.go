@@ -56,8 +56,7 @@ func TestService_ListUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	wantLen := len(users)
-	gotLen := len(allUsers)
+	wantLen, gotLen := len(users), len(allUsers)
 	if gotLen != wantLen {
 		t.Errorf("\nwant: %d\n got: %d users", wantLen, gotLen)
 	}
