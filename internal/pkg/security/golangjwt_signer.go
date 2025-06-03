@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/golang-jwt/jwt/v5"
 )
+
+var _ contract.Signer = &GolangJWTSigner{}
 
 type GolangJWTSigner struct {
 	method jwt.SigningMethod

@@ -11,8 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/ferdiebergado/kubokit/internal/config"
 )
+
+var _ contract.Mailer = &SMTPMailer{}
 
 type templateMap map[string]*template.Template
 

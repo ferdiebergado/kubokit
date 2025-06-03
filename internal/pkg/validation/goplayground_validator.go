@@ -6,8 +6,11 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/go-playground/validator/v10"
 )
+
+var _ contract.Validator = &GoPlaygroundValidator{}
 
 type GoPlaygroundValidator struct {
 	v *validator.Validate

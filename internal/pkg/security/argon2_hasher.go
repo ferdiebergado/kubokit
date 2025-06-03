@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"golang.org/x/crypto/argon2"
 )
+
+var _ contract.Hasher = &Argon2Hasher{}
 
 const variant = "argon2id"
 
