@@ -33,10 +33,12 @@ func (s *stubService) FindUserByEmail(ctx context.Context, email string) (user.U
 	panic("not implemented") // TODO: Implement
 }
 
-func TestHandler_ListUsers(t *testing.T) {
+func TestHandler_ListUsers_Success(t *testing.T) {
 	t.Parallel()
+
 	req := httptest.NewRequest(http.MethodGet, "/users", http.NoBody)
 	rr := httptest.NewRecorder()
+
 	now := time.Now()
 	users := []user.User{
 		{
@@ -50,18 +52,18 @@ func TestHandler_ListUsers(t *testing.T) {
 			VerifiedAt:   &now,
 		},
 	}
+
 	userService := &stubService{
 		ListUsersFunc: func(_ context.Context) ([]user.User, error) {
 			return users, nil
 		},
 	}
-
 	userHandler := user.NewHandler(userService)
 	userHandler.ListUsers(rr, req)
 
 	wantStatus, gotStatus := http.StatusOK, rr.Code
 	if gotStatus != wantStatus {
-		t.Errorf("\nwant: %d\ngot: %d\n", wantStatus, gotStatus)
+		t.Errorf("rr.Code = %d\nwant: %d", gotStatus, wantStatus)
 	}
 
 	var apiRes httpx.OKResponse[*user.ListUsersResponse]
@@ -73,11 +75,31 @@ func TestHandler_ListUsers(t *testing.T) {
 
 	wantLen, gotLen := len(users), len(data.Users)
 	if gotLen != wantLen {
-		t.Errorf("\nwant: %d\ngot: %d\n", wantLen, gotLen)
+		t.Errorf("len(data.Users) = %d\nwant: %d", gotLen, wantLen)
 	}
 
 	wantEmail, gotEmail := users[0].Email, data.Users[0].Email
 	if gotEmail != wantEmail {
-		t.Errorf("\nwant: %s\ngot: %s\n", wantEmail, gotEmail)
+		t.Errorf("data.Users[0].Email = %s\nwant: %s", gotEmail, wantEmail)
+	}
+}
+
+func TestHandler_ListUsers_Error(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/users", http.NoBody)
+	rr := httptest.NewRecorder()
+
+	userService := &stubService{
+		ListUsersFunc: func(_ context.Context) ([]user.User, error) {
+			return nil, errors.New("service error")
+		},
+	}
+	userHandler := user.NewHandler(userService)
+	userHandler.ListUsers(rr, req)
+
+	wantStatus, gotStatus := http.StatusInternalServerError, rr.Code
+	if gotStatus != wantStatus {
+		t.Errorf("rr.Code = %d\nwant: %d", gotStatus, wantStatus)
 	}
 }
