@@ -24,8 +24,8 @@ VALUES (
 
 INSERT INTO users (id, email, password_hash, verified_at, metadata, created_at, updated_at, deleted_at)
 VALUES (
-    '3d594650-3436-11e5-bf21-0800200c9a66',
-    'bob@example.com',
+    '3d594650-3436-11e5-bf21-0800200c9a67',
+    'bobby@example.com',
     '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa',
     NULL,
     '{"role":"user","signup_source":"organic"}',
