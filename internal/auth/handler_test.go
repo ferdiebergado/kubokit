@@ -17,8 +17,10 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-func TestAuthHandler_RegisterUser(t *testing.T) {
-	now := time.Now()
+func TestHandler_RegisterUser(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().Truncate(0)
 	testEmail := "test@example.com"
 	testPass := "test"
 	u := user.User{
@@ -67,8 +69,8 @@ func TestAuthHandler_RegisterUser(t *testing.T) {
 	wantUser := &auth.RegisterUserResponse{
 		ID:        u.ID,
 		Email:     u.Email,
-		CreatedAt: u.CreatedAt.Truncate(0),
-		UpdatedAt: u.UpdatedAt.Truncate(0),
+		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
 	}
 	if !reflect.DeepEqual(gotUser, wantUser) {
 		t.Errorf("apiRes.Data = %+v\nwant: %+v\n", gotUser, wantUser)
