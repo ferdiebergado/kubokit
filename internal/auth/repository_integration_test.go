@@ -33,9 +33,10 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 	}
 
 	repo := auth.NewRepository(conn)
+	ctx := context.Background()
 	userID := "3d594650-3436-11e5-bf21-0800200c9a66"
-	if err := repo.VerifyUser(context.Background(), userID); err != nil {
-		t.Errorf("\ngot: %v\nwant: nil", err)
+	if err := repo.VerifyUser(ctx, userID); err != nil {
+		t.Errorf("repo.VerifyUser(ctx, %s) = %v\nwant: nil", userID, err)
 	}
 }
 
@@ -49,9 +50,10 @@ func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
 	}
 
 	repo := auth.NewRepository(conn)
+	ctx := context.Background()
 	testEmail := "bob@example.com"
 	testPassword := "test"
-	if err := repo.ChangeUserPassword(context.Background(), testEmail, testPassword); err != nil {
-		t.Errorf("\ngot: %v\nwant: nil", err)
+	if err := repo.ChangeUserPassword(ctx, testEmail, testPassword); err != nil {
+		t.Errorf("repo.ChangeUserPassword(ctx, %s, %s) = %v\nwant: nil", testEmail, testPassword, err)
 	}
 }

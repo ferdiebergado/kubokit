@@ -19,26 +19,22 @@ func TestMiddleware_CheckContentType(t *testing.T) {
 	)
 
 	var tests = []struct {
-		name        string
-		method      string
-		contentType string
-		wantCode    int
-		wantBody    string
+		name, method, contentType, wantBody string
+		wantCode                            int
 	}{
-		{"Correct Content-Type Post", http.MethodPost, httpx.MimeJSON, http.StatusOK, defaultContent},
-		{"Correct Content-Type Put", http.MethodPut, httpx.MimeJSON, http.StatusOK, defaultContent},
-		{"Correct Content-Type Patch", http.MethodPatch, httpx.MimeJSON, http.StatusOK, defaultContent},
+		{"Correct Content-Type Post", http.MethodPost, httpx.MimeJSON, defaultContent, http.StatusOK},
+		{"Correct Content-Type Put", http.MethodPut, httpx.MimeJSON, defaultContent, http.StatusOK},
+		{"Correct Content-Type Patch", http.MethodPatch, httpx.MimeJSON, defaultContent, http.StatusOK},
 		{
 			"Correct Content-Type with charset",
 			http.MethodPost,
 			"application/json; charset=utf-8",
-			http.StatusUnsupportedMediaType,
 			errContent,
+			http.StatusUnsupportedMediaType,
 		},
-		{"Other Content-Type", http.MethodPost, "text/html; charset=utf-8", http.StatusUnsupportedMediaType, errContent},
-		{"Empty Content-Type", http.MethodPost, "", http.StatusUnsupportedMediaType, errContent},
-		{"Header not present", http.MethodPost, "", http.StatusUnsupportedMediaType, errContent},
-		{"Get request", http.MethodGet, "", http.StatusOK, defaultContent},
+		{"Other Content-Type", http.MethodPost, "text/html; charset=utf-8", errContent, http.StatusUnsupportedMediaType},
+		{"Empty Content-Type", http.MethodPost, "", errContent, http.StatusUnsupportedMediaType},
+		{"Get request", http.MethodGet, "", defaultContent, http.StatusOK},
 	}
 
 	for _, tt := range tests {
@@ -48,26 +44,25 @@ func TestMiddleware_CheckContentType(t *testing.T) {
 			handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				_, err := w.Write([]byte(defaultContent))
 				if err != nil {
-					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+					const status = http.StatusInternalServerError
+					http.Error(w, http.StatusText(status), status)
 					return
 				}
 			})
 
-			req, rr := httptest.NewRequest(tt.method, "/test", http.NoBody), httptest.NewRecorder()
-			if tt.contentType != "" {
-				req.Header.Set(httpx.HeaderContentType, tt.contentType)
-			}
+			req, rec := httptest.NewRequest(tt.method, "/test", http.NoBody), httptest.NewRecorder()
+			req.Header.Set(httpx.HeaderContentType, tt.contentType)
 
-			middleware.CheckContentType(handler).ServeHTTP(rr, req)
+			middleware.CheckContentType(handler).ServeHTTP(rec, req)
 
-			wantCode, gotCode := tt.wantCode, rr.Code
+			wantCode, gotCode := tt.wantCode, rec.Code
 			if gotCode != wantCode {
-				t.Errorf("CheckContentType() = %d, want: %d", gotCode, wantCode)
+				t.Errorf("rec.Code = %d\nwant: %d", gotCode, wantCode)
 			}
 
-			wantBody, gotBody := tt.wantBody, strings.TrimSuffix(rr.Body.String(), "\n")
+			wantBody, gotBody := tt.wantBody, strings.TrimSuffix(rec.Body.String(), "\n")
 			if gotBody != wantBody {
-				t.Errorf("\nrr.Body.Bytes() = %q\nwant: %q\n", gotBody, wantBody)
+				t.Errorf("rec.Body.String() = %q\nwant: %q", gotBody, wantBody)
 			}
 		})
 	}

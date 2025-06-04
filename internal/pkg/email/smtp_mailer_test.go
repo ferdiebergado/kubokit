@@ -41,7 +41,10 @@ func TestSMTPMailer_SendHTML(t *testing.T) {
 	}
 
 	to := []string{"test@example.com"}
-	if err := mailer.SendHTML(to, "test", "verification", nil); err != nil {
-		t.Errorf("\nwant: nil error\ngot: %v", err)
+	subj := "test"
+	tmpl := "verification"
+	var data map[string]string
+	if err := mailer.SendHTML(to, subj, tmpl, data); err != nil {
+		t.Errorf("mailer.SendHTML(%v, %q, %s, %v) = %v\nwant: nil", to, subj, tmpl, data, err)
 	}
 }

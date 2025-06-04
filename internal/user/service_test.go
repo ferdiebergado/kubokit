@@ -31,6 +31,7 @@ func (r *stubRepo) FindUserByEmail(ctx context.Context, email string) (user.User
 
 func TestService_ListUsers(t *testing.T) {
 	t.Parallel()
+
 	ctx := context.Background()
 	now := time.Now()
 	users := []user.User{
@@ -58,6 +59,6 @@ func TestService_ListUsers(t *testing.T) {
 
 	wantLen, gotLen := len(users), len(allUsers)
 	if gotLen != wantLen {
-		t.Errorf("\nwant: %d\n got: %d users", wantLen, gotLen)
+		t.Errorf("len(allUsers) = %d\nwant: %d", wantLen, gotLen)
 	}
 }

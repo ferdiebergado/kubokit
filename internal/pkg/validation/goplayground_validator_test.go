@@ -7,6 +7,8 @@ import (
 )
 
 func TestGoplaygroundValidator_ValidateStruct(t *testing.T) {
+	t.Parallel()
+
 	var tests = []struct {
 		name     string
 		given    any
@@ -23,16 +25,18 @@ func TestGoplaygroundValidator_ValidateStruct(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			v := validation.NewGoPlaygroundValidator()
 
 			errs := v.ValidateStruct(tt.given)
 			if errs != nil && !tt.hasError {
-				t.Errorf("\ngot: %v\nwant: nil", errs)
+				t.Errorf("v.ValidateStruct(%v) = %v\nwant: %v", tt.given, errs, nil)
 			}
 
 			gotMsg, wantMsg := errs[tt.field], tt.errMsg
 			if gotMsg != wantMsg {
-				t.Errorf("\ngot: %s\n want: %s", wantMsg, gotMsg)
+				t.Errorf("errs[%s] = %s\nwant: %s", tt.field, wantMsg, gotMsg)
 			}
 		})
 	}

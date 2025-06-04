@@ -92,7 +92,7 @@ func TestAuthHandler_RegisterUser(t *testing.T) {
 
 	wantStatus, gotStatus := http.StatusCreated, rec.Code
 	if gotStatus != wantStatus {
-		t.Errorf("\ngot: %d\nwant %d\n", gotStatus, wantStatus)
+		t.Errorf("rec.Code = %d\nwant: %d\n", gotStatus, wantStatus)
 	}
 
 	var apiRes httpx.OKResponse[*auth.RegisterUserResponse]
@@ -108,6 +108,6 @@ func TestAuthHandler_RegisterUser(t *testing.T) {
 		UpdatedAt: u.UpdatedAt.Truncate(0),
 	}
 	if !reflect.DeepEqual(gotUser, wantUser) {
-		t.Errorf("\ngot: %+v\nwant: %+v\n", gotUser, wantUser)
+		t.Errorf("apiRes.Data = %+v\nwant: %+v\n", gotUser, wantUser)
 	}
 }

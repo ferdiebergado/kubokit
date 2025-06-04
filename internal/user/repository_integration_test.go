@@ -61,11 +61,11 @@ func TestIntegrationRepository_GetAllUsers(t *testing.T) {
 
 	users, err := repo.ListUsers(ctx)
 	if err != nil {
-		t.Errorf("\ngot: %+v\n want: %+v\n", err, nil)
+		t.Errorf("repo.ListUsers(ctx) = %+v,%v\nwant: %+v", users, err, nil)
 	}
 
 	gotLen, wantLen := len(users), 3
 	if gotLen != wantLen {
-		t.Errorf("\ngot: %+v\n want: %+v\n", gotLen, wantLen)
+		t.Errorf("len(users) = %+v\nwant: %+v", gotLen, wantLen)
 	}
 }

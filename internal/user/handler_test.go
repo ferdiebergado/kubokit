@@ -38,7 +38,7 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 	t.Parallel()
 
 	req := httptest.NewRequest(http.MethodGet, "/users", http.NoBody)
-	rr := httptest.NewRecorder()
+	rec := httptest.NewRecorder()
 
 	now := time.Now()
 	users := []user.User{
@@ -70,15 +70,15 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 		},
 	}
 	userHandler := user.NewHandler(userService)
-	userHandler.ListUsers(rr, req)
+	userHandler.ListUsers(rec, req)
 
-	wantStatus, gotStatus := http.StatusOK, rr.Code
+	wantStatus, gotStatus := http.StatusOK, rec.Code
 	if gotStatus != wantStatus {
-		t.Errorf("rr.Code = %d\nwant: %d", gotStatus, wantStatus)
+		t.Errorf("rec.Code = %d\nwant: %d", gotStatus, wantStatus)
 	}
 
 	var apiRes httpx.OKResponse[*user.ListUsersResponse]
-	if err := json.NewDecoder(rr.Body).Decode(&apiRes); err != nil {
+	if err := json.NewDecoder(rec.Body).Decode(&apiRes); err != nil {
 		t.Fatal(err)
 	}
 
@@ -110,7 +110,7 @@ func TestHandler_ListUsers_Error(t *testing.T) {
 	t.Parallel()
 
 	req := httptest.NewRequest(http.MethodGet, "/users", http.NoBody)
-	rr := httptest.NewRecorder()
+	rec := httptest.NewRecorder()
 
 	userService := &stubService{
 		ListUsersFunc: func(_ context.Context) ([]user.User, error) {
@@ -118,10 +118,10 @@ func TestHandler_ListUsers_Error(t *testing.T) {
 		},
 	}
 	userHandler := user.NewHandler(userService)
-	userHandler.ListUsers(rr, req)
+	userHandler.ListUsers(rec, req)
 
-	wantStatus, gotStatus := http.StatusInternalServerError, rr.Code
+	wantStatus, gotStatus := http.StatusInternalServerError, rec.Code
 	if gotStatus != wantStatus {
-		t.Errorf("rr.Code = %d\nwant: %d", gotStatus, wantStatus)
+		t.Errorf("rec.Code = %d\nwant: %d", gotStatus, wantStatus)
 	}
 }
