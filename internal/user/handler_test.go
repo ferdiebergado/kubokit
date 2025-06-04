@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -51,6 +52,16 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 			PasswordHash: "hash1",
 			VerifiedAt:   &now,
 		},
+		{
+			Model: db.Model{
+				ID:        "2",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Email:        "abc@test.com",
+			PasswordHash: "hash2",
+			VerifiedAt:   &now,
+		},
 	}
 
 	userService := &stubService{
@@ -78,9 +89,20 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 		t.Errorf("len(data.Users) = %d\nwant: %d", gotLen, wantLen)
 	}
 
-	wantEmail, gotEmail := users[0].Email, data.Users[0].Email
-	if gotEmail != wantEmail {
-		t.Errorf("data.Users[0].Email = %s\nwant: %s", gotEmail, wantEmail)
+	for i := range users {
+		currentUser := users[i]
+		verifiedAt := currentUser.VerifiedAt.Truncate(0)
+		wantUser := user.UserData{
+			ID:         currentUser.ID,
+			Email:      currentUser.Email,
+			VerifiedAt: &verifiedAt,
+			CreatedAt:  currentUser.CreatedAt.Truncate(0),
+			UpdatedAt:  currentUser.UpdatedAt.Truncate(0),
+		}
+		gotUser := data.Users[i]
+		if !reflect.DeepEqual(gotUser, wantUser) {
+			t.Errorf("data.Users[%d] = %+v\nwant: %+v", i, gotUser, wantUser)
+		}
 	}
 }
 
