@@ -41,14 +41,14 @@ type stubHasher struct {
 	HashFunc func(plain string) (string, error)
 }
 
-func (h stubHasher) Hash(plain string) (string, error) {
+func (h *stubHasher) Hash(plain string) (string, error) {
 	if h.HashFunc == nil {
 		return "", errors.New("Hash is not implemented by stub")
 	}
 	return h.HashFunc(plain)
 }
 
-func (h stubHasher) Verify(plain, hash string) (bool, error) {
+func (h *stubHasher) Verify(plain, hash string) (bool, error) {
 	panic("not implemented") // TODO: Implement
 }
 
@@ -145,9 +145,16 @@ func TestService_RegisterUser(t *testing.T) {
 				},
 			}
 
+			signer := &stubSigner{
+				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+					return "signed", nil
+				},
+			}
+
 			providers := &auth.Providers{
 				Hasher: hasher,
 				Mailer: mailer,
+				Signer: signer,
 			}
 
 			cfg := &config.Config{
