@@ -18,29 +18,72 @@ func TestService_RegisterUser(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now().Truncate(0)
-	var tests = []struct {
-		name       string
-		testUser   user.User
-		createFunc func(ctx context.Context, params user.CreateUserParams) (user.User, error)
+
+	tests := []struct {
+		name, email, password string
+		registerUserFunc      func(ctx context.Context, params auth.RegisterUserParams) (user.User, error)
+		createUserFunc        func(ctx context.Context, params user.CreateUserParams) (user.User, error)
+		findUserByEmailFunc   func(ctx context.Context, email string) (user.User, error)
+		hashFunc              func(plain string) (string, error)
+		sendHTMLFunc          func(to []string, subject, tmplName string, data map[string]string) error
+		signFunc              func(subject string, audience []string, duration time.Duration) (string, error)
+		wantUser              user.User
+		assertFunc            func(t *testing.T, gotUser, wantUser user.User, err error)
 	}{
-		{"Successful registration",
-			user.User{
-				Model: db.Model{
-					ID:        "1",
-					CreatedAt: now,
-					UpdatedAt: now,
-				},
-				Email: "abc@example.com",
-			},
-			func(ctx context.Context, params user.CreateUserParams) (user.User, error) {
+		{
+			name:     "Successful Registration",
+			email:    "user1@example.com",
+			password: "test",
+			registerUserFunc: func(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
 				return user.User{
 					Model: db.Model{
 						ID:        "1",
 						CreatedAt: now,
 						UpdatedAt: now,
 					},
-					Email: "abc@example.com",
+					Email: params.Email,
 				}, nil
+			},
+			createUserFunc: func(ctx context.Context, params user.CreateUserParams) (user.User, error) {
+				return user.User{
+					Model: db.Model{
+						ID:        "1",
+						CreatedAt: now,
+						UpdatedAt: now,
+					},
+					Email: params.Email,
+				}, nil
+			},
+			findUserByEmailFunc: func(ctx context.Context, email string) (user.User, error) {
+				return user.User{}, nil
+			},
+			hashFunc: func(_ string) (string, error) {
+				return "hashed", nil
+			},
+			sendHTMLFunc: func(to []string, subject, tmplName string, data map[string]string) error {
+				return nil
+			},
+			signFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+				return "signed", nil
+			},
+			wantUser: user.User{
+				Model: db.Model{
+					ID:        "1",
+					CreatedAt: now,
+					UpdatedAt: now,
+				},
+				Email: "user1@example.com",
+			},
+			assertFunc: func(t *testing.T, gotUser, wantUser user.User, err error) {
+				t.Helper()
+
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if !reflect.DeepEqual(gotUser, wantUser) {
+					t.Errorf("gotUser = %+v\nwant: %+v", gotUser, wantUser)
+				}
 			},
 		},
 	}
@@ -48,30 +91,25 @@ func TestService_RegisterUser(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			authRepo := &auth.StubRepo{}
+			authRepo := &auth.StubRepo{
+				RegisterUserFunc: tt.registerUserFunc,
+			}
+
 			userSvc := &user.StubService{
-				CreateUserFunc: tt.createFunc,
-				FindUserByEmailFunc: func(ctx context.Context, email string) (user.User, error) {
-					return user.User{}, nil
-				},
+				CreateUserFunc:      tt.createUserFunc,
+				FindUserByEmailFunc: tt.findUserByEmailFunc,
 			}
 
 			hasher := &stub.Hasher{
-				HashFunc: func(_ string) (string, error) {
-					return "hashed", nil
-				},
+				HashFunc: tt.hashFunc,
 			}
 
 			mailer := &stub.Mailer{
-				SendHTMLFunc: func(to []string, subject, tmplName string, data map[string]string) error {
-					return nil
-				},
+				SendHTMLFunc: tt.sendHTMLFunc,
 			}
 
 			signer := &stub.Signer{
-				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
-					return "signed", nil
-				},
+				SignFunc: tt.signFunc,
 			}
 
 			providers := &auth.Providers{
@@ -96,18 +134,11 @@ func TestService_RegisterUser(t *testing.T) {
 			authSvc := auth.NewService(authRepo, userSvc, providers, cfg)
 			ctx := context.Background()
 			params := auth.RegisterUserParams{
-				Email:    "abc@example.com",
-				Password: "test",
+				Email:    tt.email,
+				Password: tt.password,
 			}
-			newUser, err := authSvc.RegisterUser(ctx, params)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			wantUser, gotUser := tt.testUser, newUser
-			if !reflect.DeepEqual(gotUser, wantUser) {
-				t.Errorf("newUser = %+v\nwant: %+v", gotUser, wantUser)
-			}
+			gotUser, err := authSvc.RegisterUser(ctx, params)
+			tt.assertFunc(t, gotUser, tt.wantUser, err)
 		})
 	}
 }
