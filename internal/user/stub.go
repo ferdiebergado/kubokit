@@ -34,11 +34,15 @@ func (s *StubService) FindUserByEmail(ctx context.Context, email string) (User, 
 }
 
 type StubRepo struct {
-	ListUsersFunc func(ctx context.Context) ([]User, error)
+	ListUsersFunc  func(ctx context.Context) ([]User, error)
+	CreateUserFunc func(ctx context.Context, params CreateUserParams) (User, error)
 }
 
 func (r *StubRepo) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
-	panic("not implemented") // TODO: Implement
+	if r.CreateUserFunc == nil {
+		return User{}, errors.New("CreateUser not implemented by stub")
+	}
+	return r.CreateUserFunc(ctx, params)
 }
 
 func (r *StubRepo) ListUsers(ctx context.Context) ([]User, error) {
