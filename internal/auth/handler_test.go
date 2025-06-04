@@ -49,10 +49,10 @@ type stubSigner struct {
 }
 
 func (s *stubSigner) Sign(subject string, audience []string, duration time.Duration) (string, error) {
-	if s.SignFunc != nil {
-		return s.SignFunc(subject, audience, duration)
+	if s.SignFunc == nil {
+		return "", errors.New("Sign not implemented by stub")
 	}
-	return "", nil
+	return s.SignFunc(subject, audience, duration)
 }
 
 func (s *stubSigner) Verify(tokenString string) (string, error) {
