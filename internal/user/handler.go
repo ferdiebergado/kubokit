@@ -24,7 +24,7 @@ func NewHandler(svc UserService) *Handler {
 	return &Handler{svc}
 }
 
-type userData struct {
+type UserData struct {
 	ID         string          `json:"id,omitempty"`
 	Email      string          `json:"email,omitempty"`
 	Metadata   json.RawMessage `json:"metadata,omitempty"`
@@ -34,7 +34,7 @@ type userData struct {
 }
 
 type ListUsersResponse struct {
-	Users []userData `json:"users,omitempty"`
+	Users []UserData `json:"users,omitempty"`
 }
 
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
@@ -48,8 +48,8 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w, http.StatusOK, nil, payload)
 }
 
-func transformUser(u *User) *userData {
-	return &userData{
+func transformUser(u *User) *UserData {
+	return &UserData{
 		ID:         u.ID,
 		Email:      u.Email,
 		Metadata:   u.Metadata,
@@ -60,7 +60,7 @@ func transformUser(u *User) *userData {
 }
 
 func newListUsersResponse(users []User) *ListUsersResponse {
-	data := make([]userData, 0, len(users))
+	data := make([]UserData, 0, len(users))
 	for i := range users {
 		tmpUser := transformUser(&users[i])
 		data = append(data, *tmpUser)
