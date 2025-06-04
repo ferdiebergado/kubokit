@@ -41,35 +41,38 @@ func TestArgon2Hasher_Hash(t *testing.T) {
 func TestArgon2Hasher_Verify(t *testing.T) {
 	t.Parallel()
 
-	opts := &config.Argon2{
-		Memory:     65535,
-		Iterations: 3,
-		Threads:    2,
-		SaltLength: 16,
-		KeyLength:  32,
+	tests := []struct {
+		name, plain, hashed string
+		matches             bool
+	}{
+		{"Plain and hash matches", "rice", "rice", true},
+		{"Plain and hash mismatches", "garlic", "rice", false},
 	}
-	pepper := "paminta"
-	hasher := security.NewArgon2Hasher(opts, pepper)
-	plain := "rice"
-	hashed, err := hasher.Hash(plain)
-	if err != nil {
-		t.Fatal(err)
-	}
-	matches, err := hasher.Verify(plain, hashed)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !matches {
-		t.Errorf("hasher.Verify(plain, hashed) = %v\nwant: %v", matches, true)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	plain = "garlic"
-	matches, err = hasher.Verify(plain, hashed)
-	if err != nil {
-		t.Fatal(err)
-	}
+			opts := &config.Argon2{
+				Memory:     65535,
+				Iterations: 3,
+				Threads:    2,
+				SaltLength: 16,
+				KeyLength:  32,
+			}
+			pepper := "paminta"
+			hasher := security.NewArgon2Hasher(opts, pepper)
+			hashed, err := hasher.Hash(tt.hashed)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	if matches {
-		t.Errorf("hasher.Verify(plain, hashed) = %v\nwant: %v", matches, false)
+			matches, err := hasher.Verify(tt.plain, hashed)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tt.matches != matches {
+				t.Errorf("hasher.Verify(tt.plain, hashed) = %v\nwant: %v", matches, true)
+			}
+		})
 	}
 }
