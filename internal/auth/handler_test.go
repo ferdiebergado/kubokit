@@ -3,61 +3,19 @@ package auth_test
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/ferdiebergado/kubokit/internal/app/contract/stub"
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/db"
 	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
-
-type stubAuthSvc struct {
-	RegisterUserFunc func(ctx context.Context, params auth.RegisterUserParams) (user.User, error)
-}
-
-func (s stubAuthSvc) RegisterUser(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
-	if s.RegisterUserFunc == nil {
-		return user.User{}, errors.New("RegisterUser not implemented by stub")
-	}
-	return s.RegisterUserFunc(ctx, params)
-}
-
-func (s *stubAuthSvc) VerifyUser(ctx context.Context, token string) error {
-	panic("not implemented") // TODO: Implement
-}
-
-func (s *stubAuthSvc) LoginUser(ctx context.Context, params auth.LoginUserParams) (accessToken string, refreshToken string, err error) {
-	panic("not implemented") // TODO: Implement
-}
-
-func (s *stubAuthSvc) SendPasswordReset(email string) {
-	panic("not implemented") // TODO: Implement
-}
-
-func (s *stubAuthSvc) ResetPassword(ctx context.Context, params auth.ResetPasswordParams) error {
-	panic("not implemented") // TODO: Implement
-}
-
-type stubSigner struct {
-	SignFunc func(subject string, audience []string, duration time.Duration) (string, error)
-}
-
-func (s *stubSigner) Sign(subject string, audience []string, duration time.Duration) (string, error) {
-	if s.SignFunc == nil {
-		return "", errors.New("Sign not implemented by stub")
-	}
-	return s.SignFunc(subject, audience, duration)
-}
-
-func (s *stubSigner) Verify(tokenString string) (string, error) {
-	panic("not implemented") // TODO: Implement
-}
 
 func TestAuthHandler_RegisterUser(t *testing.T) {
 	now := time.Now()
@@ -71,14 +29,14 @@ func TestAuthHandler_RegisterUser(t *testing.T) {
 		},
 		Email: testEmail,
 	}
-	svc := &stubAuthSvc{
+	svc := &auth.StubService{
 		RegisterUserFunc: func(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
 			return u, nil
 		},
 	}
-	signer := &stubSigner{}
-	cfg := config.Config{}
-	authHandler := auth.NewHandler(svc, signer, &cfg)
+	signer := &stub.Signer{}
+	cfg := &config.Config{}
+	authHandler := auth.NewHandler(svc, signer, cfg)
 	params := auth.RegisterUserRequest{
 		Email:           testEmail,
 		Password:        testPass,

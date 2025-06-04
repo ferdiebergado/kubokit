@@ -2,32 +2,12 @@ package user_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/db"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
-
-type stubRepo struct {
-	ListUsersFunc func(ctx context.Context) ([]user.User, error)
-}
-
-func (r *stubRepo) CreateUser(ctx context.Context, params user.CreateUserParams) (user.User, error) {
-	panic("not implemented") // TODO: Implement
-}
-
-func (r *stubRepo) ListUsers(ctx context.Context) ([]user.User, error) {
-	if r.ListUsersFunc == nil {
-		return nil, errors.New("ListUsers not implemented by stub")
-	}
-	return r.ListUsersFunc(ctx)
-}
-
-func (r *stubRepo) FindUserByEmail(ctx context.Context, email string) (user.User, error) {
-	panic("not implemented") // TODO: Implement
-}
 
 func TestService_ListUsers(t *testing.T) {
 	t.Parallel()
@@ -46,7 +26,7 @@ func TestService_ListUsers(t *testing.T) {
 			VerifiedAt:   &now,
 		},
 	}
-	repo := &stubRepo{
+	repo := &user.StubRepo{
 		ListUsersFunc: func(_ context.Context) ([]user.User, error) {
 			return users, nil
 		},

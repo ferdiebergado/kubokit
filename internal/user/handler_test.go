@@ -15,25 +15,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-type stubService struct {
-	ListUsersFunc func(ctx context.Context) ([]user.User, error)
-}
-
-func (s *stubService) CreateUser(ctx context.Context, params user.CreateUserParams) (user.User, error) {
-	panic("not implemented") // TODO: Implement
-}
-
-func (s *stubService) ListUsers(ctx context.Context) ([]user.User, error) {
-	if s.ListUsersFunc == nil {
-		return nil, errors.New("ListUsers not implemented in stub")
-	}
-	return s.ListUsersFunc(ctx)
-}
-
-func (s *stubService) FindUserByEmail(ctx context.Context, email string) (user.User, error) {
-	panic("not implemented") // TODO: Implement
-}
-
 func TestHandler_ListUsers_Success(t *testing.T) {
 	t.Parallel()
 
@@ -64,7 +45,7 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 		},
 	}
 
-	userService := &stubService{
+	userService := &user.StubService{
 		ListUsersFunc: func(_ context.Context) ([]user.User, error) {
 			return users, nil
 		},
@@ -112,7 +93,7 @@ func TestHandler_ListUsers_Error(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/users", http.NoBody)
 	rec := httptest.NewRecorder()
 
-	userService := &stubService{
+	userService := &user.StubService{
 		ListUsersFunc: func(_ context.Context) ([]user.User, error) {
 			return nil, errors.New("service error")
 		},
