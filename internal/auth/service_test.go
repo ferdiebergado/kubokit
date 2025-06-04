@@ -3,12 +3,14 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/db"
+	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -50,6 +52,21 @@ func (h stubHasher) Verify(plain, hash string) (bool, error) {
 	panic("not implemented") // TODO: Implement
 }
 
+type stubMailer struct {
+	SendHTMLFunc func(to []string, subject string, tmplName string, data map[string]string) error
+}
+
+func (m *stubMailer) SendPlain(to []string, subject string, body string) error {
+	panic("not implemented") // TODO: Implement
+}
+
+func (m *stubMailer) SendHTML(to []string, subject string, tmplName string, data map[string]string) error {
+	if m.SendHTMLFunc == nil {
+		return errors.New("SendHTML not implemented by stub")
+	}
+	return m.SendHTMLFunc(to, subject, tmplName, data)
+}
+
 type stubUserSvc struct {
 	CreateUserFunc      func(ctx context.Context, params user.CreateUserParams) (user.User, error)
 	FindUserByEmailFunc func(ctx context.Context, email string) (user.User, error)
@@ -76,6 +93,8 @@ func (s *stubUserSvc) FindUserByEmail(ctx context.Context, email string) (user.U
 
 func TestService_RegisterUser(t *testing.T) {
 	t.Parallel()
+
+	now := time.Now().Truncate(0)
 	var tests = []struct {
 		name       string
 		testUser   user.User
@@ -85,8 +104,8 @@ func TestService_RegisterUser(t *testing.T) {
 			user.User{
 				Model: db.Model{
 					ID:        "1",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
+					CreatedAt: now,
+					UpdatedAt: now,
 				},
 				Email: "abc@example.com",
 			},
@@ -94,8 +113,8 @@ func TestService_RegisterUser(t *testing.T) {
 				return user.User{
 					Model: db.Model{
 						ID:        "1",
-						CreatedAt: time.Now(),
-						UpdatedAt: time.Now(),
+						CreatedAt: now,
+						UpdatedAt: now,
 					},
 					Email: "abc@example.com",
 				}, nil
@@ -105,6 +124,7 @@ func TestService_RegisterUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			authRepo := &stubAuthRepo{}
 			userSvc := &stubUserSvc{
 				CreateUserFunc: tt.createFunc,
@@ -113,15 +133,35 @@ func TestService_RegisterUser(t *testing.T) {
 				},
 			}
 
-			hasher := stubHasher{
-				HashFunc: func(plain string) (string, error) {
+			hasher := &stubHasher{
+				HashFunc: func(_ string) (string, error) {
 					return "hashed", nil
 				},
 			}
+
+			mailer := &stubMailer{
+				SendHTMLFunc: func(to []string, subject, tmplName string, data map[string]string) error {
+					return nil
+				},
+			}
+
 			providers := &auth.Providers{
 				Hasher: hasher,
+				Mailer: mailer,
 			}
-			cfg := &config.Config{}
+
+			cfg := &config.Config{
+				Server: &config.Server{
+					URL:  "localhost:8888",
+					Port: 8888,
+				},
+				Email: &config.Email{
+					Templates: "../../web/templates",
+					Layout:    "layout.html",
+					Sender:    "test@example.com",
+					VerifyTTL: timex.Duration{Duration: 5 * time.Minute},
+				},
+			}
 
 			authSvc := auth.NewService(authRepo, userSvc, providers, cfg)
 			ctx := context.Background()
@@ -134,9 +174,9 @@ func TestService_RegisterUser(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			wantEmail, gotEmail := tt.testUser.Email, newUser.Email
-			if gotEmail != wantEmail {
-				t.Errorf("newUser = %v, want %v", gotEmail, wantEmail)
+			wantUser, gotUser := tt.testUser, newUser
+			if !reflect.DeepEqual(gotUser, wantUser) {
+				t.Errorf("newUser = %+v\nwant: %+v", gotUser, wantUser)
 			}
 		})
 	}
