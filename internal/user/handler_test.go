@@ -58,6 +58,11 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 		t.Errorf("rec.Code = %d\nwant: %d", gotStatus, wantStatus)
 	}
 
+	wantHeader, gotHeader := httpx.MimeJSON, rec.Header().Get(httpx.HeaderContentType)
+	if gotHeader != wantHeader {
+		t.Errorf("rec.Header().Get(httpx.HeaderContentType) = %s \nwant: %s", gotHeader, wantHeader)
+	}
+
 	var apiRes httpx.OKResponse[*user.ListUsersResponse]
 	if err := json.NewDecoder(rec.Body).Decode(&apiRes); err != nil {
 		t.Fatal(err)
