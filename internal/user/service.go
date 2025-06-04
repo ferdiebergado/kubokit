@@ -2,6 +2,9 @@ package user
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 )
 
 var _ UserService = &Service{}
@@ -18,17 +21,31 @@ type Service struct {
 	repo UserRepository
 }
 
-// CreateUser implements UserService.
 func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
-	return s.repo.CreateUser(ctx, params)
+	u, err := s.repo.CreateUser(ctx, params)
+	if err != nil {
+		return User{}, fmt.Errorf("failed to create user with email %s: %w", params.Email, err)
+	}
+	return u, nil
 }
 
 func (s *Service) FindUserByEmail(ctx context.Context, email string) (User, error) {
-	return s.repo.FindUserByEmail(ctx, email)
+	u, err := s.repo.FindUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return User{}, fmt.Errorf("user with email %s not found: %w", email, err)
+		}
+		return User{}, fmt.Errorf("failed to find user by email %s: %w", email, err)
+	}
+	return u, nil
 }
 
 func (s *Service) ListUsers(ctx context.Context) ([]User, error) {
-	return s.repo.ListUsers(ctx)
+	users, err := s.repo.ListUsers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list users: %w", err)
+	}
+	return users, nil
 }
 
 func NewService(repo UserRepository) *Service {
