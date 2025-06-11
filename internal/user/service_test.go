@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ferdiebergado/kubokit/internal/db"
+	"github.com/ferdiebergado/kubokit/internal/model"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -17,7 +17,7 @@ func TestService_ListUsers(t *testing.T) {
 	now := time.Now()
 	users := []user.User{
 		{
-			Model: db.Model{
+			Model: model.Model{
 				ID:        "1",
 				CreatedAt: now,
 				UpdatedAt: now,
@@ -52,7 +52,7 @@ func TestService_CreateUser(t *testing.T) {
 	repo := user.StubRepo{
 		CreateUserFunc: func(_ context.Context, params user.CreateUserParams) (user.User, error) {
 			return user.User{
-				Model: db.Model{
+				Model: model.Model{
 					ID:        testID,
 					CreatedAt: now,
 					UpdatedAt: now,
@@ -74,7 +74,7 @@ func TestService_CreateUser(t *testing.T) {
 	}
 
 	wantUser := user.User{
-		Model: db.Model{
+		Model: model.Model{
 			ID:        testID,
 			CreatedAt: now,
 			UpdatedAt: now,

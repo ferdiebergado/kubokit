@@ -8,8 +8,10 @@ import (
 	"log/slog"
 	"reflect"
 
-	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/platform/email"
+	"github.com/ferdiebergado/kubokit/internal/platform/hash"
+	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -27,17 +29,17 @@ type AuthRepository interface {
 }
 
 type Providers struct {
-	Hasher contract.Hasher
-	Signer contract.Signer
-	Mailer contract.Mailer
+	Hasher hash.Hasher
+	Signer jwt.Signer
+	Mailer email.Mailer
 }
 
 type Service struct {
 	repo    AuthRepository
 	userSvc user.UserService
-	hasher  contract.Hasher
-	signer  contract.Signer
-	mailer  contract.Mailer
+	hasher  hash.Hasher
+	signer  jwt.Signer
+	mailer  email.Mailer
 	cfg     *config.Config
 }
 

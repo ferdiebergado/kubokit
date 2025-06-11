@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ferdiebergado/kubokit/internal/db"
+	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/user"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )

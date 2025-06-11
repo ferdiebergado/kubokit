@@ -3,11 +3,11 @@ package user
 import (
 	"time"
 
-	"github.com/ferdiebergado/kubokit/internal/db"
+	"github.com/ferdiebergado/kubokit/internal/model"
 )
 
 type User struct {
-	db.Model
+	model.Model
 
 	Email        string
 	PasswordHash string

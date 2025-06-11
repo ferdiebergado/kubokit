@@ -6,11 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ferdiebergado/kubokit/internal/app/contract/stub"
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
-	"github.com/ferdiebergado/kubokit/internal/db"
+	"github.com/ferdiebergado/kubokit/internal/model"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
+	"github.com/ferdiebergado/kubokit/internal/platform/email"
+	"github.com/ferdiebergado/kubokit/internal/platform/hash"
+	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -36,7 +38,7 @@ func TestService_RegisterUser(t *testing.T) {
 			password: "test",
 			registerUserFunc: func(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
 				return user.User{
-					Model: db.Model{
+					Model: model.Model{
 						ID:        "1",
 						CreatedAt: now,
 						UpdatedAt: now,
@@ -46,7 +48,7 @@ func TestService_RegisterUser(t *testing.T) {
 			},
 			createUserFunc: func(ctx context.Context, params user.CreateUserParams) (user.User, error) {
 				return user.User{
-					Model: db.Model{
+					Model: model.Model{
 						ID:        "1",
 						CreatedAt: now,
 						UpdatedAt: now,
@@ -67,7 +69,7 @@ func TestService_RegisterUser(t *testing.T) {
 				return "signed", nil
 			},
 			wantUser: user.User{
-				Model: db.Model{
+				Model: model.Model{
 					ID:        "1",
 					CreatedAt: now,
 					UpdatedAt: now,
@@ -100,15 +102,15 @@ func TestService_RegisterUser(t *testing.T) {
 				FindUserByEmailFunc: tt.findUserByEmailFunc,
 			}
 
-			hasher := &stub.Hasher{
+			hasher := &hash.StubHasher{
 				HashFunc: tt.hashFunc,
 			}
 
-			mailer := &stub.Mailer{
+			mailer := &email.StubMailer{
 				SendHTMLFunc: tt.sendHTMLFunc,
 			}
 
-			signer := &stub.Signer{
+			signer := &jwt.StubSigner{
 				SignFunc: tt.signFunc,
 			}
 

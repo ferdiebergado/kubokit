@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/ferdiebergado/kubokit/internal/auth"
-	"github.com/ferdiebergado/kubokit/internal/db"
+	"github.com/ferdiebergado/kubokit/internal/platform/db"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )

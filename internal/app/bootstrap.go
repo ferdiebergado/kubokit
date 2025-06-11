@@ -10,13 +10,14 @@ import (
 	"github.com/ferdiebergado/goexpress"
 	"github.com/ferdiebergado/gopherkit/env"
 	"github.com/ferdiebergado/kubokit/internal/config"
-	"github.com/ferdiebergado/kubokit/internal/db"
-	"github.com/ferdiebergado/kubokit/internal/pkg/email"
-	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
-	"github.com/ferdiebergado/kubokit/internal/pkg/http/middleware"
+	"github.com/ferdiebergado/kubokit/internal/middleware"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
-	"github.com/ferdiebergado/kubokit/internal/pkg/validation"
+	"github.com/ferdiebergado/kubokit/internal/platform/db"
+	"github.com/ferdiebergado/kubokit/internal/platform/email"
+	"github.com/ferdiebergado/kubokit/internal/platform/hash"
+	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
+	"github.com/ferdiebergado/kubokit/internal/platform/router"
+	"github.com/ferdiebergado/kubokit/internal/platform/validation"
 )
 
 const (
@@ -42,7 +43,7 @@ func Run(signalCtx context.Context) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	dbConn, err := db.Connect(signalCtx, cfg.DB)
+	dbConn, err := db.NewConnection(signalCtx, cfg.DB)
 	if err != nil {
 		return fmt.Errorf("db connect: %w", err)
 	}
@@ -126,13 +127,13 @@ func getEnv(envVar string) (string, error) {
 }
 
 func setupProviders(cfg *config.Config, securityKey string) (*Providers, error) {
-	signer := security.NewGolangJWTSigner(securityKey, cfg.JWT)
+	signer := jwt.NewGolangJWTSigner(securityKey, cfg.JWT)
 	mailer, err := createMailer(cfg.Email)
 	if err != nil {
 		return nil, err
 	}
-	hasher := security.NewArgon2Hasher(cfg.Argon2, securityKey)
-	router := httpx.NewGoexpressRouter()
+	hasher := hash.NewArgon2Hasher(cfg.Argon2, securityKey)
+	router := router.NewGoexpressRouter()
 	validator := validation.NewGoPlaygroundValidator()
 	return &Providers{
 		Signer:    signer,

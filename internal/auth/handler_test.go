@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ferdiebergado/kubokit/internal/app/contract/stub"
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
-	"github.com/ferdiebergado/kubokit/internal/db"
-	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
+	"github.com/ferdiebergado/kubokit/internal/model"
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
+	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -24,7 +24,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 	testEmail := "test@example.com"
 	testPass := "test"
 	u := user.User{
-		Model: db.Model{
+		Model: model.Model{
 			ID:        "1",
 			CreatedAt: now,
 			UpdatedAt: now,
@@ -36,7 +36,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 			return u, nil
 		},
 	}
-	signer := &stub.Signer{}
+	signer := &jwt.StubSigner{}
 	cfg := &config.Config{}
 	authHandler := auth.NewHandler(svc, signer, cfg)
 	params := auth.RegisterUserRequest{
@@ -45,7 +45,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 		PasswordConfirm: testPass,
 	}
 
-	paramsCtx := httpx.NewContextWithParams(context.Background(), params)
+	paramsCtx := web.NewContextWithParams(context.Background(), params)
 	req := httptest.NewRequestWithContext(paramsCtx, http.MethodPost, "/auth/register", nil)
 	rec := httptest.NewRecorder()
 	authHandler.RegisterUser(rec, req)
@@ -55,12 +55,12 @@ func TestHandler_RegisterUser(t *testing.T) {
 		t.Errorf("rec.Code = %d\nwant: %d\n", gotStatus, wantStatus)
 	}
 
-	wantHeader, gotHeader := httpx.MimeJSON, rec.Header().Get(httpx.HeaderContentType)
+	wantHeader, gotHeader := web.MimeJSON, rec.Header().Get(web.HeaderContentType)
 	if gotHeader != wantHeader {
-		t.Errorf("rec.Header().Get(httpx.HeaderContentType) = %s \nwant: %s", gotHeader, wantHeader)
+		t.Errorf("rec.Header().Get(web.HeaderContentType) = %s \nwant: %s", gotHeader, wantHeader)
 	}
 
-	var apiRes httpx.OKResponse[*auth.RegisterUserResponse]
+	var apiRes web.OKResponse[*auth.RegisterUserResponse]
 	if err := json.NewDecoder(rec.Body).Decode(&apiRes); err != nil {
 		t.Fatal(err)
 	}

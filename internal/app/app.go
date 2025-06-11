@@ -10,18 +10,22 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ferdiebergado/kubokit/internal/app/contract"
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/platform/email"
+	"github.com/ferdiebergado/kubokit/internal/platform/hash"
+	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
+	"github.com/ferdiebergado/kubokit/internal/platform/router"
+	"github.com/ferdiebergado/kubokit/internal/platform/validation"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 type Providers struct {
-	Signer    contract.Signer
-	Mailer    contract.Mailer
-	Validator contract.Validator
-	Hasher    contract.Hasher
-	Router    contract.Router
+	Signer    jwt.Signer
+	Mailer    email.Mailer
+	Validator validation.Validator
+	Hasher    hash.Hasher
+	Router    router.Router
 }
 
 type App struct {
@@ -31,11 +35,11 @@ type App struct {
 	stop            context.CancelFunc
 	shutdownTimeout time.Duration
 	db              *sql.DB
-	signer          contract.Signer
-	mailer          contract.Mailer
-	validator       contract.Validator
-	hasher          contract.Hasher
-	router          contract.Router
+	signer          jwt.Signer
+	mailer          email.Mailer
+	validator       validation.Validator
+	hasher          hash.Hasher
+	router          router.Router
 }
 
 func (a *App) registerMiddlewares() {

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ferdiebergado/kubokit/internal/db"
-	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
+	"github.com/ferdiebergado/kubokit/internal/model"
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -24,7 +24,7 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 	now := time.Now()
 	users := []user.User{
 		{
-			Model: db.Model{
+			Model: model.Model{
 				ID:        "1",
 				CreatedAt: now,
 				UpdatedAt: now,
@@ -34,7 +34,7 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 			VerifiedAt:   &now,
 		},
 		{
-			Model: db.Model{
+			Model: model.Model{
 				ID:        "2",
 				CreatedAt: now,
 				UpdatedAt: now,
@@ -58,12 +58,12 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 		t.Errorf("rec.Code = %d\nwant: %d", gotStatus, wantStatus)
 	}
 
-	wantHeader, gotHeader := httpx.MimeJSON, rec.Header().Get(httpx.HeaderContentType)
+	wantHeader, gotHeader := web.MimeJSON, rec.Header().Get(web.HeaderContentType)
 	if gotHeader != wantHeader {
-		t.Errorf("rec.Header().Get(httpx.HeaderContentType) = %s \nwant: %s", gotHeader, wantHeader)
+		t.Errorf("rec.Header().Get(web.HeaderContentType) = %s \nwant: %s", gotHeader, wantHeader)
 	}
 
-	var apiRes httpx.OKResponse[*user.ListUsersResponse]
+	var apiRes web.OKResponse[*user.ListUsersResponse]
 	if err := json.NewDecoder(rec.Body).Decode(&apiRes); err != nil {
 		t.Fatal(err)
 	}

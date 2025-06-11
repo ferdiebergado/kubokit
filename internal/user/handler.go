@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/gopherkit/http/response"
-	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 )
 
 type UserService interface {
@@ -45,7 +45,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := newListUsersResponse(users)
-	httpx.OK(w, http.StatusOK, nil, payload)
+	web.OK(w, http.StatusOK, nil, payload)
 }
 
 func transformUser(u *User) *UserData {

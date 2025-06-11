@@ -5,24 +5,24 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ferdiebergado/kubokit/internal/app/contract"
-	httpx "github.com/ferdiebergado/kubokit/internal/pkg/http"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
+	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-func RequireToken(signer contract.Signer) func(http.Handler) http.Handler {
+func RequireToken(signer jwt.Signer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tokenStr, err := extractBearerToken(r.Header.Get("Authorization"))
 			if err != nil || tokenStr == "" {
-				httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+				web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
 				return
 			}
 
 			userID, err := signer.Verify(tokenStr)
 			if err != nil {
-				httpx.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+				web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
 				return
 			}
 
