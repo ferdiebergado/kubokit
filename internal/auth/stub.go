@@ -8,7 +8,11 @@ import (
 )
 
 type StubService struct {
-	RegisterUserFunc func(ctx context.Context, params RegisterUserParams) (user.User, error)
+	RegisterUserFunc      func(ctx context.Context, params RegisterUserParams) (user.User, error)
+	VerifyUserfunc        func(ctx context.Context, token string) error
+	LoginUserFunc         func(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error)
+	SendPasswordResetFunc func(email string)
+	ResetPasswordFunc     func(ctx context.Context, params ResetPasswordParams) error
 }
 
 func (s StubService) RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error) {
@@ -19,23 +23,38 @@ func (s StubService) RegisterUser(ctx context.Context, params RegisterUserParams
 }
 
 func (s *StubService) VerifyUser(ctx context.Context, token string) error {
-	panic("not implemented") // TODO: Implement
+	if s.VerifyUserfunc == nil {
+		return errors.New("VerifyUser not implemented by stub")
+	}
+	return s.VerifyUserfunc(ctx, token)
 }
 
-func (s *StubService) LoginUser(ctx context.Context, params LoginUserParams) (accessToken string, refreshToken string, err error) {
-	panic("not implemented") // TODO: Implement
+func (s *StubService) LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error) {
+	if s.LoginUserFunc == nil {
+		return "", "", errors.New("LoginUser not implemented by stub")
+	}
+	return s.LoginUserFunc(ctx, params)
 }
 
 func (s *StubService) SendPasswordReset(email string) {
-	panic("not implemented") // TODO: Implement
+	if s.SendPasswordResetFunc == nil {
+		panic("SendPasswordReset not implemented by stub")
+	}
+	s.SendPasswordResetFunc(email)
 }
 
 func (s *StubService) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
-	panic("not implemented") // TODO: Implement
+	if s.ResetPasswordFunc == nil {
+		return errors.New("ResetPassword not implemented by stub")
+	}
+	return s.ResetPasswordFunc(ctx, params)
 }
 
 type StubRepo struct {
-	RegisterUserFunc func(ctx context.Context, params RegisterUserParams) (user.User, error)
+	RegisterUserFunc       func(ctx context.Context, params RegisterUserParams) (user.User, error)
+	LoginUserFunc          func(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error)
+	VerifyUserFunc         func(ctx context.Context, userID string) error
+	ChangeUserPasswordFunc func(ctx context.Context, email, newPassword string) error
 }
 
 func (r *StubRepo) RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error) {
@@ -45,14 +64,23 @@ func (r *StubRepo) RegisterUser(ctx context.Context, params RegisterUserParams) 
 	return r.RegisterUserFunc(ctx, params)
 }
 
-func (r *StubRepo) LoginUser(ctx context.Context, params LoginUserParams) (accessToken string, refreshToken string, err error) {
-	panic("not implemented") // TODO: Implement
+func (r *StubRepo) LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error) {
+	if r.LoginUserFunc == nil {
+		return "", "", errors.New("LoginUser not implemented by stub")
+	}
+	return r.LoginUserFunc(ctx, params)
 }
 
 func (r *StubRepo) VerifyUser(ctx context.Context, userID string) error {
-	panic("not implemented") // TODO: Implement
+	if r.VerifyUserFunc == nil {
+		return errors.New("VerifyUser not implemented by stub")
+	}
+	return r.VerifyUserFunc(ctx, userID)
 }
 
-func (r *StubRepo) ChangeUserPassword(ctx context.Context, email string, newPassword string) error {
-	panic("not implemented") // TODO: Implement
+func (r *StubRepo) ChangeUserPassword(ctx context.Context, email, newPassword string) error {
+	if r.ChangeUserPasswordFunc == nil {
+		return errors.New("ChangeUserPassword not implemented by stub")
+	}
+	return r.ChangeUserPasswordFunc(ctx, email, newPassword)
 }

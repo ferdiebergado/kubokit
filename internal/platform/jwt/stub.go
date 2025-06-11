@@ -6,7 +6,8 @@ import (
 )
 
 type StubSigner struct {
-	SignFunc func(subject string, audience []string, duration time.Duration) (string, error)
+	SignFunc   func(subject string, audience []string, duration time.Duration) (string, error)
+	VerifyFunc func(tokenString string) (string, error)
 }
 
 func (s *StubSigner) Sign(subject string, audience []string, duration time.Duration) (string, error) {
@@ -17,5 +18,8 @@ func (s *StubSigner) Sign(subject string, audience []string, duration time.Durat
 }
 
 func (s *StubSigner) Verify(tokenString string) (string, error) {
-	panic("not implemented") // TODO: Implement
+	if s.VerifyFunc == nil {
+		return "", errors.New("Verify not implemented by stub")
+	}
+	return s.VerifyFunc(tokenString)
 }

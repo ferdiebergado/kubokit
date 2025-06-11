@@ -34,8 +34,9 @@ func (s *StubService) FindUserByEmail(ctx context.Context, email string) (User, 
 }
 
 type StubRepo struct {
-	ListUsersFunc  func(ctx context.Context) ([]User, error)
-	CreateUserFunc func(ctx context.Context, params CreateUserParams) (User, error)
+	ListUsersFunc       func(ctx context.Context) ([]User, error)
+	CreateUserFunc      func(ctx context.Context, params CreateUserParams) (User, error)
+	FindUserByEmailFunc func(ctx context.Context, email string) (User, error)
 }
 
 func (r *StubRepo) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
@@ -53,5 +54,8 @@ func (r *StubRepo) ListUsers(ctx context.Context) ([]User, error) {
 }
 
 func (r *StubRepo) FindUserByEmail(ctx context.Context, email string) (User, error) {
-	panic("not implemented") // TODO: Implement
+	if r.FindUserByEmailFunc == nil {
+		return User{}, errors.New("FindUserByEmail not implemented by stub")
+	}
+	return r.FindUserByEmailFunc(ctx, email)
 }
