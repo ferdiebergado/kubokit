@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -40,12 +39,12 @@ func Run(signalCtx context.Context) error {
 
 	cfg, err := config.Load(cfgFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("load config: %w", err)
 	}
 
 	dbConn, err := db.Connect(signalCtx, cfg.DB)
 	if err != nil {
-		return err
+		return fmt.Errorf("db connect: %w", err)
 	}
 	defer dbConn.Close()
 
@@ -56,7 +55,7 @@ func Run(signalCtx context.Context) error {
 
 	providers, err := setupProviders(cfg, securityKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("setup providers: %w", err)
 	}
 
 	middlewares := []func(http.Handler) http.Handler{
@@ -65,18 +64,17 @@ func Run(signalCtx context.Context) error {
 		middleware.LogRequest,
 		middleware.CheckContentType,
 	}
-	apiServer := newAPIServer(signalCtx, cfg, dbConn, providers, middlewares)
-	apiErr := apiServer.Start()
 
-	select {
-	case <-signalCtx.Done():
-		slog.Info("Shutdown signal received.")
-	case err := <-apiErr:
+	//nolint:contextcheck //This function internally creates a context with cancel.
+	api := New(cfg, dbConn, providers, middlewares)
+	if err = api.Start(signalCtx); err != nil {
 		return fmt.Errorf("start server: %w", err)
 	}
 
 	//nolint:contextcheck //This function internally passes a context with timeout to the underlying http.Server Shutdown method.
-	return apiServer.Shutdown()
+	err = api.Shutdown()
+
+	return fmt.Errorf("api shutdown: %w", err)
 }
 
 func createMailer(cfg *config.Email) (*email.SMTPMailer, error) {

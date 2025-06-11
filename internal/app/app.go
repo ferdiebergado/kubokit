@@ -24,7 +24,7 @@ type Providers struct {
 	Router    contract.Router
 }
 
-type apiServer struct {
+type App struct {
 	server          *http.Server
 	config          *config.Config
 	middlewares     []func(http.Handler) http.Handler
@@ -38,13 +38,13 @@ type apiServer struct {
 	router          contract.Router
 }
 
-func (a *apiServer) registerMiddlewares() {
+func (a *App) registerMiddlewares() {
 	for _, mw := range a.middlewares {
 		a.router.Use(mw)
 	}
 }
 
-func (a *apiServer) setupRoutes() {
+func (a *App) setupRoutes() {
 	userRepo := user.NewRepository(a.db)
 	userService := user.NewService(userRepo)
 	userHandler := user.NewHandler(userService)
@@ -61,42 +61,44 @@ func (a *apiServer) setupRoutes() {
 	mountAuthRoutes(a.router, authHandler, a.validator, a.signer, a.config.Server.MaxBodyBytes)
 }
 
-func (a *apiServer) Start() chan error {
+func (a *App) Start(ctx context.Context) error {
 	a.registerMiddlewares()
 	a.setupRoutes()
 
-	serverErr := make(chan error)
+	serverErr := make(chan error, 1)
 	go func() {
 		slog.Info("Server listening...", "address", a.server.Addr)
 		if err := a.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			serverErr <- err
+			serverErr <- fmt.Errorf("listen and serve: %w", err)
+			return
 		}
-		close(serverErr)
+		slog.Info("Server has stopped.")
+		serverErr <- nil
 	}()
-	return serverErr
+
+	select {
+	case <-ctx.Done():
+		slog.Info("Shutdown signal received.")
+		return nil
+	case err := <-serverErr:
+		return err
+	}
 }
 
-func (a *apiServer) Shutdown() error {
-	slog.Info("Server shutting down...")
-	defer a.stop()
+func (a *App) Shutdown() error {
+	slog.Info("Shutting down server...")
+	a.stop()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), a.shutdownTimeout)
 	defer cancel()
 	if err := a.server.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown server: %w", err)
 	}
-
-	slog.Info("Shutdown complete.")
 	return nil
 }
 
-func newAPIServer(
-	signalCtx context.Context,
-	cfg *config.Config,
-	db *sql.DB, providers *Providers,
-	middlewares []func(http.Handler) http.Handler) *apiServer {
-
-	serverCtx, stop := context.WithCancel(signalCtx)
+func New(cfg *config.Config, dbConn *sql.DB, providers *Providers, middlewares []func(http.Handler) http.Handler) *App {
+	serverCtx, stop := context.WithCancel(context.Background())
 	serverCfg := cfg.Server
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", serverCfg.Port),
@@ -109,9 +111,9 @@ func newAPIServer(
 		IdleTimeout:  serverCfg.IdleTimeout.Duration,
 	}
 
-	return &apiServer{
+	return &App{
 		config:          cfg,
-		db:              db,
+		db:              dbConn,
 		signer:          providers.Signer,
 		mailer:          providers.Mailer,
 		validator:       providers.Validator,
