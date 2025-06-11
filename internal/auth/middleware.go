@@ -16,13 +16,13 @@ func RequireToken(signer jwt.Signer) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tokenStr, err := extractBearerToken(r.Header.Get("Authorization"))
 			if err != nil || tokenStr == "" {
-				web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+				web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 				return
 			}
 
 			userID, err := signer.Verify(tokenStr)
 			if err != nil {
-				web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+				web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 				return
 			}
 

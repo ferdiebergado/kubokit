@@ -45,7 +45,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := newListUsersResponse(users)
-	web.OK(w, http.StatusOK, nil, payload)
+	web.RespondOK(w, nil, payload)
 }
 
 func transformUser(u *User) *UserData {

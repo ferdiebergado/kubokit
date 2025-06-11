@@ -59,7 +59,7 @@ type RegisterUserResponse struct {
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	req, err := web.ParamsFromContext[RegisterUserRequest](r.Context())
 	if err != nil {
-		web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
@@ -70,7 +70,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.svc.RegisterUser(r.Context(), params)
 	if err != nil {
 		if errors.Is(err, ErrUserExists) {
-			web.Fail(w, http.StatusUnprocessableEntity, err, "User already exists.", nil)
+			web.RespondUnprocessableEntity(w, err, "User already exists.", nil)
 			return
 		}
 
@@ -78,7 +78,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		response.ServerError(w, err)
+		web.RespondInternalServerError(w, err)
 		return
 	}
 
@@ -89,13 +89,13 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}
-	web.OK(w, http.StatusCreated, &msg, data)
+	web.RespondCreated(w, &msg, data)
 }
 
 func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	userID, err := user.FromContext(r.Context())
 	if err != nil {
-		web.Fail(w, http.StatusBadRequest, err, message.InvalidInput, nil)
+		web.RespondBadRequest(w, err, message.InvalidInput, nil)
 		return
 	}
 
@@ -105,7 +105,7 @@ func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := "Verification success."
-	web.OK[any](w, http.StatusOK, &msg, nil)
+	web.RespondOK(w, &msg, struct{}{})
 }
 
 type UserLoginRequest struct {
@@ -127,7 +127,7 @@ type UserLoginResponse struct {
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	req, err := web.ParamsFromContext[UserLoginRequest](r.Context())
 	if err != nil {
-		web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
@@ -135,12 +135,12 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	accessToken, refreshToken, err := h.svc.LoginUser(r.Context(), params)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
-			web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 			return
 		}
 
 		if errors.Is(err, ErrUserNotVerified) {
-			web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 			return
 		}
 
@@ -164,19 +164,19 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	data := &UserLoginResponse{
 		AccessToken: accessToken,
 	}
-	web.OK(w, http.StatusOK, &msg, data)
+	web.RespondOK(w, &msg, data)
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(h.cfg.Cookie.Name)
 	if err != nil {
-		web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
 	userID, err := h.signer.Verify(cookie.Value)
 	if err != nil {
-		web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
@@ -191,13 +191,13 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	data := &UserLoginResponse{
 		AccessToken: newAccessToken,
 	}
-	web.OK(w, http.StatusOK, &msg, data)
+	web.RespondOK(w, &msg, data)
 }
 
 func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 	cookieName := h.cfg.Cookie.Name
 	if _, err := r.Cookie(cookieName); err != nil {
-		web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
@@ -212,7 +212,7 @@ func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 	})
 
 	msg := "Logged out."
-	web.OK[any](w, http.StatusOK, &msg, nil)
+	web.RespondOK(w, &msg, struct{}{})
 }
 
 type ForgotPasswordRequest struct {
@@ -228,13 +228,13 @@ func (r *ForgotPasswordRequest) LogValue() slog.Value {
 func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	req, err := web.ParamsFromContext[ForgotPasswordRequest](r.Context())
 	if err != nil {
-		web.Fail(w, http.StatusUnauthorized, errInvalidParams, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, errInvalidParams, message.InvalidUser, nil)
 		return
 	}
 
 	h.svc.SendPasswordReset(req.Email)
 	msg := message.ResetSent
-	web.OK[any](w, http.StatusOK, &msg, nil)
+	web.RespondOK(w, &msg, struct{}{})
 }
 
 type ResetPasswordRequest struct {
@@ -255,13 +255,13 @@ func (r *ResetPasswordRequest) LogValue() slog.Value {
 func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	email, err := user.FromContext(r.Context())
 	if err != nil {
-		web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
 	req, err := web.ParamsFromContext[ResetPasswordRequest](r.Context())
 	if err != nil {
-		web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
@@ -272,12 +272,12 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.ResetPassword(r.Context(), params); err != nil {
-		web.Fail(w, http.StatusUnauthorized, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
 	msg := message.ResetSuccess
-	web.OK[any](w, http.StatusOK, &msg, nil)
+	web.RespondOK(w, &msg, struct{}{})
 }
 
 func NewHandler(userSvc AuthService, signer jwt.Signer, cfg *config.Config) *Handler {

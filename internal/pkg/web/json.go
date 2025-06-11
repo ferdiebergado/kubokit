@@ -2,7 +2,8 @@ package web
 
 import (
 	"encoding/json"
-	"fmt"
+	"log/slog"
+	"net/http"
 )
 
 const (
@@ -10,9 +11,16 @@ const (
 	MimeJSON          = "application/json"
 )
 
-func DecodeJSON[T any](inputBytes []byte, destination *T) error {
-	if err := json.Unmarshal(inputBytes, destination); err != nil {
-		return fmt.Errorf("decode json: %w", err)
+// SendJSON sends a JSON response with the given status code and data.
+func SendJSON(w http.ResponseWriter, statusCode int, data any) {
+	w.Header().Set(HeaderContentType, MimeJSON)
+	w.WriteHeader(statusCode)
+
+	if data == nil {
+		return
 	}
-	return nil
+
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Error("Error encoding JSON response", "reason", err)
+	}
 }

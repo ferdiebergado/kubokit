@@ -17,12 +17,12 @@ func ValidateInput[T any](validator validation.Validator) func(next http.Handler
 			params, err := web.ParamsFromContext[T](r.Context())
 
 			if err != nil {
-				web.Fail(w, http.StatusBadRequest, err, message.InvalidInput, nil)
+				web.RespondBadRequest(w, err, message.InvalidInput, nil)
 				return
 			}
 
 			if err := validator.ValidateStruct(params); err != nil {
-				web.Fail(w, http.StatusBadRequest, errors.New("invalid input"), message.InvalidInput, err)
+				web.RespondBadRequest(w, errors.New("invalid input"), message.InvalidInput, err)
 				return
 			}
 

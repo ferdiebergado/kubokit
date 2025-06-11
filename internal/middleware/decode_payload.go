@@ -22,16 +22,16 @@ func DecodePayload[T any](bodySize int64) func(next http.Handler) http.Handler {
 			if err := decoder.Decode(&decoded); err != nil {
 				var maxBytesErr *http.MaxBytesError
 				if errors.As(err, &maxBytesErr) {
-					web.Fail(w, http.StatusRequestEntityTooLarge, err, message.InvalidInput, nil)
+					web.RespondRequestEntityTooLarge(w, err, message.InvalidInput, nil)
 					return
 				}
 
-				web.Fail(w, http.StatusBadRequest, err, message.InvalidInput, nil)
+				web.RespondBadRequest(w, err, message.InvalidInput, nil)
 				return
 			}
 
 			if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-				web.Fail(w, http.StatusBadRequest, err, message.InvalidInput, nil)
+				web.RespondBadRequest(w, err, message.InvalidInput, nil)
 				return
 			}
 

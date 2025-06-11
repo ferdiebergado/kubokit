@@ -16,7 +16,7 @@ func CheckContentType(next http.Handler) http.Handler {
 
 		if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
 			if contentType != web.MimeJSON {
-				web.Fail(w, http.StatusUnsupportedMediaType, fmt.Errorf("unsupported content-type: %s", contentType), message.InvalidInput, nil)
+				web.RespondUnsupportedMediaType(w, fmt.Errorf("unsupported content-type: %s", contentType), message.InvalidInput, nil)
 				return
 			}
 		}

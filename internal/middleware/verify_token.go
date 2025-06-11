@@ -18,13 +18,13 @@ func VerifyToken(signer jwt.Signer) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token := r.URL.Query().Get("token")
 			if token == "" {
-				web.Fail(w, http.StatusUnauthorized, ErrInvalidToken, message.InvalidUser, nil)
+				web.RespondUnauthorized(w, ErrInvalidToken, message.InvalidUser, nil)
 				return
 			}
 
 			payload, err := signer.Verify(token)
 			if err != nil {
-				web.Fail(w, http.StatusUnauthorized, ErrInvalidToken, message.InvalidUser, nil)
+				web.RespondUnauthorized(w, ErrInvalidToken, message.InvalidUser, nil)
 				return
 			}
 

@@ -3,94 +3,82 @@ package web
 import (
 	"log/slog"
 	"net/http"
-
-	"github.com/ferdiebergado/gopherkit/http/response"
 )
 
 // OKResponse represents the structure of a JSON-encoded success response.
-//
-// It includes an optional message and optional data payload. The generic type
-// parameter T allows OKResponse to carry arbitrary response data.
-//
-// The Data field is omitted from the response if it is nil.
 type OKResponse[T any] struct {
 	Message string `json:"message,omitempty"`
 	Data    T      `json:"data,omitempty"`
 }
 
-// ErrorResponse represents the structure of a JSON-encoded error response.
-//
-// It includes a general error message and, optionally, a map of field-level
-// validation errors. The Errors field is omitted from the response if empty.
-type ErrorResponse struct {
-	Message string            `json:"message"`
-	Errors  map[string]string `json:"errors,omitempty"`
-}
+// RespondJSON sends a JSON response with the specified status code, client message and data.
+func RespondJSON[T any](w http.ResponseWriter, statusCode int, clientMsg *string, data *T) {
+	payload := &OKResponse[T]{}
 
-// OK writes a JSON-encoded success response to w with the provided HTTP status code.
-//
-// The response includes an optional human-readable message and an optional data payload.
-// It is intended for successful API responses with a consistent structure.
-//
-// The type parameter T specifies the type of the response data.
-//
-// If msg is non-nil, its value is included in the response under the "message" field.
-// If data is non-nil, it is included under the "data" field.
-//
-// Example usage:
-//
-//	msg := "User created successfully"
-//	user := User{ID: 1, Name: "Alice"}
-//	OK(w, http.StatusCreated, &msg, &user)
-//
-// The JSON response has the form:
-//
-//	{
-//	  "message": "User created successfully",
-//	  "data": {
-//	    "id": 1,
-//	    "name": "Alice"
-//	  }
-//	}
-func OK[T any](w http.ResponseWriter, status int, msg *string, data *T) {
-	payload := &OKResponse[*T]{}
-	if msg != nil {
-		payload.Message = *msg
+	if clientMsg != nil {
+		payload.Message = *clientMsg
 	}
 
 	if data != nil {
-		payload.Data = data
+		payload.Data = *data
 	}
 
-	response.JSON(w, status, payload)
+	SendJSON(w, statusCode, payload)
 }
 
-// Fail writes a JSON-encoded error response to w with the provided HTTP status code.
-//
-// The response includes a human-readable message and an optional map of
-// field-specific validation errors. The reason is logged using slog at
-// Error level with the key "reason". This function is intended to provide
-// a consistent structure for API error responses.
-//
-// Example usage:
-//
-//	Fail(w, http.StatusBadRequest, err, "Invalid input.", map[string]string{
-//		"email": "must be a valid email address",
-//	})
-//
-// The JSON response has the form:
-//
-//	{
-//	  "message": "Invalid input.",
-//	  "errors": {
-//	    "email": "must be a valid email address"
-//	  }
-//	}
-func Fail(w http.ResponseWriter, status int, reason error, msg string, errs map[string]string) {
-	slog.Error("request failed", "reason", reason)
+// RespondOK sends a 200 OK JSON response.
+func RespondOK[T any](w http.ResponseWriter, clientMsg *string, data T) {
+	RespondJSON(w, http.StatusOK, clientMsg, &data)
+}
+
+// RespondCreated sends a 201 OK JSON response.
+func RespondCreated[T any](w http.ResponseWriter, clientMsg *string, data T) {
+	RespondJSON(w, http.StatusCreated, clientMsg, &data)
+}
+
+// ErrorResponse represents the structure of a JSON-encoded error response.
+type ErrorResponse struct {
+	Message string            `json:"message"`
+	Details map[string]string `json:"errors,omitempty"`
+}
+
+// RespondError sends an error JSON response with the given status code and error details.
+func RespondError(w http.ResponseWriter, status int, err error, clientMsg string, details map[string]string) {
+	slog.Error("request failed", "reason", err)
 	payload := &ErrorResponse{
-		Message: msg,
-		Errors:  errs,
+		Message: clientMsg,
+		Details: details,
 	}
-	response.JSON(w, status, payload)
+
+	SendJSON(w, status, payload)
+}
+
+// RespondBadRequest sends a 400 Bad Request error.
+func RespondBadRequest(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusBadRequest, err, clientMsg, details)
+}
+
+// RespondUnauthorized sends a 401 Unauthorized error.
+func RespondUnauthorized(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusUnauthorized, err, clientMsg, details)
+}
+
+// RespondInternalServerError sends a 500 Internal Server error.
+func RespondInternalServerError(w http.ResponseWriter, err error) {
+	RespondError(w, http.StatusInternalServerError, err, "an unexpected error occurred", nil)
+}
+
+// RespondUnprocessableEntity sends a 422 Unprocessable Entity error.
+func RespondUnprocessableEntity(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusUnprocessableEntity, err, clientMsg, details)
+}
+
+// RespondUnsupportedMediaType sends a 415 Unsupported Media Type error.
+func RespondUnsupportedMediaType(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusUnsupportedMediaType, err, clientMsg, details)
+}
+
+// RespondRequestEntityTooLarge sends a 413 Request Entityt Too Large error.
+func RespondRequestEntityTooLarge(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusRequestEntityTooLarge, err, clientMsg, details)
 }
