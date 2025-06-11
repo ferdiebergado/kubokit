@@ -81,11 +81,11 @@ func Load(cfgFile string) (*Config, error) {
 	slog.Info("Loading config...")
 	cfg, err := parseCfgFile(cfgFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse config file %q: %w", cfgFile, err)
 	}
 
 	if err := overrideWithEnv(cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("override with env: %w", err)
 	}
 
 	slog.Info("Config loaded.", "config_file", cfgFile, slog.Any("config", cfg))
@@ -115,7 +115,7 @@ func overrideWithEnv(cfg *Config) error {
 	if portStr, ok := os.LookupEnv("PORT"); ok {
 		port, err := strconv.Atoi(portStr)
 		if err != nil {
-			return err
+			return fmt.Errorf("convert port string %q to integer: %w", portStr, err)
 		}
 		cfg.Server.Port = port
 	}

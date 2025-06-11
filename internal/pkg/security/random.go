@@ -11,7 +11,7 @@ func GenerateRandomBytes(length uint32) ([]byte, error) {
 
 	_, err := rand.Read(key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read random bytes: %w", err)
 	}
 
 	return key, nil
@@ -21,7 +21,7 @@ func GenerateRandomBytesEncoded(length uint32) (string, error) {
 	key, err := GenerateRandomBytes(length)
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("generate random bytes: %w", err)
 	}
 
 	return base64.StdEncoding.EncodeToString(key), nil

@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 var _ UserRepository = &Repository{}
@@ -51,7 +52,7 @@ const QueryUserList = "SELECT id, email, verified_at, created_at, updated_at FRO
 func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 	rows, err := r.db.QueryContext(ctx, QueryUserList)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query users from database: %w", err)
 	}
 	defer rows.Close()
 
@@ -60,17 +61,17 @@ func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 	for rows.Next() {
 		var u User
 		if err := rows.Scan(&u.ID, &u.Email, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("scan user row: %w", err)
 		}
 		users = append(users, u)
 	}
 
 	if err := rows.Close(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("close user rows: %w", err)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("iterate over user rows: %w", err)
 	}
 
 	return users, nil

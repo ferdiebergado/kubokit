@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 var _ AuthRepository = &Repository{}
@@ -20,7 +21,7 @@ WHERE id = $1
 func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
 	_, err := r.db.ExecContext(ctx, QueryUserVerify, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("user ID %s verification: %w", userID, err)
 	}
 	return nil
 }
@@ -31,12 +32,12 @@ const queryUserChangePassword = "UPDATE users SET password_hash = $1 WHERE email
 func (r *Repository) ChangeUserPassword(ctx context.Context, email, newPassword string) error {
 	res, err := r.db.ExecContext(ctx, queryUserChangePassword, newPassword, email)
 	if err != nil {
-		return err
+		return fmt.Errorf("password change for email %s: %w", email, err)
 	}
 
 	numRows, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("rows affected check after password change for email %s: %w", email, err)
 	}
 
 	if numRows == 0 {

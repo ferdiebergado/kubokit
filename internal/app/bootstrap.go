@@ -73,35 +73,38 @@ func Run(signalCtx context.Context) error {
 	}
 
 	//nolint:contextcheck //This function internally passes a context with timeout to the underlying http.Server Shutdown method.
-	err = api.Shutdown()
+	if err := api.Shutdown(); err != nil {
+		return fmt.Errorf("api shutdown: %w", err)
+	}
 
-	return fmt.Errorf("api shutdown: %w", err)
+	return nil
 }
 
 func createMailer(cfg *config.Email) (*email.SMTPMailer, error) {
+	const errFmt = "get env %q: %w"
 	smtpHost, err := getEnv(envHost)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(errFmt, envHost, err)
 	}
 
 	smtpPortStr, err := getEnv(envPort)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(errFmt, envPort, err)
 	}
 
 	smtpPort, err := strconv.Atoi(smtpPortStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("convert smtp port string to int: %w", err)
 	}
 
 	smtpUser, err := getEnv(envUser)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(errFmt, envUser, err)
 	}
 
 	smtpPass, err := getEnv(envPass)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(errFmt, envPass, err)
 	}
 
 	smtpCfg := &email.SMTPConfig{
@@ -113,7 +116,7 @@ func createMailer(cfg *config.Email) (*email.SMTPMailer, error) {
 
 	mailer, err := email.NewSMTPMailer(smtpCfg, cfg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create smtp mailer: %w", err)
 	}
 	return mailer, nil
 }
@@ -130,7 +133,7 @@ func setupProviders(cfg *config.Config, securityKey string) (*Providers, error) 
 	signer := jwt.NewGolangJWTSigner(securityKey, cfg.JWT)
 	mailer, err := createMailer(cfg.Email)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create mailer: %w", err)
 	}
 	hasher := hash.NewArgon2Hasher(cfg.Argon2, securityKey)
 	router := router.NewGoexpressRouter()

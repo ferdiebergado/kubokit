@@ -21,7 +21,7 @@ type GolangJWTSigner struct {
 func (s *GolangJWTSigner) Sign(subject string, audience []string, duration time.Duration) (string, error) {
 	id, err := security.GenerateRandomBytesEncoded(s.jtiLen)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("generate random bytes encoded with length %d: %w", s.jtiLen, err)
 	}
 
 	now := time.Now()
@@ -45,7 +45,7 @@ func (s *GolangJWTSigner) Verify(tokenString string) (string, error) {
 		return []byte(s.key), nil
 	}, jwt.WithValidMethods([]string{s.method.Alg()}))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("parse with claims: %w", err)
 	}
 
 	claims, ok := token.Claims.(*jwt.RegisteredClaims)

@@ -63,7 +63,7 @@ func (e *SMTPMailer) send(to []string, subject, body, contentType string) error 
 	)
 
 	if err != nil {
-		return err
+		return fmt.Errorf("sending email from %q to %q: %w", from, to, err)
 	}
 
 	slog.Info("Email sent.")
@@ -78,10 +78,14 @@ func (e *SMTPMailer) SendHTML(to []string, subject string, tmplName string, data
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
-		return err
+		return fmt.Errorf("execute email template for subject %q: %w", subject, err)
 	}
 
-	return e.send(to, subject, buf.String(), "text/html")
+	if err := e.send(to, subject, buf.String(), "text/html"); err != nil {
+		return fmt.Errorf("sending email to %q with subject %q: %w", to, subject, err)
+	}
+
+	return nil
 }
 
 func (e *SMTPMailer) SendPlain(to []string, subject string, body string) error {
@@ -93,7 +97,7 @@ func NewSMTPMailer(cfg *SMTPConfig, opts *config.Email) (*SMTPMailer, error) {
 	layoutFile := filepath.Join(path, opts.Layout)
 	tmplMap, err := parsePages(path, layoutFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse pages at path %q and layout file %q: %w", path, layoutFile, err)
 	}
 
 	return &SMTPMailer{
@@ -111,7 +115,7 @@ func parsePages(templateDir, layoutFile string) (templateMap, error) {
 	layoutTmpl := template.Must(template.New("layout").ParseFiles(layoutFile))
 	err := fs.WalkDir(os.DirFS(templateDir), ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("walk directory %q at path %q: %w", templateDir, path, err)
 		}
 
 		const suffix = ".html"
