@@ -32,7 +32,7 @@ const (
 )
 
 func Run(signalCtx context.Context) error {
-	if envEnv != "production" {
+	if os.Getenv(envEnv) != "production" {
 		if err := env.Load(".env"); err != nil {
 			return fmt.Errorf("load env: %w", err)
 		}
