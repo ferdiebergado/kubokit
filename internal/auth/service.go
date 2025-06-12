@@ -17,8 +17,8 @@ import (
 var _ AuthService = &Service{}
 
 var (
-	ErrUserNotVerified = errors.New("email not verified")
-	ErrUserExists      = errors.New("user already exists")
+	ErrUserNotVerified = errors.New("auth service: email not verified")
+	ErrUserExists      = errors.New("auth service: user already exists")
 )
 
 type AuthRepository interface {
@@ -66,8 +66,8 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 	u := user.User{}
 	email := params.Email
 	existing, err := s.userSvc.FindUserByEmail(ctx, email)
-	if err != nil && !errors.Is(err, user.ErrNotFound) {
-		return u, fmt.Errorf("user: service.finduserbyemail %s: %w", email, err)
+	if err != nil && !errors.Is(err, user.ErrUserNotFound) {
+		return u, fmt.Errorf("user service: find user with email %s: %w", email, err)
 	}
 
 	if existing != nil {
@@ -134,7 +134,7 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (access
 	u, err := s.userSvc.FindUserByEmail(ctx, params.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", "", user.ErrNotFound
+			return "", "", user.ErrUserNotFound
 		}
 		return "", "", fmt.Errorf("find user by email %q: %w", params.Email, err)
 	}
@@ -149,7 +149,7 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (access
 	}
 
 	if !ok {
-		return "", "", user.ErrNotFound
+		return "", "", user.ErrUserNotFound
 	}
 
 	ttl := s.cfg.JWT.TTL.Duration

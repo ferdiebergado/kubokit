@@ -41,7 +41,7 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 		err    error
 	}{
 		{"User exists", "3d594650-3436-11e5-bf21-0800200c9a66", nil},
-		{"User does not exists", "00000000-0000-0000-0000-000000000000", user.ErrNotFound},
+		{"User does not exists", "00000000-0000-0000-0000-000000000000", user.ErrUserNotFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -81,7 +81,7 @@ func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
 		err          error
 	}{
 		{"User exists", "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa", "bob@example.com", nil},
-		{"User does not exists", "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa", "sue@example.com", user.ErrNotFound},
+		{"User does not exists", "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa", "sue@example.com", user.ErrUserNotFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

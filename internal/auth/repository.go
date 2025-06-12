@@ -32,7 +32,7 @@ func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
 	}
 
 	if numRows == 0 {
-		return user.ErrNotFound
+		return user.ErrUserNotFound
 	}
 
 	return nil
@@ -53,7 +53,7 @@ func (r *Repository) ChangeUserPassword(ctx context.Context, email, newPassword 
 	}
 
 	if numRows == 0 {
-		return user.ErrNotFound
+		return user.ErrUserNotFound
 	}
 
 	return nil
