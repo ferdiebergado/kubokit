@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"reflect"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
@@ -67,12 +66,11 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 	u := user.User{}
 	email := params.Email
 	existing, err := s.userSvc.FindUserByEmail(ctx, email)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return u, err
+	if err != nil && !errors.Is(err, user.ErrNotFound) {
+		return u, fmt.Errorf("user: service.finduserbyemail %s: %w", email, err)
 	}
 
-	// TODO: Refactor checking of existing user
-	if !reflect.DeepEqual(existing, u) {
+	if existing != nil {
 		return u, ErrUserExists
 	}
 
