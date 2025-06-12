@@ -216,8 +216,12 @@ app-key:
 
 ## mailhog: Starts mailhog smtp server
 mailhog:
-	@echo "Starting mailhog..."
-	@$(CONTAINER_RUNTIME) run --rm -d --name mailhog -p 1025:1025 -p 8025:8025 mailhog/mailhog
+	@if ! $(CONTAINER_RUNTIME) ps | grep -q mailhog; then \
+		echo "Starting mailhog..."; \
+		$(CONTAINER_RUNTIME) run --rm -d --name mailhog -p 1025:1025 -p 8025:8025 mailhog/mailhog; \
+	else \
+		echo "mailhog already running..."; \
+	fi
 
 prod:
 	@GO_FLAGS=-ldflags="-s -w"
