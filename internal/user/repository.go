@@ -77,6 +77,18 @@ func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
+const QueryFindUser = "SELECT id, email, verified_at, created_at, updated_at FROM users WHERE id = $1"
+
+func (r *Repository) FindUser(ctx context.Context, userID string) (User, error) {
+	row := r.db.QueryRowContext(ctx, QueryFindUser, userID)
+
+	var u User
+	if err := row.Scan(&u.ID, &u.Email, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		return u, fmt.Errorf("row scan for find user: %w", err)
+	}
+	return u, nil
+}
+
 func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db}
 }
