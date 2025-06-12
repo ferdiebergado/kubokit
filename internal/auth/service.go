@@ -18,7 +18,6 @@ import (
 var _ AuthService = &Service{}
 
 var (
-	ErrUserNotFound    = errors.New("user not found")
 	ErrUserNotVerified = errors.New("email not verified")
 	ErrUserExists      = errors.New("user already exists")
 )
@@ -127,41 +126,44 @@ func (s *Service) sendEmail(email *HTMLEmail) {
 }
 
 func (s *Service) VerifyUser(ctx context.Context, userID string) error {
-	return s.repo.VerifyUser(ctx, userID)
+	if err := s.repo.VerifyUser(ctx, userID); err != nil {
+		return fmt.Errorf("verify user with id %s: %w", userID, err)
+	}
+	return nil
 }
 
 func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error) {
-	user, err := s.userSvc.FindUserByEmail(ctx, params.Email)
+	u, err := s.userSvc.FindUserByEmail(ctx, params.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", "", ErrUserNotFound
+			return "", "", user.ErrNotFound
 		}
 		return "", "", fmt.Errorf("find user by email %q: %w", params.Email, err)
 	}
 
-	if user.VerifiedAt == nil {
+	if u.VerifiedAt == nil {
 		return "", "", ErrUserNotVerified
 	}
 
-	ok, err := s.hasher.Verify(params.Password, user.PasswordHash)
+	ok, err := s.hasher.Verify(params.Password, u.PasswordHash)
 	if err != nil {
-		return "", "", fmt.Errorf("verify password for user %q: %w", user.Email, err)
+		return "", "", fmt.Errorf("verify password for user %q: %w", u.Email, err)
 	}
 
 	if !ok {
-		return "", "", ErrUserNotFound
+		return "", "", user.ErrNotFound
 	}
 
 	ttl := s.cfg.JWT.TTL.Duration
-	accessToken, err = s.signer.Sign(user.ID, []string{s.cfg.JWT.Issuer}, ttl)
+	accessToken, err = s.signer.Sign(u.ID, []string{s.cfg.JWT.Issuer}, ttl)
 	if err != nil {
-		return "", "", fmt.Errorf("sign access token for user %q: %w", user.Email, err)
+		return "", "", fmt.Errorf("sign access token for user %q: %w", u.Email, err)
 	}
 
 	refreshTTL := s.cfg.JWT.RefreshTTL.Duration
-	refreshToken, err = s.signer.Sign(user.ID, []string{s.cfg.JWT.Issuer}, refreshTTL)
+	refreshToken, err = s.signer.Sign(u.ID, []string{s.cfg.JWT.Issuer}, refreshTTL)
 	if err != nil {
-		return "", "", fmt.Errorf("sign refresh token for user %q: %w", user.Email, err)
+		return "", "", fmt.Errorf("sign refresh token for user %q: %w", u.Email, err)
 	}
 
 	return accessToken, refreshToken, nil

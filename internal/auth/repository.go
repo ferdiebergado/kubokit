@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 var _ AuthRepository = &Repository{}
@@ -19,10 +21,20 @@ WHERE id = $1
 `
 
 func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
-	_, err := r.db.ExecContext(ctx, QueryUserVerify, userID)
+	res, err := r.db.ExecContext(ctx, QueryUserVerify, userID)
 	if err != nil {
 		return fmt.Errorf("user ID %s verification: %w", userID, err)
 	}
+
+	numRows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected check for verify user: %w", err)
+	}
+
+	if numRows == 0 {
+		return user.ErrNotFound
+	}
+
 	return nil
 }
 
@@ -41,7 +53,7 @@ func (r *Repository) ChangeUserPassword(ctx context.Context, email, newPassword 
 	}
 
 	if numRows == 0 {
-		return ErrUserNotFound
+		return user.ErrNotFound
 	}
 
 	return nil

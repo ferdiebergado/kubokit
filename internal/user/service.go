@@ -9,6 +9,8 @@ import (
 
 var _ UserService = &Service{}
 
+var ErrNotFound = errors.New("user not found")
+
 // UserRepository is the interface for user management.
 type UserRepository interface {
 	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
@@ -33,7 +35,7 @@ func (s *Service) FindUserByEmail(ctx context.Context, email string) (User, erro
 	u, err := s.repo.FindUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return User{}, fmt.Errorf("user with email %s not found: %w", email, err)
+			return User{}, fmt.Errorf("user with email %s not found: %w", email, ErrNotFound)
 		}
 		return User{}, fmt.Errorf("failed to find user by email %s: %w", email, err)
 	}
