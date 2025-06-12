@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ferdiebergado/gopherkit/http/response"
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 )
 
 func LogRequest(next http.Handler) http.Handler {
@@ -18,7 +18,7 @@ func LogRequest(next http.Handler) http.Handler {
 
 		writer, ok := w.(*SafeResponseWriter)
 		if !ok {
-			response.ServerError(w, errors.New("responseWriter is not a SafeResponseWriter"))
+			web.RespondInternalServerError(w, errors.New("responseWriter is not a SafeResponseWriter"))
 			return
 		}
 

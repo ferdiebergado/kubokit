@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ferdiebergado/gopherkit/http/response"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	errx "github.com/ferdiebergado/kubokit/internal/pkg/errors"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
@@ -100,7 +99,7 @@ func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.VerifyUser(r.Context(), userID); err != nil {
-		response.ServerError(w, err)
+		web.RespondInternalServerError(w, err)
 		return
 	}
 
@@ -144,7 +143,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		response.ServerError(w, err)
+		web.RespondInternalServerError(w, err)
 		return
 	}
 
@@ -183,7 +182,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	ttl := h.cfg.JWT.TTL.Duration
 	newAccessToken, err := h.signer.Sign(userID, []string{h.cfg.JWT.Issuer}, ttl)
 	if err != nil {
-		response.ServerError(w, err)
+		web.RespondInternalServerError(w, err)
 		return
 	}
 
