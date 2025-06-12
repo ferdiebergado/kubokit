@@ -54,7 +54,7 @@ default:
 	@sed -n 's/^## //p' Makefile | column -t -s ':'
 
 ## dev: Run the project in development mode
-dev: migrate-up
+dev: migrate-up mailhog
 	@command -v air >/dev/null || go install github.com/air-verse/air@latest
 	@air
 
@@ -71,12 +71,12 @@ run: build db
 	@$(BUILD_DIR)/$(BINARY_NAME)
 
 ## test: Run the unit tests: make test ENV=testing
-test: migrate-up
+test: migrate-up mailhog
 	@echo "Running unit tests..."
 	@go test $(GO_FLAGS) -coverprofile=coverage.out $(GO_MODULE_PATH)
 
 ## test-integration: Run the integration tests: make test-integration ENV=testing
-test-integration: migrate-up
+test-integration: migrate-up mailhog
 	@echo "Running integration tests..."
 	@go test $(GO_FLAGS) -run Integration $(GO_MODULE_PATH)
 
@@ -217,7 +217,7 @@ app-key:
 ## mailhog: Starts mailhog smtp server
 mailhog:
 	@echo "Starting mailhog..."
-	@$(CONTAINER_RUNTIME) run --rm --name mailhog -p 1025:1025 -p 8025:8025 mailhog/mailhog
+	@$(CONTAINER_RUNTIME) run --rm -d --name mailhog -p 1025:1025 -p 8025:8025 mailhog/mailhog
 
 prod:
 	@GO_FLAGS=-ldflags="-s -w"
