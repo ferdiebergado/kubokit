@@ -38,13 +38,13 @@ WHERE email = $1
 LIMIT 1
 `
 
-func (r *Repository) FindUserByEmail(ctx context.Context, email string) (User, error) {
+func (r *Repository) FindUserByEmail(ctx context.Context, email string) (*User, error) {
 	row := r.db.QueryRowContext(ctx, QueryUserFindByEmail, email)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt, &u.VerifiedAt); err != nil {
-		return User{}, err
+		return nil, err
 	}
-	return u, nil
+	return &u, nil
 }
 
 const QueryUserList = "SELECT id, email, verified_at, created_at, updated_at FROM users"

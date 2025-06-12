@@ -6,14 +6,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ferdiebergado/gopherkit/http/response"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 )
 
 type UserService interface {
 	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
 	ListUsers(ctx context.Context) ([]User, error)
-	FindUserByEmail(ctx context.Context, email string) (User, error)
+	FindUserByEmail(ctx context.Context, email string) (*User, error)
 }
 
 type Handler struct {
@@ -40,7 +39,7 @@ type ListUsersResponse struct {
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.Svc.ListUsers(r.Context())
 	if err != nil {
-		response.ServerError(w, err)
+		web.RespondInternalServerError(w, err)
 		return
 	}
 

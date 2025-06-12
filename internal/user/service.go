@@ -15,7 +15,7 @@ var ErrNotFound = errors.New("user not found")
 type UserRepository interface {
 	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
 	ListUsers(ctx context.Context) ([]User, error)
-	FindUserByEmail(ctx context.Context, email string) (User, error)
+	FindUserByEmail(ctx context.Context, email string) (*User, error)
 }
 
 // Service is the implementation of the User Service interface.
@@ -31,13 +31,13 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (User
 	return u, nil
 }
 
-func (s *Service) FindUserByEmail(ctx context.Context, email string) (User, error) {
+func (s *Service) FindUserByEmail(ctx context.Context, email string) (*User, error) {
 	u, err := s.repo.FindUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return User{}, fmt.Errorf("user with email %s not found: %w", email, ErrNotFound)
+			return u, fmt.Errorf("user with email %s not found: %w", email, ErrNotFound)
 		}
-		return User{}, fmt.Errorf("failed to find user by email %s: %w", email, err)
+		return u, fmt.Errorf("failed to find user by email %s: %w", email, err)
 	}
 	return u, nil
 }

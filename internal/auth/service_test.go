@@ -25,7 +25,7 @@ func TestService_RegisterUser(t *testing.T) {
 		name, email, password string
 		registerUserFunc      func(ctx context.Context, params auth.RegisterUserParams) (user.User, error)
 		createUserFunc        func(ctx context.Context, params user.CreateUserParams) (user.User, error)
-		findUserByEmailFunc   func(ctx context.Context, email string) (user.User, error)
+		findUserByEmailFunc   func(ctx context.Context, email string) (*user.User, error)
 		hashFunc              func(plain string) (string, error)
 		sendHTMLFunc          func(to []string, subject, tmplName string, data map[string]string) error
 		signFunc              func(subject string, audience []string, duration time.Duration) (string, error)
@@ -56,8 +56,8 @@ func TestService_RegisterUser(t *testing.T) {
 					Email: params.Email,
 				}, nil
 			},
-			findUserByEmailFunc: func(ctx context.Context, email string) (user.User, error) {
-				return user.User{}, nil
+			findUserByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+				return nil, nil
 			},
 			hashFunc: func(_ string) (string, error) {
 				return "hashed", nil

@@ -7,7 +7,7 @@ import (
 
 type StubService struct {
 	CreateUserFunc      func(ctx context.Context, params CreateUserParams) (User, error)
-	FindUserByEmailFunc func(ctx context.Context, email string) (User, error)
+	FindUserByEmailFunc func(ctx context.Context, email string) (*User, error)
 	ListUsersFunc       func(ctx context.Context) ([]User, error)
 }
 
@@ -26,9 +26,9 @@ func (s *StubService) ListUsers(ctx context.Context) ([]User, error) {
 	return s.ListUsersFunc(ctx)
 }
 
-func (s *StubService) FindUserByEmail(ctx context.Context, email string) (User, error) {
+func (s *StubService) FindUserByEmail(ctx context.Context, email string) (*User, error) {
 	if s.FindUserByEmailFunc == nil {
-		return User{}, errors.New("FindUserByEmail not implemented in stub")
+		return nil, errors.New("FindUserByEmail not implemented in stub")
 	}
 	return s.FindUserByEmailFunc(ctx, email)
 }
