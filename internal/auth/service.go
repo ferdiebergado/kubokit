@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -17,8 +16,8 @@ import (
 var _ AuthService = &Service{}
 
 var (
-	ErrUserNotVerified = errors.New("auth service: email not verified")
-	ErrUserExists      = errors.New("auth service: user already exists")
+	ErrUserNotVerified = errors.New("email not verified")
+	ErrUserExists      = errors.New("user already exists")
 )
 
 type AuthRepository interface {
@@ -66,8 +65,8 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 	u := user.User{}
 	email := params.Email
 	existing, err := s.userSvc.FindUserByEmail(ctx, email)
-	if err != nil && !errors.Is(err, user.ErrUserNotFound) {
-		return u, fmt.Errorf("user service: find user with email %s: %w", email, err)
+	if err != nil {
+		return u, err
 	}
 
 	if existing != nil {
@@ -76,12 +75,12 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 
 	hash, err := s.hasher.Hash(params.Password)
 	if err != nil {
-		return u, fmt.Errorf("hasher hash: %w", err)
+		return u, fmt.Errorf("hash password: %w", err)
 	}
 
 	newUser, err := s.userSvc.CreateUser(ctx, user.CreateUserParams{Email: email, PasswordHash: hash})
 	if err != nil {
-		return u, fmt.Errorf("create user %s: %w", email, err)
+		return u, err
 	}
 
 	verifyEmail := &HTMLEmail{
@@ -125,7 +124,7 @@ func (s *Service) sendEmail(email *HTMLEmail) {
 
 func (s *Service) VerifyUser(ctx context.Context, userID string) error {
 	if err := s.repo.VerifyUser(ctx, userID); err != nil {
-		return fmt.Errorf("verify user with id %s: %w", userID, err)
+		return err
 	}
 	return nil
 }
@@ -133,35 +132,32 @@ func (s *Service) VerifyUser(ctx context.Context, userID string) error {
 func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error) {
 	u, err := s.userSvc.FindUserByEmail(ctx, params.Email)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", "", user.ErrUserNotFound
-		}
-		return "", "", fmt.Errorf("find user by email %q: %w", params.Email, err)
+		return "", "", err
 	}
 
 	if u.VerifiedAt == nil {
-		return "", "", ErrUserNotVerified
+		return "", "", fmt.Errorf("user with email %s not verified: %w", params.Email, ErrUserNotVerified)
 	}
 
 	ok, err := s.hasher.Verify(params.Password, u.PasswordHash)
 	if err != nil {
-		return "", "", fmt.Errorf("verify password for user %q: %w", u.Email, err)
+		return "", "", fmt.Errorf("verify password for user with email %s: %w", u.Email, err)
 	}
 
 	if !ok {
-		return "", "", user.ErrUserNotFound
+		return "", "", fmt.Errorf("incorrect password for user with email %s: %w", params.Email, user.ErrUserNotFound)
 	}
 
 	ttl := s.cfg.JWT.TTL.Duration
 	accessToken, err = s.signer.Sign(u.ID, []string{s.cfg.JWT.Issuer}, ttl)
 	if err != nil {
-		return "", "", fmt.Errorf("sign access token for user %q: %w", u.Email, err)
+		return "", "", fmt.Errorf("sign access token for user with email %s: %w", u.Email, err)
 	}
 
 	refreshTTL := s.cfg.JWT.RefreshTTL.Duration
 	refreshToken, err = s.signer.Sign(u.ID, []string{s.cfg.JWT.Issuer}, refreshTTL)
 	if err != nil {
-		return "", "", fmt.Errorf("sign refresh token for user %q: %w", u.Email, err)
+		return "", "", fmt.Errorf("sign refresh token for user with email %s: %w", u.Email, err)
 	}
 
 	return accessToken, refreshToken, nil
@@ -187,24 +183,20 @@ type ResetPasswordParams struct {
 func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
 	u, err := s.userSvc.FindUserByEmail(ctx, params.email)
 	if err != nil {
-		return fmt.Errorf("find user by email %q: %w", params.email, err)
+		return err
 	}
 
 	_, err = s.hasher.Verify(params.oldPassword, u.PasswordHash)
 	if err != nil {
-		return fmt.Errorf("verify old password for user %q: %w", u.Email, err)
+		return fmt.Errorf("verify old password of user with email %s: %w", u.Email, err)
 	}
 
 	newHash, err := s.hasher.Hash(params.newPassword)
 	if err != nil {
-		return fmt.Errorf("hash new password for user %q: %w", u.Email, err)
+		return fmt.Errorf("hash new password of user with email %s: %w", u.Email, err)
 	}
 
-	if err := s.repo.ChangeUserPassword(ctx, u.Email, newHash); err != nil {
-		return fmt.Errorf("change password in repository for user %q: %w", u.Email, err)
-	}
-
-	return nil
+	return s.repo.ChangeUserPassword(ctx, u.Email, newHash)
 }
 
 func NewService(repo AuthRepository, userSvc user.UserService, provider *Providers, cfg *config.Config) *Service {

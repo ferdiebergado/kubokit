@@ -2,13 +2,9 @@ package user
 
 import (
 	"context"
-	"errors"
-	"fmt"
 )
 
 var _ UserService = &Service{}
-
-var ErrUserNotFound = errors.New("user service: user not found")
 
 // UserRepository is the interface for user management.
 type UserRepository interface {
@@ -25,7 +21,7 @@ type Service struct {
 func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
 	u, err := s.repo.CreateUser(ctx, params)
 	if err != nil {
-		return u, fmt.Errorf("user service: create user with email %s: %w", params.Email, err)
+		return u, err
 	}
 	return u, nil
 }
@@ -33,10 +29,7 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (User
 func (s *Service) FindUserByEmail(ctx context.Context, email string) (*User, error) {
 	u, err := s.repo.FindUserByEmail(ctx, email)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return u, fmt.Errorf("%w: user with email %s not found", ErrUserNotFound, email)
-		}
-		return u, fmt.Errorf("failed to find user by email %s: %w", email, err)
+		return u, err
 	}
 	return u, nil
 }
@@ -44,7 +37,7 @@ func (s *Service) FindUserByEmail(ctx context.Context, email string) (*User, err
 func (s *Service) ListUsers(ctx context.Context) ([]User, error) {
 	users, err := s.repo.ListUsers(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list users: %w", err)
+		return nil, err
 	}
 	return users, nil
 }
