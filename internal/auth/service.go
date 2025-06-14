@@ -25,12 +25,6 @@ type AuthRepository interface {
 	ChangeUserPassword(ctx context.Context, email, newPassword string) error
 }
 
-type Providers struct {
-	Hasher hash.Hasher
-	Signer jwt.Signer
-	Mailer email.Mailer
-}
-
 type Service struct {
 	repo    AuthRepository
 	userSvc user.UserService
@@ -49,16 +43,8 @@ func (p *RegisterUserParams) LogValue() slog.Value {
 	return slog.AnyValue(nil)
 }
 
-type LoginUserParams struct {
-	Email    string
-	Password string
-}
-
-func (p *LoginUserParams) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.String("email", "*"),
-		slog.String("password", "*"),
-	)
+type HTMLEmail struct {
+	Email, Subject, Title, Template, Payload, URI string
 }
 
 func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error) {
@@ -96,10 +82,6 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 	return newUser, nil
 }
 
-type HTMLEmail struct {
-	Email, Subject, Title, Template, Payload, URI string
-}
-
 func (s *Service) sendEmail(email *HTMLEmail) {
 	slog.Info("Sending email...")
 
@@ -127,6 +109,18 @@ func (s *Service) VerifyUser(ctx context.Context, userID string) error {
 		return err
 	}
 	return nil
+}
+
+type LoginUserParams struct {
+	Email    string
+	Password string
+}
+
+func (p *LoginUserParams) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("email", maskChar),
+		slog.String("password", maskChar),
+	)
 }
 
 func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error) {
@@ -197,6 +191,12 @@ func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 	}
 
 	return s.repo.ChangeUserPassword(ctx, u.Email, newHash)
+}
+
+type Providers struct {
+	Hasher hash.Hasher
+	Signer jwt.Signer
+	Mailer email.Mailer
 }
 
 func NewService(repo AuthRepository, userSvc user.UserService, provider *Providers, cfg *config.Config) *Service {

@@ -19,6 +19,17 @@ type Handler struct {
 	Svc UserService
 }
 
+func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.Svc.ListUsers(r.Context())
+	if err != nil {
+		web.RespondInternalServerError(w, err)
+		return
+	}
+
+	payload := newListUsersResponse(users)
+	web.RespondOK(w, nil, payload)
+}
+
 func NewHandler(svc UserService) *Handler {
 	return &Handler{svc}
 }
@@ -32,21 +43,6 @@ type UserData struct {
 	UpdatedAt  time.Time       `json:"updated_at,omitempty"`
 }
 
-type ListUsersResponse struct {
-	Users []UserData `json:"users,omitempty"`
-}
-
-func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := h.Svc.ListUsers(r.Context())
-	if err != nil {
-		web.RespondInternalServerError(w, err)
-		return
-	}
-
-	payload := newListUsersResponse(users)
-	web.RespondOK(w, nil, payload)
-}
-
 func transformUser(u *User) *UserData {
 	return &UserData{
 		ID:         u.ID,
@@ -56,6 +52,10 @@ func transformUser(u *User) *UserData {
 		CreatedAt:  u.CreatedAt,
 		UpdatedAt:  u.UpdatedAt,
 	}
+}
+
+type ListUsersResponse struct {
+	Users []UserData `json:"users,omitempty"`
 }
 
 func newListUsersResponse(users []User) *ListUsersResponse {
