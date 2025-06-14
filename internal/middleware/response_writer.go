@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
-
-	errx "github.com/ferdiebergado/kubokit/internal/pkg/errors"
 )
+
+const defaultStatus = http.StatusOK
 
 // SafeResponseWriter is an http.ResponseWriter wrapper that prevents wasting resources, race conditions and poor user experience.
 //
@@ -21,20 +21,12 @@ type SafeResponseWriter struct {
 	bytesSent     int
 }
 
-func NewSafeResponseWriter(ctx context.Context, w http.ResponseWriter) *SafeResponseWriter {
-	return &SafeResponseWriter{
-		ResponseWriter: w,
-		ctx:            ctx,
-		status:         http.StatusOK,
-	}
-}
-
 func (w *SafeResponseWriter) WriteHeader(statusCode int) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	ctxErr := w.ctx.Err()
 
-	if errx.IsContextError(ctxErr) {
+	if err := w.ctx.Err(); err != nil {
+		warnCtxErr(err)
 		return
 	}
 
@@ -51,20 +43,20 @@ func (w *SafeResponseWriter) Write(b []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	ctxErr := w.ctx.Err()
-	if errx.IsContextError(ctxErr) {
+	if err := w.ctx.Err(); err != nil {
+		warnCtxErr(err)
 		return 0, nil
 	}
 
 	if !w.headerWritten {
-		slog.Warn("invoked Write() without WriteHeader(statusCode)")
-		w.ResponseWriter.WriteHeader(http.StatusOK)
-		w.status = http.StatusOK
+		slog.Warn("Write() called without WriteHeader()", "default_status", defaultStatus)
+		w.ResponseWriter.WriteHeader(defaultStatus)
+		w.status = defaultStatus
 		w.headerWritten = true
 	}
 
 	if w.status >= http.StatusInternalServerError {
-		slog.Warn("ignoring write due to server error")
+		slog.Warn("write was ignored due to server error")
 		return 0, nil
 	}
 
@@ -83,4 +75,16 @@ func (w *SafeResponseWriter) BytesWritten() int {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.bytesSent
+}
+
+func NewSafeResponseWriter(ctx context.Context, w http.ResponseWriter) *SafeResponseWriter {
+	return &SafeResponseWriter{
+		ResponseWriter: w,
+		ctx:            ctx,
+		status:         defaultStatus,
+	}
+}
+
+func warnCtxErr(err error) {
+	slog.Warn("context error occurred", "error", err)
 }
