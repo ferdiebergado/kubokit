@@ -64,6 +64,7 @@ func Run(signalCtx context.Context) error {
 		goexpress.RecoverFromPanic,
 		middleware.LogRequest,
 		middleware.CheckContentType,
+		middleware.ContextGuard,
 	}
 
 	//nolint:contextcheck //This function internally creates a context with cancel.
