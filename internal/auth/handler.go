@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
-	errx "github.com/ferdiebergado/kubokit/internal/pkg/errors"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
@@ -70,10 +69,6 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, ErrUserExists) {
 			web.RespondUnprocessableEntity(w, err, "User already exists.", nil)
-			return
-		}
-
-		if errx.IsContextError(err) {
 			return
 		}
 
