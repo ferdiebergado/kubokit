@@ -65,7 +65,7 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 	u := user.User{}
 	email := params.Email
 	existing, err := s.userSvc.FindUserByEmail(ctx, email)
-	if err != nil {
+	if err != nil && !errors.Is(err, user.ErrUserNotFound) {
 		return u, err
 	}
 
