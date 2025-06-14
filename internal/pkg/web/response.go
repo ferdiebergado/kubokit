@@ -78,7 +78,12 @@ func RespondUnsupportedMediaType(w http.ResponseWriter, err error, clientMsg str
 	RespondError(w, http.StatusUnsupportedMediaType, err, clientMsg, details)
 }
 
-// RespondRequestEntityTooLarge sends a 413 Request Entityt Too Large error.
+// RespondRequestEntityTooLarge sends a 413 Request Entity Too Large error.
 func RespondRequestEntityTooLarge(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
 	RespondError(w, http.StatusRequestEntityTooLarge, err, clientMsg, details)
+}
+
+// RespondRequestTimeout sends a 408 Request Timeout error.
+func RespondRequestTimeout(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusRequestTimeout, err, clientMsg, details)
 }
