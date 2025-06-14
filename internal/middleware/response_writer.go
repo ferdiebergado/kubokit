@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 )
 
 const defaultStatus = http.StatusOK
@@ -14,11 +15,12 @@ const defaultStatus = http.StatusOK
 //nolint:containedctx //This ResponseWriter wrapper requires a context to gracefully handle canceled or timed-out requests.
 type SafeResponseWriter struct {
 	http.ResponseWriter
-	ctx           context.Context
-	mu            sync.Mutex
+	ctx context.Context
+
 	status        int
 	headerWritten bool
-	bytesSent     int
+	mu            sync.Mutex
+	bytesSent     atomic.Int64
 }
 
 func (w *SafeResponseWriter) WriteHeader(statusCode int) {
@@ -40,13 +42,12 @@ func (w *SafeResponseWriter) WriteHeader(statusCode int) {
 }
 
 func (w *SafeResponseWriter) Write(b []byte) (int, error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
 	if err := w.ctx.Err(); err != nil {
 		warnCtxErr(err)
 		return 0, nil
 	}
+
+	w.mu.Lock()
 
 	if !w.headerWritten {
 		slog.Warn("Write() called without WriteHeader()", "default_status", defaultStatus)
@@ -60,8 +61,10 @@ func (w *SafeResponseWriter) Write(b []byte) (int, error) {
 		return 0, nil
 	}
 
+	w.mu.Unlock()
+
 	n, err := w.ResponseWriter.Write(b)
-	w.bytesSent += n
+	w.bytesSent.Add(int64(n))
 	return n, err
 }
 
@@ -72,9 +75,7 @@ func (w *SafeResponseWriter) Status() int {
 }
 
 func (w *SafeResponseWriter) BytesWritten() int {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.bytesSent
+	return int(w.bytesSent.Load())
 }
 
 func NewSafeResponseWriter(ctx context.Context, w http.ResponseWriter) *SafeResponseWriter {
