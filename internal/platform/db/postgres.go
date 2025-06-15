@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // NewConnection creates and validates a database connection.
