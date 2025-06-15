@@ -27,10 +27,10 @@ VALUES (
 );`
 
 func TestIntegrationRepository_VerifyUser(t *testing.T) {
-	conn, cleanUp := db.Setup(t)
-	defer cleanUp("TRUNCATE users")
+	tx, rollback := db.NewTransaction(t)
+	defer rollback()
 
-	_, err := conn.Exec(queryUserSeed)
+	_, err := tx.Exec(queryUserSeed)
 	if err != nil {
 		t.Fatalf("seed users: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := auth.NewRepository(conn)
+			repo := auth.NewRepository(tx)
 			ctx := context.Background()
 			if err = repo.VerifyUser(ctx, tt.userID); !errors.Is(err, tt.err) {
 				t.Errorf("repo.VerifyUser(ctx, %q) = %v, want: %v", tt.userID, err, tt.err)
@@ -53,7 +53,7 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 
 			if tt.err == nil {
 				var verifiedAt *time.Time
-				err = conn.QueryRowContext(ctx, "SELECT verified_at FROM users WHERE id = $1", tt.userID).Scan(&verifiedAt)
+				err = tx.QueryRowContext(ctx, "SELECT verified_at FROM users WHERE id = $1", tt.userID).Scan(&verifiedAt)
 				if err != nil {
 					t.Fatalf("failed to fetch user: %v", err)
 				}
@@ -66,10 +66,10 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 }
 
 func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
-	conn, cleanUp := db.Setup(t)
-	defer cleanUp("TRUNCATE users")
+	tx, rollback := db.NewTransaction(t)
+	defer rollback()
 
-	_, err := conn.Exec(queryUserSeed)
+	_, err := tx.Exec(queryUserSeed)
 	if err != nil {
 		t.Fatalf("seed users: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := auth.NewRepository(conn)
+			repo := auth.NewRepository(tx)
 			ctx := context.Background()
 			testPassword := "test"
 			if err = repo.ChangeUserPassword(ctx, tt.email, testPassword); !errors.Is(err, tt.err) {
@@ -94,7 +94,7 @@ func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
 
 			if tt.err == nil {
 				var passwordHash string
-				err = conn.QueryRowContext(ctx, "SELECT password_hash FROM users WHERE email = $1", tt.email).Scan(&passwordHash)
+				err = tx.QueryRowContext(ctx, "SELECT password_hash FROM users WHERE email = $1", tt.email).Scan(&passwordHash)
 				if err != nil {
 					t.Fatalf("failed to fetch user: %v", err)
 				}

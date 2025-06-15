@@ -51,16 +51,16 @@ VALUES (
 `
 
 func TestIntegrationRepository_GetAllUsers(t *testing.T) {
-	conn, cleanUp := db.Setup(t)
-	defer cleanUp("TRUNCATE users")
+	tx, rollback := db.NewTransaction(t)
+	defer rollback()
 
-	_, err := conn.Exec(sqlUsers)
+	_, err := tx.Exec(sqlUsers)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	ctx := context.Background()
-	repo := user.NewRepository(conn)
+	repo := user.NewRepository(tx)
 
 	users, err := repo.ListUsers(ctx)
 	if err != nil {
@@ -74,16 +74,16 @@ func TestIntegrationRepository_GetAllUsers(t *testing.T) {
 }
 
 func TestIntegrationRepository_FindUser(t *testing.T) {
-	conn, cleanUp := db.Setup(t)
-	defer cleanUp("TRUNCATE users")
+	tx, rollback := db.NewTransaction(t)
+	defer rollback()
 
-	_, err := conn.Exec(sqlUsers)
+	_, err := tx.Exec(sqlUsers)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	ctx := context.Background()
-	repo := user.NewRepository(conn)
+	repo := user.NewRepository(tx)
 	const userID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
 	verifiedAt := time.Date(2025, time.May, 9, 20, 0, 0, 0, time.Local)
 	wantUser := user.User{
