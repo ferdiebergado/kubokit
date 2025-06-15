@@ -68,7 +68,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.svc.RegisterUser(r.Context(), params)
 	if err != nil {
 		if errors.Is(err, ErrUserExists) {
-			web.RespondUnprocessableEntity(w, err, "User already exists.", nil)
+			web.RespondConflict(w, err, "User already exists.", nil)
 			return
 		}
 
