@@ -23,56 +23,80 @@ func TestHandler_RegisterUser(t *testing.T) {
 	now := time.Now().Truncate(0)
 	testEmail := "test@example.com"
 	testPass := "test"
-	u := user.User{
-		Model: model.Model{
-			ID:        "1",
-			CreatedAt: now,
-			UpdatedAt: now,
+
+	tests := []struct {
+		name        string
+		params      auth.RegisterUserRequest
+		regUserFunc func(ctx context.Context, params auth.RegisterUserParams) (user.User, error)
+		code        int
+		user        *auth.RegisterUserResponse
+	}{
+		{"Successful registration",
+			auth.RegisterUserRequest{Email: testEmail, Password: testPass, PasswordConfirm: testPass},
+			func(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
+				return user.User{
+					Model: model.Model{
+						ID:        "1",
+						CreatedAt: now,
+						UpdatedAt: now,
+					},
+					Email: testEmail,
+				}, nil
+			},
+			http.StatusCreated,
+			&auth.RegisterUserResponse{
+				ID:        "1",
+				Email:     testEmail,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
 		},
-		Email: testEmail,
-	}
-	svc := &auth.StubService{
-		RegisterUserFunc: func(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
-			return u, nil
+		{"User already exists",
+			auth.RegisterUserRequest{Email: testEmail, Password: testPass, PasswordConfirm: testPass},
+			func(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
+				return user.User{}, auth.ErrUserExists
+			},
+			http.StatusConflict,
+			nil,
 		},
 	}
-	signer := &jwt.StubSigner{}
-	cfg := &config.Config{}
-	authHandler := auth.NewHandler(svc, signer, cfg)
-	params := auth.RegisterUserRequest{
-		Email:           testEmail,
-		Password:        testPass,
-		PasswordConfirm: testPass,
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	paramsCtx := web.NewContextWithParams(context.Background(), params)
-	req := httptest.NewRequestWithContext(paramsCtx, http.MethodPost, "/auth/register", nil)
-	rec := httptest.NewRecorder()
-	authHandler.RegisterUser(rec, req)
+			svc := &auth.StubService{
+				RegisterUserFunc: tt.regUserFunc,
+			}
+			signer := &jwt.StubSigner{}
+			cfg := &config.Config{}
+			authHandler := auth.NewHandler(svc, signer, cfg)
 
-	wantStatus, gotStatus := http.StatusCreated, rec.Code
-	if gotStatus != wantStatus {
-		t.Errorf("rec.Code = %d\nwant: %d\n", gotStatus, wantStatus)
-	}
+			paramsCtx := web.NewContextWithParams(context.Background(), tt.params)
+			req := httptest.NewRequestWithContext(paramsCtx, http.MethodPost, "/auth/register", nil)
+			rec := httptest.NewRecorder()
+			authHandler.RegisterUser(rec, req)
 
-	wantHeader, gotHeader := web.MimeJSON, rec.Header().Get(web.HeaderContentType)
-	if gotHeader != wantHeader {
-		t.Errorf("rec.Header().Get(web.HeaderContentType) = %s \nwant: %s", gotHeader, wantHeader)
-	}
+			gotStatus, wantStatus := rec.Code, tt.code
+			if gotStatus != wantStatus {
+				t.Errorf("rec.Code = %d, want: %d", gotStatus, wantStatus)
+			}
 
-	var apiRes web.OKResponse[*auth.RegisterUserResponse]
-	if err := json.NewDecoder(rec.Body).Decode(&apiRes); err != nil {
-		t.Fatal(err)
-	}
+			wantHeader, gotHeader := web.MimeJSON, rec.Header().Get(web.HeaderContentType)
+			if gotHeader != wantHeader {
+				t.Errorf("rec.Header().Get(web.HeaderContentType) = %q, want: %q", gotHeader, wantHeader)
+			}
 
-	gotUser := apiRes.Data
-	wantUser := &auth.RegisterUserResponse{
-		ID:        u.ID,
-		Email:     u.Email,
-		CreatedAt: u.CreatedAt,
-		UpdatedAt: u.UpdatedAt,
-	}
-	if !reflect.DeepEqual(gotUser, wantUser) {
-		t.Errorf("apiRes.Data = %+v\nwant: %+v\n", gotUser, wantUser)
+			if tt.user != nil {
+				var apiRes web.OKResponse[*auth.RegisterUserResponse]
+				if err := json.NewDecoder(rec.Body).Decode(&apiRes); err != nil {
+					t.Fatal(err)
+				}
+
+				gotUser, wantUser := apiRes.Data, tt.user
+				if !reflect.DeepEqual(gotUser, wantUser) {
+					t.Errorf("apiRes.Data = %+v\nwant: %+v\n", gotUser, wantUser)
+				}
+			}
+		})
 	}
 }
