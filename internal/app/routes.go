@@ -23,14 +23,14 @@ func mountAuthRoutes(r router.Router, handler *auth.Handler, validator validatio
 		gr.Post("/login", handler.LoginUser,
 			middleware.DecodePayload[auth.UserLoginRequest](bodySize),
 			middleware.ValidateInput[auth.UserLoginRequest](validator))
-		gr.Get("/verify", handler.VerifyEmail, middleware.VerifyToken(signer))
+		gr.Get("/verify", handler.VerifyEmail, auth.VerifyToken(signer))
 		gr.Post("/refresh", handler.RefreshToken)
 		gr.Post("/logout", handler.LogoutUser)
 		gr.Post("/forgot", handler.ForgotPassword,
 			middleware.DecodePayload[auth.ForgotPasswordRequest](bodySize),
 			middleware.ValidateInput[auth.ForgotPasswordRequest](validator))
 		gr.Post("/reset", handler.ResetPassword,
-			middleware.VerifyToken(signer),
+			auth.VerifyToken(signer),
 			middleware.DecodePayload[auth.ResetPasswordRequest](bodySize),
 			middleware.ValidateInput[auth.ResetPasswordRequest](validator))
 	})
