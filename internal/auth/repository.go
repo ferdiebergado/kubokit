@@ -2,16 +2,16 @@ package auth
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
+	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 var _ AuthRepository = &Repository{}
 
 type Repository struct {
-	db *sql.DB
+	db db.Querier
 }
 
 const QueryUserVerify = `
@@ -59,6 +59,6 @@ func (r *Repository) ChangeUserPassword(ctx context.Context, email, newPassword 
 	return nil
 }
 
-func NewRepository(db *sql.DB) *Repository {
+func NewRepository(db db.Querier) *Repository {
 	return &Repository{db}
 }

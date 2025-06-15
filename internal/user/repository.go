@@ -5,16 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
+	"github.com/ferdiebergado/kubokit/internal/platform/db"
 )
 
 var _ UserRepository = &Repository{}
 
-var (
-	ErrUserNotFound = errors.New("user not found")
-)
+var ErrUserNotFound = errors.New("user not found")
 
 type Repository struct {
-	db *sql.DB
+	db db.Querier
 }
 
 type CreateUserParams struct {
@@ -96,6 +96,6 @@ func (r *Repository) FindUser(ctx context.Context, userID string) (User, error) 
 	return u, nil
 }
 
-func NewRepository(db *sql.DB) *Repository {
+func NewRepository(db db.Querier) *Repository {
 	return &Repository{db}
 }
