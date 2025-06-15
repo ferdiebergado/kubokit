@@ -44,16 +44,16 @@ const queryUserChangePassword = "UPDATE users SET password_hash = $1 WHERE email
 func (r *Repository) ChangeUserPassword(ctx context.Context, email, newPassword string) error {
 	res, err := r.db.ExecContext(ctx, queryUserChangePassword, newPassword, email)
 	if err != nil {
-		return fmt.Errorf("query to change password of user with email %s: %w", email, err)
+		return fmt.Errorf("query to change password: %w", err)
 	}
 
 	numRows, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("get rows affected by password change of user with email %s: %w", email, err)
+		return fmt.Errorf("get rows affected by password change: %w", err)
 	}
 
 	if numRows == 0 {
-		return fmt.Errorf("user with email %s not found: %w", email, user.ErrUserNotFound)
+		return user.ErrUserNotFound
 	}
 
 	return nil

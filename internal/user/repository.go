@@ -32,7 +32,7 @@ func (r *Repository) CreateUser(ctx context.Context, params CreateUserParams) (U
 	row := r.db.QueryRowContext(ctx, QueryUserCreate, params.Email, params.PasswordHash)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return u, fmt.Errorf("query to create user with email %s: %w", params.Email, err)
+		return u, fmt.Errorf("query to create user: %w", err)
 	}
 	return u, nil
 }
@@ -48,9 +48,9 @@ func (r *Repository) FindUserByEmail(ctx context.Context, email string) (*User, 
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt, &u.VerifiedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("user with email %s not found: %w", email, ErrUserNotFound)
+			return nil, ErrUserNotFound
 		}
-		return nil, fmt.Errorf("query to find user with email %s: %w", email, err)
+		return nil, fmt.Errorf("query to find user by email: %w", err)
 	}
 	return &u, nil
 }

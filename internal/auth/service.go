@@ -130,28 +130,28 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (access
 	}
 
 	if u.VerifiedAt == nil {
-		return "", "", fmt.Errorf("user with email %s not verified: %w", params.Email, ErrUserNotVerified)
+		return "", "", ErrUserNotVerified
 	}
 
 	ok, err := s.hasher.Verify(params.Password, u.PasswordHash)
 	if err != nil {
-		return "", "", fmt.Errorf("verify password for user with email %s: %w", u.Email, err)
+		return "", "", fmt.Errorf("verify password: %w", err)
 	}
 
 	if !ok {
-		return "", "", fmt.Errorf("incorrect password for user with email %s: %w", params.Email, user.ErrUserNotFound)
+		return "", "", fmt.Errorf("incorrect password: %w", user.ErrUserNotFound)
 	}
 
 	ttl := s.cfg.JWT.TTL.Duration
 	accessToken, err = s.signer.Sign(u.ID, []string{s.cfg.JWT.Issuer}, ttl)
 	if err != nil {
-		return "", "", fmt.Errorf("sign access token for user with email %s: %w", u.Email, err)
+		return "", "", fmt.Errorf("sign access token: %w", err)
 	}
 
 	refreshTTL := s.cfg.JWT.RefreshTTL.Duration
 	refreshToken, err = s.signer.Sign(u.ID, []string{s.cfg.JWT.Issuer}, refreshTTL)
 	if err != nil {
-		return "", "", fmt.Errorf("sign refresh token for user with email %s: %w", u.Email, err)
+		return "", "", fmt.Errorf("sign refresh token: %w", err)
 	}
 
 	return accessToken, refreshToken, nil
@@ -171,7 +171,7 @@ func (s *Service) SendPasswordReset(email string) {
 }
 
 type ResetPasswordParams struct {
-	email, oldPassword, newPassword string
+	email, currentPassword, newPassword string
 }
 
 func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
@@ -180,14 +180,14 @@ func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 		return err
 	}
 
-	_, err = s.hasher.Verify(params.oldPassword, u.PasswordHash)
+	_, err = s.hasher.Verify(params.currentPassword, u.PasswordHash)
 	if err != nil {
-		return fmt.Errorf("verify old password of user with email %s: %w", u.Email, err)
+		return fmt.Errorf("verify current password: %w", err)
 	}
 
 	newHash, err := s.hasher.Hash(params.newPassword)
 	if err != nil {
-		return fmt.Errorf("hash new password of user with email %s: %w", u.Email, err)
+		return fmt.Errorf("hash new password: %w", err)
 	}
 
 	return s.repo.ChangeUserPassword(ctx, u.Email, newHash)
