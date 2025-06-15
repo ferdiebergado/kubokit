@@ -87,3 +87,8 @@ func RespondRequestEntityTooLarge(w http.ResponseWriter, err error, clientMsg st
 func RespondRequestTimeout(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
 	RespondError(w, http.StatusRequestTimeout, err, clientMsg, details)
 }
+
+// RespondConflict sends a 409 Conflict error.
+func RespondConflict(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusConflict, err, clientMsg, details)
+}
