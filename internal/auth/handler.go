@@ -260,9 +260,9 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := ResetPasswordParams{
-		email:       email,
-		oldPassword: req.CurrentPassword,
-		newPassword: req.NewPassword,
+		email:           email,
+		currentPassword: req.CurrentPassword,
+		newPassword:     req.NewPassword,
 	}
 
 	if err := h.svc.ResetPassword(r.Context(), params); err != nil {
