@@ -23,7 +23,8 @@ func NewConnection(signalCtx context.Context, cfg *config.DB) (*sql.DB, error) {
 	dbName := os.Getenv("DB_NAME")
 	dbSSL := os.Getenv("DB_SSLMODE")
 
-	conn, err := sql.Open(cfg.Driver, fmt.Sprintf(dsnFmt, dbUser, dbPass, dbHost, dbPort, dbName, dbSSL))
+	dsn := fmt.Sprintf(dsnFmt, dbUser, dbPass, dbHost, dbPort, dbName, dbSSL)
+	conn, err := sql.Open(cfg.Driver, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
