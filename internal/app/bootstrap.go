@@ -43,7 +43,7 @@ func Run(signalCtx context.Context) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	dbConn, err := db.NewConnection(signalCtx, cfg.DB)
+	dbConn, err := db.NewPostgresDB(signalCtx, cfg.DB)
 	if err != nil {
 		return fmt.Errorf("db connect: %w", err)
 	}

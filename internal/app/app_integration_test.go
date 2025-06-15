@@ -34,7 +34,7 @@ func setupApp(t *testing.T) (*app.App, func()) {
 		t.Fatalf("load config: %v", err)
 	}
 
-	conn, err := db.NewConnection(context.Background(), cfg.DB)
+	conn, err := db.NewPostgresDB(context.Background(), cfg.DB)
 	if err != nil {
 		t.Fatalf("connect db: %v", err)
 	}

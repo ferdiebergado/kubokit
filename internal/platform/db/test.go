@@ -23,7 +23,7 @@ func Setup(t *testing.T) (dbConn *sql.DB, cleanUpFunc func(string)) {
 		t.Fatal(err)
 	}
 
-	conn, err := NewConnection(context.Background(), cfg.DB)
+	conn, err := NewPostgresDB(context.Background(), cfg.DB)
 	if err != nil {
 		t.Fatal(err)
 	}

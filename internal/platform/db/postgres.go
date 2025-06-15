@@ -11,8 +11,8 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// NewConnection creates and validates a database connection.
-func NewConnection(signalCtx context.Context, cfg *config.DB) (*sql.DB, error) {
+// NewPostgresDB creates and validates a postgres database connection.
+func NewPostgresDB(signalCtx context.Context, cfg *config.DB) (*sql.DB, error) {
 	slog.Info("Connecting to the database...")
 	const dsnFmt = "postgres://%s:%s@%s:%s/%s?sslmode=%s"
 
