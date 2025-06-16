@@ -12,6 +12,7 @@ import (
 
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
@@ -40,6 +41,7 @@ type App struct {
 	validator       validation.Validator
 	hasher          hash.Hasher
 	router          router.Router
+	txManager       db.TxManager
 }
 
 func (a *App) registerMiddlewares() {
@@ -60,7 +62,7 @@ func (a *App) setupRoutes() {
 		Signer: a.signer,
 		Mailer: a.mailer,
 	}
-	authService := auth.NewService(authRepo, userService, authProviders, a.config)
+	authService := auth.NewService(authRepo, userService, authProviders, a.config, a.txManager)
 	authHandler := auth.NewHandler(authService, a.signer, a.config)
 	mountAuthRoutes(a.router, authHandler, a.validator, a.signer, a.config.Server.MaxBodyBytes)
 }
@@ -115,9 +117,12 @@ func New(cfg *config.Config, dbConn *sql.DB, providers *Providers, middlewares [
 		IdleTimeout:  serverCfg.IdleTimeout.Duration,
 	}
 
+	txMgr := db.NewSQLTxManager(dbConn)
+
 	return &App{
 		config:          cfg,
 		db:              dbConn,
+		txManager:       txMgr,
 		signer:          providers.Signer,
 		mailer:          providers.Mailer,
 		validator:       providers.Validator,

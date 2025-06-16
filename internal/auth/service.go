@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
@@ -26,12 +27,13 @@ type AuthRepository interface {
 }
 
 type Service struct {
-	repo    AuthRepository
-	userSvc user.UserService
-	hasher  hash.Hasher
-	signer  jwt.Signer
-	mailer  email.Mailer
-	cfg     *config.Config
+	repo      AuthRepository
+	userSvc   user.UserService
+	hasher    hash.Hasher
+	signer    jwt.Signer
+	mailer    email.Mailer
+	cfg       *config.Config
+	txManager db.TxManager
 }
 
 type RegisterUserParams struct {
@@ -193,19 +195,34 @@ func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 	return s.repo.ChangeUserPassword(ctx, u.Email, newHash)
 }
 
+func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) error {
+	return s.txManager.RunInTx(ctx, func(txCtx context.Context) error {
+		// All calls within this func will use the same transaction
+		// if err := s.repo.VerifyUser(txCtx, userID); err != nil {
+		// 	return err
+		// }
+		// if err := s.repo.ChangeUserPassword(txCtx, userID, "1"); err != nil {
+		// 	return err
+		// }
+		// If both succeed, the transaction commits. If either fails, it rolls back.
+		return nil
+	})
+}
+
 type Providers struct {
 	Hasher hash.Hasher
 	Signer jwt.Signer
 	Mailer email.Mailer
 }
 
-func NewService(repo AuthRepository, userSvc user.UserService, provider *Providers, cfg *config.Config) *Service {
+func NewService(repo AuthRepository, userSvc user.UserService, provider *Providers, cfg *config.Config, txMgr db.TxManager) *Service {
 	return &Service{
-		repo:    repo,
-		userSvc: userSvc,
-		hasher:  provider.Hasher,
-		mailer:  provider.Mailer,
-		signer:  provider.Signer,
-		cfg:     cfg,
+		repo:      repo,
+		userSvc:   userSvc,
+		hasher:    provider.Hasher,
+		mailer:    provider.Mailer,
+		signer:    provider.Signer,
+		cfg:       cfg,
+		txManager: txMgr,
 	}
 }

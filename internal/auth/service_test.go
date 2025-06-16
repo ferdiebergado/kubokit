@@ -10,6 +10,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/model"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
+	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
@@ -84,7 +85,7 @@ func TestService_RegisterUser(t *testing.T) {
 				}
 
 				if !reflect.DeepEqual(gotUser, wantUser) {
-					t.Errorf("gotUser = %+v\nwant: %+v", gotUser, wantUser)
+					t.Errorf("gotUser = %+v, want: %+v", gotUser, wantUser)
 				}
 			},
 		},
@@ -133,7 +134,9 @@ func TestService_RegisterUser(t *testing.T) {
 				},
 			}
 
-			authSvc := auth.NewService(authRepo, userSvc, providers, cfg)
+			stubTxMgr := &db.StubTxManager{}
+
+			authSvc := auth.NewService(authRepo, userSvc, providers, cfg, stubTxMgr)
 			ctx := context.Background()
 			params := auth.RegisterUserParams{
 				Email:    tt.email,
