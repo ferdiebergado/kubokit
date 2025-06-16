@@ -33,3 +33,15 @@ func CheckUint(i int) error {
 	}
 	return nil
 }
+
+// Constant time comparison
+func ConstantTimeCompareStr(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	result := 0
+	for i := range len(a) {
+		result |= int(a[i] ^ b[i])
+	}
+	return result == 0
+}
