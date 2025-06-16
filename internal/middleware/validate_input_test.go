@@ -45,7 +45,7 @@ func TestValidateInput(t *testing.T) {
 	tests := []struct {
 		name    string
 		code    int
-		payload profile
+		payload any
 		valFunc func(any) map[string]string
 		body    string
 	}{
@@ -54,6 +54,9 @@ func TestValidateInput(t *testing.T) {
 		{"Invalid input", http.StatusBadRequest, profile{testName, "fely@example"}, func(_ any) map[string]string {
 			return map[string]string{"email": emailErr}
 		}, `{"message":"Invalid input.","errors":{"email":"email must be a valid email address"}}`},
+		{"Invalid type", http.StatusBadRequest, struct{}{}, func(_ any) map[string]string {
+			return nil
+		}, `{"message":"Invalid input."}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
