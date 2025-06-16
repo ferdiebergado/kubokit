@@ -92,3 +92,8 @@ func RespondRequestTimeout(w http.ResponseWriter, err error, clientMsg string, d
 func RespondConflict(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
 	RespondError(w, http.StatusConflict, err, clientMsg, details)
 }
+
+// RespondForbidden sends a 403 Forbidden error.
+func RespondForbidden(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusForbidden, err, clientMsg, details)
+}
