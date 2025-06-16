@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
@@ -11,7 +12,7 @@ import (
 var _ AuthRepository = &Repository{}
 
 type Repository struct {
-	db db.Querier
+	db db.Executor
 }
 
 const QueryUserVerify = `
@@ -21,7 +22,13 @@ WHERE id = $1
 `
 
 func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
-	res, err := r.db.ExecContext(ctx, QueryUserVerify, userID)
+	// Get the current executor (either *sql.DB or *sql.Tx from context)
+	executor := r.db // Default to *sql.DB
+	if tx := db.TxFromContext(ctx); tx != nil {
+		executor = tx // Use the transaction if present in context
+	}
+
+	res, err := executor.ExecContext(ctx, QueryUserVerify, userID)
 	if err != nil {
 		return fmt.Errorf("query to verify user with ID %s: %w", userID, err)
 	}
@@ -42,7 +49,13 @@ func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
 const queryUserChangePassword = "UPDATE users SET password_hash = $1 WHERE email = $2"
 
 func (r *Repository) ChangeUserPassword(ctx context.Context, email, newPassword string) error {
-	res, err := r.db.ExecContext(ctx, queryUserChangePassword, newPassword, email)
+	// Get the current executor (either *sql.DB or *sql.Tx from context)
+	executor := r.db // Default to *sql.DB
+	if tx := db.TxFromContext(ctx); tx != nil {
+		executor = tx // Use the transaction if present in context
+	}
+
+	res, err := executor.ExecContext(ctx, queryUserChangePassword, newPassword, email)
 	if err != nil {
 		return fmt.Errorf("query to change password: %w", err)
 	}
@@ -59,6 +72,6 @@ func (r *Repository) ChangeUserPassword(ctx context.Context, email, newPassword 
 	return nil
 }
 
-func NewRepository(db db.Querier) *Repository {
+func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db}
 }

@@ -27,13 +27,18 @@ VALUES (
 );`
 
 func TestIntegrationRepository_VerifyUser(t *testing.T) {
-	tx, rollback := db.NewTransaction(t)
-	defer rollback()
+	t.Parallel()
+
+	conn, tx, cleanUp := db.Setup(t)
+	defer cleanUp()
 
 	_, err := tx.Exec(queryUserSeed)
 	if err != nil {
 		t.Fatalf("seed users: %v", err)
 	}
+
+	ctx := context.Background()
+	txCtx := db.NewContextWithTx(ctx, tx)
 
 	tests := []struct {
 		name   string
@@ -45,10 +50,9 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := auth.NewRepository(tx)
-			ctx := context.Background()
-			if err = repo.VerifyUser(ctx, tt.userID); !errors.Is(err, tt.err) {
-				t.Errorf("repo.VerifyUser(ctx, %q) = %v, want: %v", tt.userID, err, tt.err)
+			repo := auth.NewRepository(conn)
+			if err = repo.VerifyUser(txCtx, tt.userID); !errors.Is(err, tt.err) {
+				t.Errorf("repo.VerifyUser(txCtx, %q) = %v, want: %v", tt.userID, err, tt.err)
 			}
 
 			if tt.err == nil {
@@ -66,13 +70,18 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 }
 
 func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
-	tx, rollback := db.NewTransaction(t)
-	defer rollback()
+	t.Parallel()
+
+	conn, tx, cleanUp := db.Setup(t)
+	defer cleanUp()
 
 	_, err := tx.Exec(queryUserSeed)
 	if err != nil {
 		t.Fatalf("seed users: %v", err)
 	}
+
+	ctx := context.Background()
+	txCtx := db.NewContextWithTx(ctx, tx)
 
 	tests := []struct {
 		name         string
@@ -85,11 +94,10 @@ func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := auth.NewRepository(tx)
-			ctx := context.Background()
+			repo := auth.NewRepository(conn)
 			testPassword := "test"
-			if err = repo.ChangeUserPassword(ctx, tt.email, testPassword); !errors.Is(err, tt.err) {
-				t.Errorf("repo.ChangeUserPassword(ctx, %q, %q) = %v\nwant: %v", tt.email, testPassword, err, tt.err)
+			if err = repo.ChangeUserPassword(txCtx, tt.email, testPassword); !errors.Is(err, tt.err) {
+				t.Errorf("repo.ChangeUserPassword(txCtx, %q, %q) = %v\nwant: %v", tt.email, testPassword, err, tt.err)
 			}
 
 			if tt.err == nil {
