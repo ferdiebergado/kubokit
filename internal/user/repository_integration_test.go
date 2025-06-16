@@ -87,7 +87,7 @@ func TestIntegrationRepository_FindUser(t *testing.T) {
 	t.Parallel()
 
 	conn, tx, cleanUp := db.Setup(t)
-	defer cleanUp()
+	t.Cleanup(cleanUp)
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
@@ -123,7 +123,7 @@ func TestIntegrationRepository_FindUserByEmail(t *testing.T) {
 	t.Parallel()
 
 	conn, tx, cleanUp := db.Setup(t)
-	defer cleanUp()
+	t.Cleanup(cleanUp)
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {

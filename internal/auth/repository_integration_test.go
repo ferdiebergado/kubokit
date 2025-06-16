@@ -30,7 +30,7 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 	t.Parallel()
 
 	conn, tx, cleanUp := db.Setup(t)
-	defer cleanUp()
+	t.Cleanup(cleanUp)
 
 	_, err := tx.Exec(queryUserSeed)
 	if err != nil {
@@ -73,7 +73,7 @@ func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
 	t.Parallel()
 
 	conn, tx, cleanUp := db.Setup(t)
-	defer cleanUp()
+	t.Cleanup(cleanUp)
 
 	_, err := tx.Exec(queryUserSeed)
 	if err != nil {
