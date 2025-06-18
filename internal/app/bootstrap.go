@@ -12,6 +12,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -63,8 +64,9 @@ func Run(signalCtx context.Context) error {
 		middleware.InjectWriter,
 		goexpress.RecoverFromPanic,
 		middleware.LogRequest,
-		middleware.CheckContentType,
 		middleware.ContextGuard,
+		middleware.CSRFGuard(security.StdlibRandomizer),
+		middleware.CheckContentType,
 	}
 
 	//nolint:contextcheck //This function internally creates a context with cancel.
