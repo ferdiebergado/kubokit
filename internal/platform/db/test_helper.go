@@ -9,7 +9,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 )
 
-func Setup(t *testing.T) (conn *sql.DB, tx *sql.Tx, cleanUpFunc func()) {
+func Setup(t *testing.T) (*sql.DB, *sql.Tx) {
 	t.Helper()
 
 	const projRoot = "../../"
@@ -23,27 +23,21 @@ func Setup(t *testing.T) (conn *sql.DB, tx *sql.Tx, cleanUpFunc func()) {
 		t.Fatal(err)
 	}
 
-	conn, err = NewPostgresDB(context.Background(), cfg.DB)
+	conn, err := NewPostgresDB(context.Background(), cfg.DB)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	tx, err = conn.Begin()
+	tx, err := conn.Begin()
 	if err != nil {
 		t.Fatalf("unable to begin transaction: %v", err)
 	}
 
-	cleanUpFunc = func() {
-		RollbackTx(t, tx)
-	}
+	t.Cleanup(func() {
+		if err := tx.Rollback(); err != nil {
+			t.Logf("unable to rollback transaction: %v", err)
+		}
+	})
 
-	return conn, tx, cleanUpFunc
-}
-
-func RollbackTx(t *testing.T, tx *sql.Tx) {
-	t.Helper()
-
-	if err := tx.Rollback(); err != nil {
-		t.Logf("unable to rollback transaction: %v", err)
-	}
+	return conn, tx
 }

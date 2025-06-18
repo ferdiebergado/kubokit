@@ -49,8 +49,7 @@ INSERT INTO users (id, email, password_hash, verified_at, metadata, created_at, 
 func TestIntegrationRepository_GetAllUsers(t *testing.T) {
 	t.Parallel()
 
-	conn, tx, cleanUp := db.Setup(t)
-	t.Cleanup(cleanUp)
+	conn, tx := db.Setup(t)
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
@@ -86,8 +85,7 @@ func TestIntegrationRepository_GetAllUsers(t *testing.T) {
 func TestIntegrationRepository_FindUser(t *testing.T) {
 	t.Parallel()
 
-	conn, tx, cleanUp := db.Setup(t)
-	t.Cleanup(cleanUp)
+	conn, tx := db.Setup(t)
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
@@ -122,8 +120,7 @@ func TestIntegrationRepository_FindUser(t *testing.T) {
 func TestIntegrationRepository_FindUserByEmail(t *testing.T) {
 	t.Parallel()
 
-	conn, tx, cleanUp := db.Setup(t)
-	t.Cleanup(cleanUp)
+	conn, tx := db.Setup(t)
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {

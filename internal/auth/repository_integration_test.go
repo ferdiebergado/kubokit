@@ -29,8 +29,7 @@ VALUES (
 func TestIntegrationRepository_VerifyUser(t *testing.T) {
 	t.Parallel()
 
-	conn, tx, cleanUp := db.Setup(t)
-	t.Cleanup(cleanUp)
+	conn, tx := db.Setup(t)
 
 	_, err := tx.Exec(queryUserSeed)
 	if err != nil {
@@ -73,8 +72,7 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
 	t.Parallel()
 
-	conn, tx, cleanUp := db.Setup(t)
-	t.Cleanup(cleanUp)
+	conn, tx := db.Setup(t)
 
 	_, err := tx.Exec(queryUserSeed)
 	if err != nil {
