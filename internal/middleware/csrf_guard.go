@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"net/http"
@@ -62,7 +63,7 @@ func CSRFGuard(next http.Handler) http.Handler {
 			}
 			sentToken = r.FormValue(csrfCookieName)
 		}
-		if !security.ConstantTimeCompareStr(cookie.Value, sentToken) {
+		if subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(sentToken)) == 0 {
 			web.RespondForbidden(w, errors.New("invalid CSRF token"), message.InvalidInput, nil)
 			return
 		}
