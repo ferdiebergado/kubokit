@@ -56,9 +56,10 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 			}
 
 			if tt.err == nil {
+				const query = "SELECT verified_at FROM users WHERE id = $1"
 				var verifiedAt *time.Time
-				err = tx.QueryRowContext(ctx, "SELECT verified_at FROM users WHERE id = $1", tt.userID).Scan(&verifiedAt)
-				if err != nil {
+				row := tx.QueryRowContext(ctx, query, tt.userID)
+				if err := row.Scan(&verifiedAt); err != nil {
 					t.Fatalf("failed to fetch user: %v", err)
 				}
 				if verifiedAt == nil {
@@ -97,13 +98,14 @@ func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
 			repo := auth.NewRepository(conn)
 			testPassword := "test"
 			if err = repo.ChangeUserPassword(txCtx, tt.email, testPassword); !errors.Is(err, tt.err) {
-				t.Errorf("repo.ChangeUserPassword(txCtx, %q, %q) = %v\nwant: %v", tt.email, testPassword, err, tt.err)
+				t.Errorf("repo.ChangeUserPassword(txCtx, %q, %q) = %v, want: %v", tt.email, testPassword, err, tt.err)
 			}
 
 			if tt.err == nil {
+				const query = "SELECT password_hash FROM users WHERE email = $1"
 				var passwordHash string
-				err = tx.QueryRowContext(ctx, "SELECT password_hash FROM users WHERE email = $1", tt.email).Scan(&passwordHash)
-				if err != nil {
+				row := tx.QueryRowContext(ctx, query, tt.email)
+				if err := row.Scan(&passwordHash); err != nil {
 					t.Fatalf("failed to fetch user: %v", err)
 				}
 				if passwordHash == "" || passwordHash == tt.passwordHash {
