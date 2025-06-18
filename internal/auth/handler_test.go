@@ -81,9 +81,10 @@ func TestHandler_RegisterUser(t *testing.T) {
 				t.Errorf("rec.Code = %d, want: %d", gotStatus, wantStatus)
 			}
 
-			wantHeader, gotHeader := web.MimeJSON, rec.Header().Get(web.HeaderContentType)
+			gotHeader := rec.Header().Get(web.HeaderContentType)
+			wantHeader := web.MimeJSON
 			if gotHeader != wantHeader {
-				t.Errorf("rec.Header().Get(web.HeaderContentType) = %q, want: %q", gotHeader, wantHeader)
+				t.Errorf("rec.Header().Get(%q) = %q, want: %q", web.HeaderContentType, gotHeader, wantHeader)
 			}
 
 			if tt.user != nil {
@@ -94,7 +95,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 				gotUser, wantUser := apiRes.Data, tt.user
 				if !reflect.DeepEqual(gotUser, wantUser) {
-					t.Errorf("apiRes.Data = %+v\nwant: %+v\n", gotUser, wantUser)
+					t.Errorf("apiRes.Data = %+v, want: %+v", gotUser, wantUser)
 				}
 			}
 		})
