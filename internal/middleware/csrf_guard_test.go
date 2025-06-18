@@ -12,7 +12,7 @@ import (
 )
 
 func TestCSRFGuard(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -21,7 +21,7 @@ func TestCSRFGuard(t *testing.T) {
 		method           string
 		code             int
 		token            string
-		randomizerFunc   security.Randomizer
+		randomizerFunc   security.RandomizerFunc
 		setReqCookieFunc func(*http.Request)
 		checkCookie      bool
 	}{
