@@ -2,18 +2,15 @@ package middleware
 
 import (
 	"crypto/subtle"
-	"encoding/base64"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 )
 
-func CSRFGuard(cfg *config.CSRF, randomizer security.Randomizer) func(http.Handler) http.Handler {
+func CSRFGuard(cfg *config.CSRF, csrfBaker web.Baker) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			cookie, err := r.Cookie(cfg.CookieName)
@@ -21,21 +18,13 @@ func CSRFGuard(cfg *config.CSRF, randomizer security.Randomizer) func(http.Handl
 			if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
 				var token string
 				if err != nil || cookie.Value == "" {
-					b, randErr := randomizer.GenerateRandomBytes(cfg.TokenLength)
+					csrfCookie, randErr := csrfBaker.Bake()
 					if randErr != nil {
 						web.RespondInternalServerError(w, randErr)
 						return
 					}
-					token = base64.RawURLEncoding.EncodeToString(b)
-					http.SetCookie(w, &http.Cookie{
-						Name:     cfg.CookieName,
-						Value:    token,
-						Path:     "/",
-						HttpOnly: true,
-						Secure:   true,
-						SameSite: http.SameSiteStrictMode,
-						Expires:  time.Now().Add(24 * time.Hour),
-					})
+					http.SetCookie(w, csrfCookie)
+					token = csrfCookie.Value
 				} else {
 					token = cookie.Value
 				}

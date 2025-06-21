@@ -11,6 +11,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 )
 
 func TestCSRFGuard(t *testing.T) {
@@ -34,7 +35,7 @@ func TestCSRFGuard(t *testing.T) {
 		method         string
 		code           int
 		csrfHeader     string
-		stubRandomizer security.RandomizerFunc
+		stubBaker      web.Baker
 		cookie         *http.Cookie
 		prevCookie     *http.Cookie
 		prevCSRFHeader string
@@ -45,7 +46,17 @@ func TestCSRFGuard(t *testing.T) {
 			http.MethodGet,
 			http.StatusOK,
 			base64.RawURLEncoding.EncodeToString([]byte("test_token")),
-			func(_ uint32) ([]byte, error) { return []byte("test_token"), nil },
+			&security.StubBaker{BakeFunc: func() (*http.Cookie, error) {
+				return &http.Cookie{
+					Name:     cfg.CookieName,
+					Value:    base64.RawURLEncoding.EncodeToString([]byte("test_token")),
+					Path:     "/",
+					HttpOnly: true,
+					Secure:   true,
+					SameSite: http.SameSiteStrictMode,
+					Expires:  time.Now().Add(24 * time.Hour),
+				}, nil
+			}},
 			&http.Cookie{
 				Name:     cfg.CookieName,
 				Value:    base64.RawURLEncoding.EncodeToString([]byte("test_token")),
@@ -64,7 +75,7 @@ func TestCSRFGuard(t *testing.T) {
 			http.MethodPost,
 			http.StatusOK,
 			"",
-			func(_ uint32) ([]byte, error) { return []byte("test_token"), nil },
+			&security.StubBaker{BakeFunc: func() (*http.Cookie, error) { return &http.Cookie{}, nil }},
 			nil,
 			&http.Cookie{
 				Name:     cfg.CookieName,
@@ -83,7 +94,7 @@ func TestCSRFGuard(t *testing.T) {
 			http.MethodPost,
 			http.StatusForbidden,
 			"",
-			func(_ uint32) ([]byte, error) { return nil, nil },
+			&security.StubBaker{BakeFunc: func() (*http.Cookie, error) { return &http.Cookie{}, nil }},
 			nil,
 			nil,
 			"",
@@ -103,7 +114,7 @@ func TestCSRFGuard(t *testing.T) {
 				req.AddCookie(tt.prevCookie)
 			}
 
-			mw := middleware.CSRFGuard(cfg, tt.stubRandomizer)(handler)
+			mw := middleware.CSRFGuard(cfg, tt.stubBaker)(handler)
 			mw.ServeHTTP(rec, req)
 
 			gotCode, wantCode := rec.Code, tt.code

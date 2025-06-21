@@ -60,12 +60,13 @@ func Run(signalCtx context.Context) error {
 		return fmt.Errorf("setup providers: %w", err)
 	}
 
+	csrfBaker := security.NewCSRFCookieBaker(cfg.CSRF)
 	middlewares := []func(http.Handler) http.Handler{
 		middleware.InjectWriter,
 		goexpress.RecoverFromPanic,
 		middleware.LogRequest,
 		middleware.ContextGuard,
-		middleware.CSRFGuard(cfg.CSRF, security.StdlibRandomizer),
+		middleware.CSRFGuard(cfg.CSRF, csrfBaker),
 		middleware.CheckContentType,
 	}
 

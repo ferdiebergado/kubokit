@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"net/http"
+	"time"
 )
 
 func GenerateRandomBytes(length uint32) ([]byte, error) {
@@ -17,7 +19,7 @@ func GenerateRandomBytes(length uint32) ([]byte, error) {
 	return key, nil
 }
 
-func GenerateRandomBytesEncoded(length uint32) (string, error) {
+func GenerateRandomBytesStdEncoded(length uint32) (string, error) {
 	key, err := GenerateRandomBytes(length)
 
 	if err != nil {
@@ -25,6 +27,16 @@ func GenerateRandomBytesEncoded(length uint32) (string, error) {
 	}
 
 	return base64.StdEncoding.EncodeToString(key), nil
+}
+
+func GenerateRandomBytesURLEncoded(length uint32) (string, error) {
+	key, err := GenerateRandomBytes(length)
+
+	if err != nil {
+		return "", fmt.Errorf("generate random bytes: %w", err)
+	}
+
+	return base64.RawURLEncoding.EncodeToString(key), nil
 }
 
 func CheckUint(i int) error {
@@ -44,4 +56,16 @@ func ConstantTimeCompareStr(a, b string) bool {
 		result |= int(a[i] ^ b[i])
 	}
 	return result == 0
+}
+
+func NewSecureCookie(name, val string) *http.Cookie {
+	return &http.Cookie{
+		Name:     name,
+		Value:    val,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		Expires:  time.Now().Add(24 * time.Hour),
+	}
 }
