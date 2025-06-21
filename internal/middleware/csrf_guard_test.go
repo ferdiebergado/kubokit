@@ -19,7 +19,8 @@ func TestCSRFGuard(t *testing.T) {
 	t.Parallel()
 
 	const headerCalled = "X-Header-Called"
-	defaultDuration := 30 * time.Minute
+	timeUnit := time.Minute
+	defaultDuration := 30 * timeUnit
 
 	cfg := &config.CSRF{
 		CookieName:  "csrf_token",
@@ -104,40 +105,40 @@ func TestCSRFGuard(t *testing.T) {
 			"",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			req := httptest.NewRequest(tt.method, "/", http.NoBody)
+			req := httptest.NewRequest(tc.method, "/", http.NoBody)
 			rec := httptest.NewRecorder()
-			if tt.prevCSRFHeader != "" {
-				req.Header.Set(cfg.HeaderName, tt.prevCSRFHeader)
+			if tc.prevCSRFHeader != "" {
+				req.Header.Set(cfg.HeaderName, tc.prevCSRFHeader)
 			}
-			if tt.prevCookie != nil {
-				req.AddCookie(tt.prevCookie)
+			if tc.prevCookie != nil {
+				req.AddCookie(tc.prevCookie)
 			}
 
-			mw := middleware.CSRFGuard(cfg, tt.stubBaker)(handler)
+			mw := middleware.CSRFGuard(cfg, tc.stubBaker)(handler)
 			mw.ServeHTTP(rec, req)
 
-			gotCode, wantCode := rec.Code, tt.code
+			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
 				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
 			}
 
 			gotHeader := rec.Header().Get(cfg.HeaderName)
-			wantHeader := tt.csrfHeader
+			wantHeader := tc.csrfHeader
 			if gotHeader != wantHeader {
 				t.Errorf("rec.Header().Get(%q) = %q, want: %q", cfg.HeaderName, gotHeader, wantHeader)
 			}
 
 			gotHeaderCalled := rec.Header().Get(headerCalled)
-			wantHeaderCalled := tt.headerCalled
+			wantHeaderCalled := tc.headerCalled
 			if gotHeaderCalled != wantHeaderCalled {
 				t.Errorf("rec.Header().Get(%q) = %q, want: %q", headerCalled, gotHeaderCalled, wantHeaderCalled)
 			}
 
-			if tt.cookie != nil {
+			if tc.cookie != nil {
 				resp := rec.Result()
 				defer resp.Body.Close()
 
@@ -157,13 +158,13 @@ func TestCSRFGuard(t *testing.T) {
 					SameSite: cookie.SameSite,
 				}
 				wantCookie := &http.Cookie{
-					Name:     tt.cookie.Name,
-					Value:    tt.cookie.Value,
-					Path:     tt.cookie.Path,
+					Name:     tc.cookie.Name,
+					Value:    tc.cookie.Value,
+					Path:     tc.cookie.Path,
 					Expires:  time.Time{},
-					HttpOnly: tt.cookie.HttpOnly,
-					Secure:   tt.cookie.Secure,
-					SameSite: tt.cookie.SameSite,
+					HttpOnly: tc.cookie.HttpOnly,
+					Secure:   tc.cookie.Secure,
+					SameSite: tc.cookie.SameSite,
 				}
 				if !reflect.DeepEqual(gotCookie, wantCookie) {
 					t.Errorf("cookie = %v, want: %v", gotCookie, wantCookie)
@@ -172,8 +173,8 @@ func TestCSRFGuard(t *testing.T) {
 				if cookie.Expires.IsZero() {
 					t.Errorf("cookie Expires field is zero, expected a future time")
 				} else {
-					expectedMin := time.Now().Add(defaultDuration - time.Minute)
-					expectedMax := time.Now().Add(defaultDuration + time.Minute)
+					expectedMin := time.Now().Add(defaultDuration - timeUnit)
+					expectedMax := time.Now().Add(defaultDuration + timeUnit)
 
 					if cookie.Expires.Before(expectedMin) || cookie.Expires.After(expectedMax) {
 						t.Errorf("cookie Expires field (%q) is not within the expected range (%q - %q)",
