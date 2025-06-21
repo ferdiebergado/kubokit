@@ -9,7 +9,7 @@ import (
 func ContextGuard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := r.Context().Err(); err != nil {
-			web.RespondRequestTimeout(w, err, "Request cancelled or timeout", nil)
+			web.RespondRequestTimeout(w, err, "Request canceled or timeout", nil)
 			return
 		}
 
