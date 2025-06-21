@@ -19,7 +19,7 @@ type GolangJWTSigner struct {
 }
 
 func (s *GolangJWTSigner) Sign(subject string, audience []string, duration time.Duration) (string, error) {
-	id, err := security.GenerateRandomBytesEncoded(s.jtiLen)
+	id, err := security.GenerateRandomBytesStdEncoded(s.jtiLen)
 	if err != nil {
 		return "", fmt.Errorf("generate random bytes encoded with length %d: %w", s.jtiLen, err)
 	}
