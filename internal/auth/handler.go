@@ -155,7 +155,13 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   int(cookieCfg.MaxAge.Seconds()),
 	})
 
-	// TODO: regenerate csrf token
+	csrfCookie, err := h.baker.Bake()
+	if err != nil {
+		web.RespondInternalServerError(w, err)
+		return
+	}
+
+	http.SetCookie(w, csrfCookie)
 
 	msg := "Logged in."
 	data := &UserLoginResponse{
