@@ -57,6 +57,12 @@ type Argon2 struct {
 	KeyLength  uint32 `json:"key_length,omitempty"`
 }
 
+type CSRF struct {
+	HeaderName  string `json:"header_name,omitempty"`
+	CookieName  string `json:"cookie_name,omitempty"`
+	TokenLength uint32 `json:"token_length,omitempty"`
+}
+
 type Config struct {
 	*Server `json:"server,omitempty"`
 	*DB     `json:"db,omitempty"`
@@ -64,6 +70,7 @@ type Config struct {
 	*Cookie `json:"cookie,omitempty"`
 	*Email  `json:"email,omitempty"`
 	*Argon2 `json:"argon2,omitempty"`
+	*CSRF   `json:"csrf,omitempty"`
 }
 
 func (o *Config) LogValue() slog.Value {
@@ -74,6 +81,7 @@ func (o *Config) LogValue() slog.Value {
 		slog.Any("cookie", o.Cookie),
 		slog.Any("email", o.Email),
 		slog.Any("argon2", o.Argon2),
+		slog.Any("csrf", o.CSRF),
 	)
 }
 

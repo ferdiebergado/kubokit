@@ -38,5 +38,10 @@
     "threads": 2,
     "salt_length": 16,
     "key_length": 32
+  },
+  "csrf": {
+    "cookie_name": "csrf_token",
+    "header_name": "X-CSRF-Token",
+    "token_length": 32
   }
 }

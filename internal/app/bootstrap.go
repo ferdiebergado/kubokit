@@ -65,7 +65,7 @@ func Run(signalCtx context.Context) error {
 		goexpress.RecoverFromPanic,
 		middleware.LogRequest,
 		middleware.ContextGuard,
-		middleware.CSRFGuard(security.StdlibRandomizer),
+		middleware.CSRFGuard(cfg.CSRF, security.StdlibRandomizer),
 		middleware.CheckContentType,
 	}
 

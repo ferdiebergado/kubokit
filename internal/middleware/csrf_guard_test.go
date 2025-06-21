@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 )
@@ -16,6 +17,12 @@ func TestCSRFGuard(t *testing.T) {
 	t.Parallel()
 
 	const headerCalled = "X-Header-Called"
+
+	cfg := &config.CSRF{
+		CookieName:  "csrf_token",
+		HeaderName:  "X-CSRF-Token",
+		TokenLength: 32,
+	}
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set(headerCalled, "true")
@@ -40,7 +47,7 @@ func TestCSRFGuard(t *testing.T) {
 			base64.RawURLEncoding.EncodeToString([]byte("test_token")),
 			func(_ uint32) ([]byte, error) { return []byte("test_token"), nil },
 			&http.Cookie{
-				Name:     middleware.CookieCSRF,
+				Name:     cfg.CookieName,
 				Value:    base64.RawURLEncoding.EncodeToString([]byte("test_token")),
 				Path:     "/",
 				HttpOnly: true,
@@ -60,7 +67,7 @@ func TestCSRFGuard(t *testing.T) {
 			func(_ uint32) ([]byte, error) { return []byte("test_token"), nil },
 			nil,
 			&http.Cookie{
-				Name:     middleware.CookieCSRF,
+				Name:     cfg.CookieName,
 				Value:    base64.RawURLEncoding.EncodeToString([]byte("test_token")),
 				Path:     "/",
 				HttpOnly: true,
@@ -90,13 +97,13 @@ func TestCSRFGuard(t *testing.T) {
 			req := httptest.NewRequest(tt.method, "/", http.NoBody)
 			rec := httptest.NewRecorder()
 			if tt.prevCSRFHeader != "" {
-				req.Header.Set(middleware.HeaderCSRF, tt.prevCSRFHeader)
+				req.Header.Set(cfg.HeaderName, tt.prevCSRFHeader)
 			}
 			if tt.prevCookie != nil {
 				req.AddCookie(tt.prevCookie)
 			}
 
-			mw := middleware.CSRFGuard(tt.stubRandomizer)(handler)
+			mw := middleware.CSRFGuard(cfg, tt.stubRandomizer)(handler)
 			mw.ServeHTTP(rec, req)
 
 			gotCode, wantCode := rec.Code, tt.code
@@ -104,10 +111,10 @@ func TestCSRFGuard(t *testing.T) {
 				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
 			}
 
-			gotHeader := rec.Header().Get(middleware.HeaderCSRF)
+			gotHeader := rec.Header().Get(cfg.HeaderName)
 			wantHeader := tt.csrfHeader
 			if gotHeader != wantHeader {
-				t.Errorf("rec.Header().Get(%q) = %q, want: %q", middleware.HeaderCSRF, gotHeader, wantHeader)
+				t.Errorf("rec.Header().Get(%q) = %q, want: %q", cfg.HeaderName, gotHeader, wantHeader)
 			}
 
 			gotHeaderCalled := rec.Header().Get(headerCalled)

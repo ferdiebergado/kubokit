@@ -7,33 +7,28 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 )
 
-const (
-	CookieCSRF      = "csrf_token"
-	HeaderCSRF      = "X-CSRF-Token"
-	csrfTokenLength = 32
-)
-
-func CSRFGuard(randomizer security.Randomizer) func(http.Handler) http.Handler {
+func CSRFGuard(cfg *config.CSRF, randomizer security.Randomizer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			cookie, err := r.Cookie(CookieCSRF)
+			cookie, err := r.Cookie(cfg.CookieName)
 			// On safe methods, set token if missing
 			if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
 				var token string
 				if err != nil || cookie.Value == "" {
-					b, randErr := randomizer.GenerateRandomBytes(csrfTokenLength)
+					b, randErr := randomizer.GenerateRandomBytes(cfg.TokenLength)
 					if randErr != nil {
 						web.RespondInternalServerError(w, randErr)
 						return
 					}
 					token = base64.RawURLEncoding.EncodeToString(b)
 					http.SetCookie(w, &http.Cookie{
-						Name:     CookieCSRF,
+						Name:     cfg.CookieName,
 						Value:    token,
 						Path:     "/",
 						HttpOnly: true,
@@ -45,7 +40,7 @@ func CSRFGuard(randomizer security.Randomizer) func(http.Handler) http.Handler {
 					token = cookie.Value
 				}
 				// Optionally expose the token to JS clients via header
-				w.Header().Set(HeaderCSRF, token)
+				w.Header().Set(cfg.HeaderName, token)
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -55,14 +50,14 @@ func CSRFGuard(randomizer security.Randomizer) func(http.Handler) http.Handler {
 				web.RespondForbidden(w, errors.New("CSRF token missing"), message.InvalidInput, nil)
 				return
 			}
-			sentToken := r.Header.Get(HeaderCSRF)
+			sentToken := r.Header.Get(cfg.HeaderName)
 			if sentToken == "" {
 				// Try to read from form data (for HTML forms)
 				if err := r.ParseForm(); err != nil {
 					web.RespondBadRequest(w, err, "Invalid form data.", nil)
 					return
 				}
-				sentToken = r.FormValue(CookieCSRF)
+				sentToken = r.FormValue(cfg.CookieName)
 			}
 			if subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(sentToken)) == 0 {
 				web.RespondForbidden(w, errors.New("invalid CSRF token"), message.InvalidInput, nil)
