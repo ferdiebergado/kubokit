@@ -31,6 +31,7 @@ type Handler struct {
 	svc    AuthService
 	signer jwt.Signer
 	cfg    *config.Config
+	baker  web.Baker
 }
 
 type RegisterUserRequest struct {
@@ -154,6 +155,8 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   int(cookieCfg.MaxAge.Seconds()),
 	})
 
+	// TODO: regenerate csrf token
+
 	msg := "Logged in."
 	data := &UserLoginResponse{
 		AccessToken: accessToken,
@@ -274,10 +277,11 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	web.RespondOK(w, &msg, struct{}{})
 }
 
-func NewHandler(userSvc AuthService, signer jwt.Signer, cfg *config.Config) *Handler {
+func NewHandler(userSvc AuthService, signer jwt.Signer, cfg *config.Config, baker web.Baker) *Handler {
 	return &Handler{
 		svc:    userSvc,
 		signer: signer,
 		cfg:    cfg,
+		baker:  baker,
 	}
 }

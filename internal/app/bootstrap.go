@@ -60,13 +60,12 @@ func Run(signalCtx context.Context) error {
 		return fmt.Errorf("setup providers: %w", err)
 	}
 
-	csrfBaker := security.NewCSRFCookieBaker(cfg.CSRF)
 	middlewares := []func(http.Handler) http.Handler{
 		middleware.InjectWriter,
 		goexpress.RecoverFromPanic,
 		middleware.LogRequest,
 		middleware.ContextGuard,
-		middleware.CSRFGuard(cfg.CSRF, csrfBaker),
+		middleware.CSRFGuard(cfg.CSRF, providers.Baker),
 		middleware.CheckContentType,
 	}
 
@@ -142,11 +141,14 @@ func setupProviders(cfg *config.Config, securityKey string) (*Providers, error) 
 	hasher := hash.NewArgon2Hasher(cfg.Argon2, securityKey)
 	router := router.NewGoexpressRouter()
 	validator := validation.NewGoPlaygroundValidator()
+	baker := security.NewCSRFCookieBaker(cfg.CSRF)
+
 	return &Providers{
 		Signer:    signer,
 		Hasher:    hasher,
 		Mailer:    mailer,
 		Router:    router,
 		Validator: validator,
+		Baker:     baker,
 	}, nil
 }

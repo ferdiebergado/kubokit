@@ -12,6 +12,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/model"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
@@ -69,7 +70,8 @@ func TestHandler_RegisterUser(t *testing.T) {
 			}
 			signer := &jwt.StubSigner{}
 			cfg := &config.Config{}
-			authHandler := auth.NewHandler(svc, signer, cfg)
+			baker := &security.StubBaker{}
+			authHandler := auth.NewHandler(svc, signer, cfg, baker)
 
 			paramsCtx := web.NewContextWithParams(context.Background(), tt.params)
 			req := httptest.NewRequestWithContext(paramsCtx, http.MethodPost, "/auth/register", nil)

@@ -12,6 +12,7 @@ import (
 
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -27,6 +28,7 @@ type Providers struct {
 	Validator validation.Validator
 	Hasher    hash.Hasher
 	Router    router.Router
+	Baker     web.Baker
 }
 
 type App struct {
@@ -42,6 +44,7 @@ type App struct {
 	hasher          hash.Hasher
 	router          router.Router
 	txManager       db.TxManager
+	baker           web.Baker
 }
 
 func (a *App) registerMiddlewares() {
@@ -63,7 +66,7 @@ func (a *App) setupRoutes() {
 		Mailer: a.mailer,
 	}
 	authService := auth.NewService(authRepo, userService, authProviders, a.config, a.txManager)
-	authHandler := auth.NewHandler(authService, a.signer, a.config)
+	authHandler := auth.NewHandler(authService, a.signer, a.config, a.baker)
 	mountAuthRoutes(a.router, authHandler, a.validator, a.signer, a.config.Server.MaxBodyBytes)
 }
 
@@ -128,6 +131,7 @@ func New(cfg *config.Config, dbConn *sql.DB, providers *Providers, middlewares [
 		validator:       providers.Validator,
 		hasher:          providers.Hasher,
 		router:          providers.Router,
+		baker:           providers.Baker,
 		server:          server,
 		middlewares:     middlewares,
 		stop:            stop,
