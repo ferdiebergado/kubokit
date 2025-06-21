@@ -58,9 +58,10 @@ type Argon2 struct {
 }
 
 type CSRF struct {
-	HeaderName  string `json:"header_name,omitempty"`
-	CookieName  string `json:"cookie_name,omitempty"`
-	TokenLength uint32 `json:"token_length,omitempty"`
+	HeaderName  string         `json:"header_name,omitempty"`
+	CookieName  string         `json:"cookie_name,omitempty"`
+	TokenLength uint32         `json:"token_length,omitempty"`
+	Expiration  timex.Duration `json:"expiration,omitempty"`
 }
 
 type Config struct {

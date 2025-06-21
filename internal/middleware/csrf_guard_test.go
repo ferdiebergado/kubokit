@@ -11,6 +11,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
+	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 )
 
@@ -18,11 +19,13 @@ func TestCSRFGuard(t *testing.T) {
 	t.Parallel()
 
 	const headerCalled = "X-Header-Called"
+	defaultDuration := 30 * time.Minute
 
 	cfg := &config.CSRF{
 		CookieName:  "csrf_token",
 		HeaderName:  "X-CSRF-Token",
 		TokenLength: 32,
+		Expiration:  timex.Duration{Duration: defaultDuration},
 	}
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -54,7 +57,7 @@ func TestCSRFGuard(t *testing.T) {
 					HttpOnly: true,
 					Secure:   true,
 					SameSite: http.SameSiteStrictMode,
-					Expires:  time.Now().Add(24 * time.Hour),
+					Expires:  time.Now().Add(defaultDuration),
 				}, nil
 			}},
 			&http.Cookie{
@@ -64,7 +67,7 @@ func TestCSRFGuard(t *testing.T) {
 				HttpOnly: true,
 				Secure:   true,
 				SameSite: http.SameSiteStrictMode,
-				Expires:  time.Now().Add(24 * time.Hour),
+				Expires:  time.Now().Add(defaultDuration),
 			},
 			nil,
 			"",
@@ -84,7 +87,7 @@ func TestCSRFGuard(t *testing.T) {
 				HttpOnly: true,
 				Secure:   true,
 				SameSite: http.SameSiteStrictMode,
-				Expires:  time.Now().Add(24 * time.Hour),
+				Expires:  time.Now().Add(defaultDuration),
 			},
 			base64.RawURLEncoding.EncodeToString([]byte("test_token")),
 			"true",
@@ -169,8 +172,8 @@ func TestCSRFGuard(t *testing.T) {
 				if cookie.Expires.IsZero() {
 					t.Errorf("cookie Expires field is zero, expected a future time")
 				} else {
-					expectedMin := time.Now().Add(23 * time.Hour)
-					expectedMax := time.Now().Add(25 * time.Hour)
+					expectedMin := time.Now().Add(defaultDuration - time.Minute)
+					expectedMax := time.Now().Add(defaultDuration + time.Minute)
 
 					if cookie.Expires.Before(expectedMin) || cookie.Expires.After(expectedMax) {
 						t.Errorf("cookie Expires field (%q) is not within the expected range (%q - %q)",
