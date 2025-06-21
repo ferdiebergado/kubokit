@@ -27,6 +27,6 @@ func NewCSRFCookieBaker(cfg *config.CSRF) *CSRFCookieBaker {
 	return &CSRFCookieBaker{
 		name:       cfg.CookieName,
 		length:     cfg.TokenLength,
-		expiration: cfg.Expiration.Duration,
+		expiration: cfg.CookieMaxAge.Duration,
 	}
 }

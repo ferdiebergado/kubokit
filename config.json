@@ -43,6 +43,6 @@
     "cookie_name": "csrf_token",
     "header_name": "X-CSRF-Token",
     "token_length": 32,
-    "expiration": "30m"
+    "cookie_max_age": "30m"
   }
 }

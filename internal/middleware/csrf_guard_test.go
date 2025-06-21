@@ -23,10 +23,10 @@ func TestCSRFGuard(t *testing.T) {
 	defaultDuration := 30 * timeUnit
 
 	cfg := &config.CSRF{
-		CookieName:  "csrf_token",
-		HeaderName:  "X-CSRF-Token",
-		TokenLength: 32,
-		Expiration:  timex.Duration{Duration: defaultDuration},
+		CookieName:   "csrf_token",
+		HeaderName:   "X-CSRF-Token",
+		TokenLength:  32,
+		CookieMaxAge: timex.Duration{Duration: defaultDuration},
 	}
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

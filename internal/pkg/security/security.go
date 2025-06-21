@@ -58,7 +58,7 @@ func ConstantTimeCompareStr(a, b string) bool {
 	return result == 0
 }
 
-func NewSecureCookie(name, val string, expiration time.Duration) *http.Cookie {
+func NewSecureCookie(name, val string, maxAge time.Duration) *http.Cookie {
 	return &http.Cookie{
 		Name:     name,
 		Value:    val,
@@ -66,6 +66,6 @@ func NewSecureCookie(name, val string, expiration time.Duration) *http.Cookie {
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
-		Expires:  time.Now().Add(expiration),
+		MaxAge:   int(maxAge.Seconds()),
 	}
 }
