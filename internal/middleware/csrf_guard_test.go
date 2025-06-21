@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -14,58 +15,72 @@ import (
 func TestCSRFGuard(t *testing.T) {
 	t.Parallel()
 
+	const headerCalled = "X-Header-Called"
+
 	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set(headerCalled, "true")
 		w.WriteHeader(http.StatusOK)
 	})
 
 	tests := []struct {
-		name             string
-		method           string
-		code             int
-		token            string
-		randomizerFunc   security.RandomizerFunc
-		setReqCookieFunc func(*http.Request)
-		checkCookie      bool
+		name           string
+		method         string
+		code           int
+		csrfHeader     string
+		stubRandomizer security.RandomizerFunc
+		cookie         *http.Cookie
+		prevCookie     *http.Cookie
+		prevCSRFHeader string
+		headerCalled   string
 	}{
 		{
-			"get request without csrf token cookie",
+			"GET request without csrf header and cookie",
 			http.MethodGet,
 			http.StatusOK,
-			"test_token",
+			base64.RawURLEncoding.EncodeToString([]byte("test_token")),
 			func(_ uint32) ([]byte, error) { return []byte("test_token"), nil },
+			&http.Cookie{
+				Name:     middleware.CookieCSRF,
+				Value:    base64.RawURLEncoding.EncodeToString([]byte("test_token")),
+				Path:     "/",
+				HttpOnly: true,
+				Secure:   true,
+				SameSite: http.SameSiteStrictMode,
+				Expires:  time.Now().Add(24 * time.Hour),
+			},
 			nil,
-			true,
+			"",
+			"true",
 		},
 		{
-			"post request with csrf token cookie",
+			"POST request with csrf header and cookie",
 			http.MethodPost,
 			http.StatusOK,
 			"",
-			func(_ uint32) ([]byte, error) { return nil, nil },
-			func(r *http.Request) {
-				token := base64.RawURLEncoding.EncodeToString([]byte("test_token"))
-				csrfCookie := &http.Cookie{
-					Name:     middleware.CookieCSRF,
-					Value:    token,
-					Path:     "/",
-					HttpOnly: true,
-					Secure:   true,
-					SameSite: http.SameSiteStrictMode,
-					Expires:  time.Now().Add(24 * time.Hour),
-				}
-				r.AddCookie(csrfCookie)
-				r.Header.Set(middleware.HeaderCSRF, token)
+			func(_ uint32) ([]byte, error) { return []byte("test_token"), nil },
+			nil,
+			&http.Cookie{
+				Name:     middleware.CookieCSRF,
+				Value:    base64.RawURLEncoding.EncodeToString([]byte("test_token")),
+				Path:     "/",
+				HttpOnly: true,
+				Secure:   true,
+				SameSite: http.SameSiteStrictMode,
+				Expires:  time.Now().Add(24 * time.Hour),
 			},
-			false,
+			base64.RawURLEncoding.EncodeToString([]byte("test_token")),
+			"true",
 		},
 		{
-			"post request without csrf token cookie",
+			"POST request without csrf header and cookie",
 			http.MethodPost,
 			http.StatusForbidden,
-			"test_token",
+			"",
 			func(_ uint32) ([]byte, error) { return nil, nil },
 			nil,
-			false,
+			nil,
+			"",
+			"",
 		},
 	}
 	for _, tt := range tests {
@@ -74,11 +89,14 @@ func TestCSRFGuard(t *testing.T) {
 
 			req := httptest.NewRequest(tt.method, "/", http.NoBody)
 			rec := httptest.NewRecorder()
-			if tt.setReqCookieFunc != nil {
-				tt.setReqCookieFunc(req)
+			if tt.prevCSRFHeader != "" {
+				req.Header.Set(middleware.HeaderCSRF, tt.prevCSRFHeader)
+			}
+			if tt.prevCookie != nil {
+				req.AddCookie(tt.prevCookie)
 			}
 
-			mw := middleware.CSRFGuard(tt.randomizerFunc)(handler)
+			mw := middleware.CSRFGuard(tt.stubRandomizer)(handler)
 			mw.ServeHTTP(rec, req)
 
 			gotCode, wantCode := rec.Code, tt.code
@@ -86,24 +104,62 @@ func TestCSRFGuard(t *testing.T) {
 				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
 			}
 
-			if tt.checkCookie {
+			gotHeader := rec.Header().Get(middleware.HeaderCSRF)
+			wantHeader := tt.csrfHeader
+			if gotHeader != wantHeader {
+				t.Errorf("rec.Header().Get(%q) = %q, want: %q", middleware.HeaderCSRF, gotHeader, wantHeader)
+			}
+
+			gotHeaderCalled := rec.Header().Get(headerCalled)
+			wantHeaderCalled := tt.headerCalled
+			if gotHeaderCalled != wantHeaderCalled {
+				t.Errorf("rec.Header().Get(%q) = %q, want: %q", headerCalled, gotHeaderCalled, wantHeaderCalled)
+			}
+
+			if tt.cookie != nil {
 				resp := rec.Result()
 				defer resp.Body.Close()
 
 				cookies := resp.Cookies()
-
-				var csrfCookie *http.Cookie
-				for _, cookie := range cookies {
-					if cookie.Name == middleware.CookieCSRF {
-						csrfCookie = cookie
-						break
-					}
+				gotLen, wantLen := len(cookies), 1
+				if gotLen != wantLen {
+					t.Fatal("no cookie was set")
+				}
+				cookie := cookies[0]
+				gotCookie := &http.Cookie{
+					Name:     cookie.Name,
+					Value:    cookie.Value,
+					Path:     cookie.Path,
+					Expires:  time.Time{},
+					HttpOnly: cookie.HttpOnly,
+					Secure:   cookie.Secure,
+					SameSite: cookie.SameSite,
+				}
+				wantCookie := &http.Cookie{
+					Name:     tt.cookie.Name,
+					Value:    tt.cookie.Value,
+					Path:     tt.cookie.Path,
+					Expires:  time.Time{},
+					HttpOnly: tt.cookie.HttpOnly,
+					Secure:   tt.cookie.Secure,
+					SameSite: tt.cookie.SameSite,
+				}
+				if !reflect.DeepEqual(gotCookie, wantCookie) {
+					t.Errorf("cookie = %v, want: %v", gotCookie, wantCookie)
 				}
 
-				gotCookie := csrfCookie.Value
-				wantCookie := base64.RawURLEncoding.EncodeToString([]byte(tt.token))
-				if gotCookie != wantCookie {
-					t.Errorf("cookie = %q, want: %q", gotCookie, wantCookie)
+				if cookie.Expires.IsZero() {
+					t.Errorf("cookie Expires field is zero, expected a future time")
+				} else {
+					expectedMin := time.Now().Add(23 * time.Hour)
+					expectedMax := time.Now().Add(25 * time.Hour)
+
+					if cookie.Expires.Before(expectedMin) || cookie.Expires.After(expectedMax) {
+						t.Errorf("cookie Expires field (%q) is not within the expected range (%q - %q)",
+							cookie.Expires.Format(time.RFC3339),
+							expectedMin.Format(time.RFC3339),
+							expectedMax.Format(time.RFC3339))
+					}
 				}
 			}
 		})
