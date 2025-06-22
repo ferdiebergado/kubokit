@@ -58,15 +58,18 @@ func (a *App) setupRoutes() {
 	userHandler := userModule.Handler()
 	mountUserRoutes(a.router, userHandler, a.signer)
 
-	authRepo := auth.NewRepository(a.db)
 	authProviders := &auth.Providers{
-		Hasher: a.hasher,
-		Signer: a.signer,
-		Mailer: a.mailer,
+		Cfg:     a.config,
+		DB:      a.db,
+		Hasher:  a.hasher,
+		Signer:  a.signer,
+		Mailer:  a.mailer,
+		UserSvc: userModule.Service(),
+		Baker:   a.baker,
+		TXMgr:   a.txManager,
 	}
-	userSvc := userModule.Service()
-	authService := auth.NewService(authRepo, userSvc, authProviders, a.config, a.txManager)
-	authHandler := auth.NewHandler(authService, a.signer, a.config, a.baker)
+	authModule := auth.NewModule(authProviders)
+	authHandler := authModule.Handler()
 	mountAuthRoutes(a.router, authHandler, a.validator, a.signer, a.config.Server.MaxBodyBytes)
 }
 

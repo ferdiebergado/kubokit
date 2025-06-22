@@ -115,12 +115,6 @@ func TestService_RegisterUser(t *testing.T) {
 				SignFunc: tt.signFunc,
 			}
 
-			providers := &auth.Providers{
-				Hasher: hasher,
-				Mailer: mailer,
-				Signer: signer,
-			}
-
 			cfg := &config.Config{
 				Server: &config.Server{
 					URL:  "localhost:8888",
@@ -133,10 +127,19 @@ func TestService_RegisterUser(t *testing.T) {
 					VerifyTTL: timex.Duration{Duration: 5 * time.Minute},
 				},
 			}
-
 			stubTxMgr := &db.StubTxManager{}
+			providers := &auth.Providers{
+				Hasher:  hasher,
+				Mailer:  mailer,
+				Signer:  signer,
+				Cfg:     cfg,
+				DB:      nil,
+				UserSvc: userSvc,
+				Baker:   nil,
+				TXMgr:   stubTxMgr,
+			}
 
-			authSvc := auth.NewService(authRepo, userSvc, providers, cfg, stubTxMgr)
+			authSvc := auth.NewService(authRepo, providers)
 			ctx := context.Background()
 			params := auth.RegisterUserParams{
 				Email:    tt.email,

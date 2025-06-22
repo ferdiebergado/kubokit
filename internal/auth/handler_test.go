@@ -71,7 +71,17 @@ func TestHandler_RegisterUser(t *testing.T) {
 			signer := &jwt.StubSigner{}
 			cfg := &config.Config{}
 			baker := &security.StubBaker{}
-			authHandler := auth.NewHandler(svc, signer, cfg, baker)
+			providers := &auth.Providers{
+				Cfg:     cfg,
+				DB:      nil,
+				Hasher:  nil,
+				Signer:  signer,
+				Mailer:  nil,
+				UserSvc: nil,
+				Baker:   baker,
+				TXMgr:   nil,
+			}
+			authHandler := auth.NewHandler(svc, providers)
 
 			paramsCtx := web.NewContextWithParams(context.Background(), tt.params)
 			req := httptest.NewRequestWithContext(paramsCtx, http.MethodPost, "/auth/register", nil)

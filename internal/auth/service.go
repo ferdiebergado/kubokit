@@ -209,20 +209,14 @@ func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) err
 	})
 }
 
-type Providers struct {
-	Hasher hash.Hasher
-	Signer jwt.Signer
-	Mailer email.Mailer
-}
-
-func NewService(repo AuthRepository, userSvc user.UserService, provider *Providers, cfg *config.Config, txMgr db.TxManager) *Service {
+func NewService(repo AuthRepository, providers *Providers) *Service {
 	return &Service{
 		repo:      repo,
-		userSvc:   userSvc,
-		hasher:    provider.Hasher,
-		mailer:    provider.Mailer,
-		signer:    provider.Signer,
-		cfg:       cfg,
-		txManager: txMgr,
+		userSvc:   providers.UserSvc,
+		hasher:    providers.Hasher,
+		mailer:    providers.Mailer,
+		signer:    providers.Signer,
+		cfg:       providers.Cfg,
+		txManager: providers.TXMgr,
 	}
 }
