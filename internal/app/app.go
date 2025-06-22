@@ -54,9 +54,8 @@ func (a *App) registerMiddlewares() {
 }
 
 func (a *App) setupRoutes() {
-	userRepo := user.NewRepository(a.db)
-	userService := user.NewService(userRepo)
-	userHandler := user.NewHandler(userService)
+	userModule := user.NewModule(a.db)
+	userHandler := userModule.Handler()
 	mountUserRoutes(a.router, userHandler, a.signer)
 
 	authRepo := auth.NewRepository(a.db)
@@ -65,7 +64,8 @@ func (a *App) setupRoutes() {
 		Signer: a.signer,
 		Mailer: a.mailer,
 	}
-	authService := auth.NewService(authRepo, userService, authProviders, a.config, a.txManager)
+	userSvc := userModule.Service()
+	authService := auth.NewService(authRepo, userSvc, authProviders, a.config, a.txManager)
 	authHandler := auth.NewHandler(authService, a.signer, a.config, a.baker)
 	mountAuthRoutes(a.router, authHandler, a.validator, a.signer, a.config.Server.MaxBodyBytes)
 }
