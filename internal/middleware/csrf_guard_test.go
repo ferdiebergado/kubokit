@@ -58,7 +58,7 @@ func TestCSRFGuard(t *testing.T) {
 					HttpOnly: true,
 					Secure:   true,
 					SameSite: http.SameSiteStrictMode,
-					Expires:  time.Now().Add(defaultDuration),
+					MaxAge:   int(defaultDuration.Seconds()),
 				}, nil
 			}},
 			&http.Cookie{
@@ -68,7 +68,7 @@ func TestCSRFGuard(t *testing.T) {
 				HttpOnly: true,
 				Secure:   true,
 				SameSite: http.SameSiteStrictMode,
-				Expires:  time.Now().Add(defaultDuration),
+				MaxAge:   int(defaultDuration.Seconds()),
 			},
 			nil,
 			"",
@@ -88,7 +88,7 @@ func TestCSRFGuard(t *testing.T) {
 				HttpOnly: true,
 				Secure:   true,
 				SameSite: http.SameSiteStrictMode,
-				Expires:  time.Now().Add(defaultDuration),
+				MaxAge:   int(defaultDuration.Seconds()),
 			},
 			base64.RawURLEncoding.EncodeToString([]byte("test_token")),
 			"true",
@@ -102,6 +102,44 @@ func TestCSRFGuard(t *testing.T) {
 			nil,
 			nil,
 			"",
+			"",
+		},
+		{
+			"POST request with malformed token in header",
+			http.MethodPost,
+			http.StatusForbidden,
+			"",
+			&security.StubBaker{BakeFunc: func() (*http.Cookie, error) { return &http.Cookie{}, nil }},
+			nil,
+			&http.Cookie{
+				Name:     cfg.CookieName,
+				Value:    base64.RawURLEncoding.EncodeToString([]byte("test_token")),
+				Path:     "/",
+				HttpOnly: true,
+				Secure:   true,
+				SameSite: http.SameSiteStrictMode,
+				MaxAge:   int(defaultDuration.Seconds()),
+			},
+			"test_token",
+			"",
+		},
+		{
+			"POST request with malformed token in cookie",
+			http.MethodPost,
+			http.StatusForbidden,
+			"",
+			&security.StubBaker{BakeFunc: func() (*http.Cookie, error) { return &http.Cookie{}, nil }},
+			nil,
+			&http.Cookie{
+				Name:     cfg.CookieName,
+				Value:    "test_token",
+				Path:     "/",
+				HttpOnly: true,
+				Secure:   true,
+				SameSite: http.SameSiteStrictMode,
+				MaxAge:   int(defaultDuration.Seconds()),
+			},
+			base64.RawURLEncoding.EncodeToString([]byte("test_token")),
 			"",
 		},
 	}
@@ -143,16 +181,22 @@ func TestCSRFGuard(t *testing.T) {
 				defer resp.Body.Close()
 
 				cookies := resp.Cookies()
-				gotLen, wantLen := len(cookies), 1
-				if gotLen != wantLen {
+
+				if len(cookies) == 0 {
 					t.Fatal("no cookie was set")
 				}
+
+				gotLen, wantLen := len(cookies), 1
+				if gotLen != wantLen {
+					t.Fatalf("len(cookies) = %d, want: %d", gotLen, wantLen)
+				}
+
 				cookie := cookies[0]
 				gotCookie := &http.Cookie{
 					Name:     cookie.Name,
 					Value:    cookie.Value,
 					Path:     cookie.Path,
-					Expires:  time.Time{},
+					MaxAge:   0,
 					HttpOnly: cookie.HttpOnly,
 					Secure:   cookie.Secure,
 					SameSite: cookie.SameSite,
@@ -161,27 +205,19 @@ func TestCSRFGuard(t *testing.T) {
 					Name:     tc.cookie.Name,
 					Value:    tc.cookie.Value,
 					Path:     tc.cookie.Path,
-					Expires:  time.Time{},
+					MaxAge:   0,
 					HttpOnly: tc.cookie.HttpOnly,
 					Secure:   tc.cookie.Secure,
 					SameSite: tc.cookie.SameSite,
 				}
+
 				if !reflect.DeepEqual(gotCookie, wantCookie) {
 					t.Errorf("cookie = %v, want: %v", gotCookie, wantCookie)
 				}
 
-				if cookie.Expires.IsZero() {
-					t.Errorf("cookie Expires field is zero, expected a future time")
-				} else {
-					expectedMin := time.Now().Add(defaultDuration - timeUnit)
-					expectedMax := time.Now().Add(defaultDuration + timeUnit)
-
-					if cookie.Expires.Before(expectedMin) || cookie.Expires.After(expectedMax) {
-						t.Errorf("cookie Expires field (%q) is not within the expected range (%q - %q)",
-							cookie.Expires.Format(time.RFC3339),
-							expectedMin.Format(time.RFC3339),
-							expectedMax.Format(time.RFC3339))
-					}
+				gotAge, wantAge := cookie.MaxAge, int(defaultDuration.Seconds())
+				if gotAge != wantAge {
+					t.Errorf("cookie.MaxAge = %d, want: %d", gotAge, wantAge)
 				}
 			}
 		})
