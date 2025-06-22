@@ -9,6 +9,7 @@ import (
 
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 
@@ -144,16 +145,8 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cookieCfg := h.cfg.Cookie
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     cookieCfg.Name,
-		Value:    refreshToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int(cookieCfg.MaxAge.Seconds()),
-	})
+	refreshCookie := security.NewSecureCookie(cookieCfg.Name, refreshToken, cookieCfg.MaxAge.Duration)
+	http.SetCookie(w, refreshCookie)
 
 	csrfCookie, err := h.baker.Bake()
 	if err != nil {
@@ -204,15 +197,8 @@ func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     cookieName,
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   -1,
-	})
+	logoutCookie := security.NewSecureCookie(cookieName, "", -1)
+	http.SetCookie(w, logoutCookie)
 
 	msg := "Logged out."
 	web.RespondOK(w, &msg, struct{}{})
