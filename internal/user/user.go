@@ -1,6 +1,8 @@
 package user
 
-import "github.com/ferdiebergado/kubokit/internal/platform/db"
+import (
+	"database/sql"
+)
 
 type Module struct {
 	repo    *Repository
@@ -16,8 +18,8 @@ func (m *Module) Service() *Service {
 	return m.svc
 }
 
-func NewModule(dbExec db.Executor) *Module {
-	repo := NewRepository(dbExec)
+func NewModule(db *sql.DB) *Module {
+	repo := NewRepository(db)
 	svc := NewService(repo)
 	handler := NewHandler(svc)
 	return &Module{

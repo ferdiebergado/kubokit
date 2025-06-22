@@ -116,6 +116,6 @@ func (r *Repository) FindUser(ctx context.Context, userID string) (User, error) 
 	return u, nil
 }
 
-func NewRepository(db db.Executor) *Repository {
+func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db}
 }
