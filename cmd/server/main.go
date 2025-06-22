@@ -16,7 +16,7 @@ func main() {
 
 	slog.Info("Starting server...")
 	if err := app.Run(ctx); err != nil {
-		slog.Error("Application failed to start.", "reason", err)
+		slog.Error("Server failed to start.", "reason", err)
 		stop()
 		//nolint:gocritic //exitAfterDefer: stop is manually invoked before exit.
 		os.Exit(1)
