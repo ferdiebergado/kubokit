@@ -18,8 +18,11 @@ import (
 func TestCSRFGuard(t *testing.T) {
 	t.Parallel()
 
-	const headerCalled = "X-Header-Called"
-	timeUnit := time.Minute
+	const (
+		headerCalled = "X-Header-Called"
+		timeUnit     = time.Minute
+	)
+
 	defaultDuration := 30 * timeUnit
 
 	cfg := &config.CSRF{
