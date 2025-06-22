@@ -200,6 +200,13 @@ func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 	logoutCookie := security.NewSecureCookie(cookieName, "", -1)
 	http.SetCookie(w, logoutCookie)
 
+	csrfCookie, err := h.baker.Bake()
+	if err != nil {
+		web.RespondInternalServerError(w, err)
+		return
+	}
+	http.SetCookie(w, csrfCookie)
+
 	msg := "Logged out."
 	web.RespondOK(w, &msg, struct{}{})
 }
