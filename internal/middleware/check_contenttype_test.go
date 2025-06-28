@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ferdiebergado/kubokit/internal/middleware"
+	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 )
 
@@ -57,12 +58,12 @@ func TestMiddleware_CheckContentType(t *testing.T) {
 
 			wantCode, gotCode := tt.wantCode, rec.Code
 			if gotCode != wantCode {
-				t.Errorf("rec.Code = %d\nwant: %d", gotCode, wantCode)
+				t.Errorf(message.FmtErrStatusCode, gotCode, wantCode)
 			}
 
 			wantBody, gotBody := tt.wantBody, strings.TrimSuffix(rec.Body.String(), "\n")
 			if gotBody != wantBody {
-				t.Errorf("rec.Body.String() = %q\nwant: %q", gotBody, wantBody)
+				t.Errorf("rec.Body.String() = %q, want: %q", gotBody, wantBody)
 			}
 		})
 	}

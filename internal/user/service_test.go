@@ -40,16 +40,19 @@ func TestService_ListUsers(t *testing.T) {
 
 	wantLen, gotLen := len(users), len(allUsers)
 	if gotLen != wantLen {
-		t.Errorf("len(allUsers) = %d\nwant: %d", wantLen, gotLen)
+		t.Errorf("len(allUsers) = %d, want: %d", wantLen, gotLen)
 	}
 }
 
 func TestService_CreateUser(t *testing.T) {
-	testID := "1"
-	testEmail := "test@example.com"
-	testPass := "hashed"
+	const (
+		testID    = "1"
+		testEmail = "test@example.com"
+		testPass  = "hashed"
+	)
+
 	now := time.Now().Truncate(0)
-	repo := user.StubRepo{
+	repo := &user.StubRepo{
 		CreateUserFunc: func(_ context.Context, params user.CreateUserParams) (user.User, error) {
 			return user.User{
 				Model: model.Model{
@@ -62,7 +65,7 @@ func TestService_CreateUser(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := user.NewService(&repo)
+	svc := user.NewService(repo)
 	params := user.CreateUserParams{
 		Email:        testEmail,
 		PasswordHash: testPass,
@@ -83,6 +86,6 @@ func TestService_CreateUser(t *testing.T) {
 		PasswordHash: testPass,
 	}
 	if !reflect.DeepEqual(gotUser, wantUser) {
-		t.Errorf("svc.CreateUser(ctx, params) = %+v \nwant: %+v", gotUser, wantUser)
+		t.Errorf("svc.CreateUser(ctx, params) = %+v, want: %+v", gotUser, wantUser)
 	}
 }

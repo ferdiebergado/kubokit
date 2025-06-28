@@ -9,7 +9,7 @@ import (
 func TestGoplaygroundValidator_ValidateStruct(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		name     string
 		given    any
 		field    string
@@ -23,20 +23,20 @@ func TestGoplaygroundValidator_ValidateStruct(t *testing.T) {
 			Name string `validate:"required"`
 		}{}, "Name", true, "Name is required"},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			v := validation.NewGoPlaygroundValidator()
 
-			errs := v.ValidateStruct(tt.given)
-			if errs != nil && !tt.hasError {
-				t.Errorf("v.ValidateStruct(%v) = %v\nwant: %v", tt.given, errs, nil)
+			errs := v.ValidateStruct(tc.given)
+			if errs != nil && !tc.hasError {
+				t.Errorf("v.ValidateStruct(%v) = %+v, want: %+v", tc.given, errs, nil)
 			}
 
-			gotMsg, wantMsg := errs[tt.field], tt.errMsg
+			gotMsg, wantMsg := errs[tc.field], tc.errMsg
 			if gotMsg != wantMsg {
-				t.Errorf("errs[%s] = %s\nwant: %s", tt.field, wantMsg, gotMsg)
+				t.Errorf("errs[%q] = %q, want: %q", tc.field, wantMsg, gotMsg)
 			}
 		})
 	}

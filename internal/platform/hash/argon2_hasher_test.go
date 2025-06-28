@@ -29,12 +29,12 @@ func TestArgon2Hasher_Hash(t *testing.T) {
 	parts := strings.Split(hashed, "$")
 	wantLen, gotLen := 6, len(parts)
 	if gotLen != wantLen {
-		t.Errorf("len(%s) = %d\nwant: %d", parts, gotLen, wantLen)
+		t.Errorf("len(%s) = %d, want: %d", parts, gotLen, wantLen)
 	}
 
 	wantHasher, gotHasher := "argon2id", parts[1]
 	if gotHasher != wantHasher {
-		t.Errorf("parts[1] = %s\nwant: %s", gotHasher, wantHasher)
+		t.Errorf("parts[1] = %s, want: %s", gotHasher, wantHasher)
 	}
 }
 
@@ -71,7 +71,7 @@ func TestArgon2Hasher_Verify(t *testing.T) {
 				t.Fatal(err)
 			}
 			if tt.matches != matches {
-				t.Errorf("hasher.Verify(tt.plain, hashed) = %v\nwant: %v", matches, true)
+				t.Errorf("hasher.Verify(tt.plain, hashed) = %v, want: %v", matches, true)
 			}
 		})
 	}
