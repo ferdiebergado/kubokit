@@ -18,7 +18,6 @@ func mountUserRoutes(r router.Router, handler *user.Handler, signer jwt.Signer) 
 func mountAuthRoutes(r router.Router, handler *auth.Handler, validator validation.Validator, providers *auth.Providers) {
 	maxBodySize := providers.Cfg.Server.MaxBodyBytes
 	signer := providers.Signer
-	cfg := providers.Cfg
 
 	r.Group("/auth", func(gr router.Router) {
 		gr.Post("/register", handler.RegisterUser,
@@ -28,8 +27,7 @@ func mountAuthRoutes(r router.Router, handler *auth.Handler, validator validatio
 			middleware.DecodePayload[auth.UserLoginRequest](maxBodySize),
 			middleware.ValidateInput[auth.UserLoginRequest](validator))
 		gr.Get("/verify", handler.VerifyEmail, auth.VerifyToken(signer))
-		gr.Post("/refresh", handler.RefreshToken,
-			middleware.CSRFGuard(cfg.CSRF, providers.Baker))
+		gr.Post("/refresh", handler.RefreshToken)
 		gr.Post("/logout", handler.LogoutUser)
 		gr.Post("/forgot", handler.ForgotPassword,
 			middleware.DecodePayload[auth.ForgotPasswordRequest](maxBodySize),
