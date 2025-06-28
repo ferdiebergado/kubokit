@@ -95,6 +95,10 @@ func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.VerifyUser(r.Context(), userID); err != nil {
+		if errors.Is(err, user.ErrNotFound) {
+			web.RespondNotFound(w, err, err.Error(), nil)
+			return
+		}
 		web.RespondInternalServerError(w, err)
 		return
 	}
@@ -129,7 +133,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	params := LoginUserParams(req)
 	accessToken, refreshToken, err := h.svc.LoginUser(r.Context(), params)
 	if err != nil {
-		if errors.Is(err, user.ErrUserNotFound) {
+		if errors.Is(err, user.ErrNotFound) {
 			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 			return
 		}
