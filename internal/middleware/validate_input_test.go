@@ -51,7 +51,7 @@ func TestValidateInput(t *testing.T) {
 	}{
 		{"Valid input", http.StatusOK, profile{testName, testEmail}, func(_ any) map[string]string { return nil },
 			`{"name":"fely","email":"fely@example.com"}`},
-		{"Invalid input", http.StatusBadRequest, profile{testName, "fely@example"}, func(_ any) map[string]string {
+		{"Invalid input", http.StatusUnprocessableEntity, profile{testName, "fely@example"}, func(_ any) map[string]string {
 			return map[string]string{"email": emailErr}
 		}, `{"message":"Invalid input.","errors":{"email":"email must be a valid email address"}}`},
 		{"Invalid type", http.StatusBadRequest, struct{}{}, func(_ any) map[string]string {

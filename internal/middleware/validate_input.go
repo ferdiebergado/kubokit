@@ -22,7 +22,7 @@ func ValidateInput[T any](validator validation.Validator) func(next http.Handler
 			}
 
 			if err := validator.ValidateStruct(params); err != nil {
-				web.RespondBadRequest(w, errors.New("invalid input"), message.InvalidInput, err)
+				web.RespondUnprocessableEntity(w, errors.New("invalid input"), message.InvalidInput, err)
 				return
 			}
 
