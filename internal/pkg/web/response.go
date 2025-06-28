@@ -97,3 +97,8 @@ func RespondConflict(w http.ResponseWriter, err error, clientMsg string, details
 func RespondForbidden(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
 	RespondError(w, http.StatusForbidden, err, clientMsg, details)
 }
+
+// RespondNotFound sends a 404 Not Found error.
+func RespondNotFound(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusNotFound, err, clientMsg, details)
+}
