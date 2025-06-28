@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -147,8 +148,8 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookieCfg := h.cfg.Cookie
-	refreshCookie := security.NewSecureCookie(cookieCfg.Name, refreshToken, cookieCfg.MaxAge.Duration)
+	refreshCookieCfg := h.cfg.Cookie
+	refreshCookie := security.NewSecureCookie(refreshCookieCfg.Name, refreshToken, refreshCookieCfg.MaxAge.Duration)
 	http.SetCookie(w, refreshCookie)
 
 	csrfCookie, err := h.baker.Bake()
@@ -156,7 +157,6 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		web.RespondInternalServerError(w, err)
 		return
 	}
-
 	http.SetCookie(w, csrfCookie)
 
 	msg := "Logged in."
@@ -167,13 +167,28 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(h.cfg.Cookie.Name)
+	csrfCfg := h.cfg.CSRF
+	csrfCookieName := csrfCfg.CookieName
+	csrfCookie, err := r.Cookie(csrfCookieName)
+
+	if err != nil || csrfCookie.Value == "" {
+		web.RespondForbidden(w, errors.New("CSRF token missing"), message.InvalidInput, nil)
+		return
+	}
+
+	sentToken := r.Header.Get(csrfCfg.HeaderName)
+	if subtle.ConstantTimeCompare([]byte(csrfCookie.Value), []byte(sentToken)) == 0 {
+		web.RespondForbidden(w, errors.New("invalid CSRF token"), message.InvalidInput, nil)
+		return
+	}
+
+	refreshCookie, err := r.Cookie(h.cfg.Cookie.Name)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	userID, err := h.signer.Verify(cookie.Value)
+	userID, err := h.signer.Verify(refreshCookie.Value)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
@@ -186,7 +201,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := "Logged in."
+	msg := "Token refreshed."
 	data := &UserLoginResponse{
 		AccessToken: newAccessToken,
 	}
