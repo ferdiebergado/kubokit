@@ -20,6 +20,8 @@ func (c *CSRFCookieBaker) Bake() (*http.Cookie, error) {
 	}
 
 	csrfCookie := NewSecureCookie(c.name, token, c.expiration)
+	csrfCookie.HttpOnly = false
+
 	return csrfCookie, nil
 }
 
