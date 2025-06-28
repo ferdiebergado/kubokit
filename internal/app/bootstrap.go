@@ -72,7 +72,6 @@ func Run() error {
 		goexpress.RecoverFromPanic,
 		middleware.LogRequest,
 		middleware.ContextGuard,
-		middleware.CSRFGuard(cfg.CSRF, providers.Baker),
 		middleware.CheckContentType,
 	}
 

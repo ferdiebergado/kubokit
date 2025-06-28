@@ -70,7 +70,7 @@ func (a *App) setupRoutes() {
 	}
 	authModule := auth.NewModule(authProviders)
 	authHandler := authModule.Handler()
-	mountAuthRoutes(a.router, authHandler, a.validator, a.signer, a.config.Server.MaxBodyBytes)
+	mountAuthRoutes(a.router, authHandler, a.validator, authProviders)
 }
 
 func (a *App) Start(ctx context.Context) error {
