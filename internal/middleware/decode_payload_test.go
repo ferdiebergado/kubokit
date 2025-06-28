@@ -13,6 +13,8 @@ import (
 )
 
 func TestDecodePayload(t *testing.T) {
+	t.Parallel()
+
 	const header = "X-Called-Header"
 	type person struct {
 		Name string `json:"name"`
@@ -47,9 +49,13 @@ func TestDecodePayload(t *testing.T) {
 		{"Extra payload", http.StatusBadRequest, []byte(`{"name": "bibi buy", "age": 2}{"name": "aremondeng", "age": 6}`), 64, ""},
 		{"Incorrect data type", http.StatusBadRequest, []byte(`{"name": "agnis", "age": "13"}`), 64, ""},
 		{"Malformed payload", http.StatusBadRequest, []byte(`{"name"`), 64, ""},
+		{"Array passed to string", http.StatusBadRequest, []byte(`{"name": ["agnis", "yaye"], "age": "13"}`), 64, ""},
+		{"Array within a string", http.StatusBadRequest, []byte(`{"name": "["agnis", "yaye"]", "age": "13"}`), 64, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			body := bytes.NewBuffer(tt.payload)
 			req := httptest.NewRequest(http.MethodPost, "/", body)
 			rec := httptest.NewRecorder()
