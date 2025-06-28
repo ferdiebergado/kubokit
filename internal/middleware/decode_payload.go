@@ -29,8 +29,7 @@ func DecodePayload[T any](bodySize int64) func(next http.Handler) http.Handler {
 
 				const fieldErr = "json: unknown field "
 				errMsg := err.Error()
-				if strings.HasPrefix(errMsg, fieldErr) {
-					fieldName := strings.TrimPrefix(errMsg, fieldErr)
+				if fieldName, ok := strings.CutPrefix(errMsg, fieldErr); ok {
 					details := map[string]string{"field": fieldName}
 					web.RespondUnprocessableEntity(w, err, "Unknown field in payload.", details)
 					return
