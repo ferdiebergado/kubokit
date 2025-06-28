@@ -53,7 +53,7 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 	u := user.User{}
 	email := params.Email
 	existing, err := s.userSvc.FindUserByEmail(ctx, email)
-	if err != nil && !errors.Is(err, user.ErrUserNotFound) {
+	if err != nil && !errors.Is(err, user.ErrNotFound) {
 		return u, err
 	}
 
@@ -141,7 +141,7 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (access
 	}
 
 	if !ok {
-		return "", "", fmt.Errorf("incorrect password: %w", user.ErrUserNotFound)
+		return "", "", fmt.Errorf("incorrect password: %w", user.ErrNotFound)
 	}
 
 	ttl := s.cfg.JWT.TTL.Duration

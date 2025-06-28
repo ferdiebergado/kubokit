@@ -11,7 +11,7 @@ import (
 
 var _ UserRepository = &Repository{}
 
-var ErrUserNotFound = errors.New("user not found")
+var ErrNotFound = errors.New("user not found")
 
 type Repository struct {
 	db db.Executor
@@ -58,7 +58,7 @@ func (r *Repository) FindUserByEmail(ctx context.Context, email string) (*User, 
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt, &u.VerifiedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotFound
+			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("query to find user by email: %w", err)
 	}

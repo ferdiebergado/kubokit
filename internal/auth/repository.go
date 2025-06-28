@@ -39,7 +39,7 @@ func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
 	}
 
 	if numRows == 0 {
-		return fmt.Errorf("user with ID %s not found: %w", userID, user.ErrUserNotFound)
+		return fmt.Errorf("user with ID %s not found: %w", userID, user.ErrNotFound)
 	}
 
 	return nil
@@ -66,7 +66,7 @@ func (r *Repository) ChangeUserPassword(ctx context.Context, email, newPassword 
 	}
 
 	if numRows == 0 {
-		return user.ErrUserNotFound
+		return user.ErrNotFound
 	}
 
 	return nil
