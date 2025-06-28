@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/model"
+	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
@@ -55,12 +56,12 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 
 	wantStatus, gotStatus := http.StatusOK, rec.Code
 	if gotStatus != wantStatus {
-		t.Errorf("rec.Code = %d\nwant: %d", gotStatus, wantStatus)
+		t.Errorf(message.FmtErrStatusCode, gotStatus, wantStatus)
 	}
 
 	wantHeader, gotHeader := web.MimeJSON, rec.Header().Get(web.HeaderContentType)
 	if gotHeader != wantHeader {
-		t.Errorf("rec.Header().Get(web.HeaderContentType) = %s \nwant: %s", gotHeader, wantHeader)
+		t.Errorf("rec.Header().Get(%q) = %q, want: %q", web.HeaderContentType, gotHeader, wantHeader)
 	}
 
 	var apiRes web.OKResponse[*user.ListUsersResponse]
@@ -72,7 +73,7 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 
 	wantLen, gotLen := len(users), len(data.Users)
 	if gotLen != wantLen {
-		t.Errorf("len(data.Users) = %d\nwant: %d", gotLen, wantLen)
+		t.Errorf("len(data.Users) = %d, want: %d", gotLen, wantLen)
 	}
 
 	for i := range users {
@@ -87,7 +88,7 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 		}
 		gotUser := data.Users[i]
 		if !reflect.DeepEqual(gotUser, wantUser) {
-			t.Errorf("data.Users[%d] = %+v\nwant: %+v", i, gotUser, wantUser)
+			t.Errorf("data.Users[%d] = %+v, want: %+v", i, gotUser, wantUser)
 		}
 	}
 }
@@ -108,6 +109,6 @@ func TestHandler_ListUsers_Error(t *testing.T) {
 
 	wantStatus, gotStatus := http.StatusInternalServerError, rec.Code
 	if gotStatus != wantStatus {
-		t.Errorf("rec.Code = %d\nwant: %d", gotStatus, wantStatus)
+		t.Errorf(message.FmtErrStatusCode, gotStatus, wantStatus)
 	}
 }

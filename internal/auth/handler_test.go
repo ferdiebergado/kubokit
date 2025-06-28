@@ -13,6 +13,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/model"
+	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
@@ -70,19 +71,8 @@ func TestHandler_RegisterUser(t *testing.T) {
 			svc := &auth.StubService{
 				RegisterUserFunc: tt.regUserFunc,
 			}
-			signer := &jwt.StubSigner{}
-			cfg := &config.Config{}
-			baker := &security.StubBaker{}
-			providers := &auth.Providers{
-				Cfg:     cfg,
-				DB:      nil,
-				Hasher:  nil,
-				Signer:  signer,
-				Mailer:  nil,
-				UserSvc: nil,
-				Baker:   baker,
-				TXMgr:   nil,
-			}
+
+			providers := &auth.Providers{}
 			authHandler := auth.NewHandler(svc, providers)
 
 			paramsCtx := web.NewContextWithParams(context.Background(), tt.params)
@@ -92,7 +82,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 			gotStatus, wantStatus := rec.Code, tt.code
 			if gotStatus != wantStatus {
-				t.Errorf("rec.Code = %d, want: %d", gotStatus, wantStatus)
+				t.Errorf(message.FmtErrStatusCode, gotStatus, wantStatus)
 			}
 
 			gotHeader := rec.Header().Get(web.HeaderContentType)
@@ -170,14 +160,9 @@ func TestHandler_LoginUser(t *testing.T) {
 				BakeFunc: tc.bakeFunc,
 			}
 			providers := &auth.Providers{
-				Cfg:     cfg,
-				DB:      nil,
-				Hasher:  nil,
-				Signer:  signer,
-				Mailer:  nil,
-				UserSvc: nil,
-				Baker:   baker,
-				TXMgr:   nil,
+				Cfg:    cfg,
+				Signer: signer,
+				Baker:  baker,
 			}
 			authHandler := auth.NewHandler(svc, providers)
 
@@ -188,7 +173,7 @@ func TestHandler_LoginUser(t *testing.T) {
 
 			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
-				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
+				t.Errorf(message.FmtErrStatusCode, gotCode, wantCode)
 			}
 		})
 	}
@@ -210,18 +195,11 @@ func TestHandler_VerifyEmail(t *testing.T) {
 			name:   "Email verified successfully",
 			userID: "123",
 			providers: &auth.Providers{
-				Cfg:    nil,
-				DB:     nil,
-				Hasher: nil,
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (string, error) {
 						return "123", nil
 					},
 				},
-				Mailer:  nil,
-				UserSvc: nil,
-				Baker:   nil,
-				TXMgr:   nil,
 			},
 			svc: &auth.StubService{
 				VerifyUserfunc: func(ctx context.Context, token string) error {
@@ -236,18 +214,11 @@ func TestHandler_VerifyEmail(t *testing.T) {
 			name:   "User does not exists",
 			userID: "123",
 			providers: &auth.Providers{
-				Cfg:    nil,
-				DB:     nil,
-				Hasher: nil,
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (string, error) {
 						return "123", nil
 					},
 				},
-				Mailer:  nil,
-				UserSvc: nil,
-				Baker:   nil,
-				TXMgr:   nil,
 			},
 			svc: &auth.StubService{
 				VerifyUserfunc: func(ctx context.Context, token string) error {
@@ -262,18 +233,11 @@ func TestHandler_VerifyEmail(t *testing.T) {
 			name:   "Verification failed due to database error",
 			userID: "123",
 			providers: &auth.Providers{
-				Cfg:    nil,
-				DB:     nil,
-				Hasher: nil,
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (string, error) {
 						return "123", nil
 					},
 				},
-				Mailer:  nil,
-				UserSvc: nil,
-				Baker:   nil,
-				TXMgr:   nil,
 			},
 			svc: &auth.StubService{
 				VerifyUserfunc: func(ctx context.Context, token string) error {
@@ -296,7 +260,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 
 			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
-				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
+				t.Errorf(message.FmtErrStatusCode, gotCode, wantCode)
 			}
 		})
 	}
@@ -315,18 +279,9 @@ func TestHandler_ResetPassword(t *testing.T) {
 		params    auth.ResetPasswordRequest
 	}{
 		{
-			name:   "Password was reset successfully",
-			userID: "123",
-			providers: &auth.Providers{
-				Cfg:     nil,
-				DB:      nil,
-				Hasher:  nil,
-				Signer:  nil,
-				Mailer:  nil,
-				UserSvc: nil,
-				Baker:   nil,
-				TXMgr:   nil,
-			},
+			name:      "Password was reset successfully",
+			userID:    "123",
+			providers: &auth.Providers{},
 			svc: &auth.StubService{
 				ResetPasswordFunc: func(ctx context.Context, params auth.ResetPasswordParams) error {
 					return nil
@@ -353,7 +308,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 
 			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
-				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
+				t.Errorf(message.FmtErrStatusCode, gotCode, wantCode)
 			}
 		})
 	}
