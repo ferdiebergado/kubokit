@@ -301,3 +301,60 @@ func TestHandler_VerifyEmail(t *testing.T) {
 		})
 	}
 }
+
+func TestHandler_ResetPassword(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		userID    string
+		providers *auth.Providers
+		svc       auth.AuthService
+		code      int
+		ctx       context.Context
+		params    auth.ResetPasswordRequest
+	}{
+		{
+			name:   "Password was reset successfully",
+			userID: "123",
+			providers: &auth.Providers{
+				Cfg:     nil,
+				DB:      nil,
+				Hasher:  nil,
+				Signer:  nil,
+				Mailer:  nil,
+				UserSvc: nil,
+				Baker:   nil,
+				TXMgr:   nil,
+			},
+			svc: &auth.StubService{
+				ResetPasswordFunc: func(ctx context.Context, params auth.ResetPasswordParams) error {
+					return nil
+				},
+			},
+			code: http.StatusOK,
+			ctx:  user.NewContextWithUser(context.Background(), "123"),
+			params: auth.ResetPasswordRequest{
+				CurrentPassword: "oldtest",
+				NewPassword:     "test",
+				RepeatPassword:  "test",
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			authHandler := auth.NewHandler(tc.svc, tc.providers)
+			ctx := web.NewContextWithParams(tc.ctx, tc.params)
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/reset", http.NoBody)
+			rec := httptest.NewRecorder()
+			authHandler.ResetPassword(rec, req)
+
+			gotCode, wantCode := rec.Code, tc.code
+			if gotCode != wantCode {
+				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
+			}
+		})
+	}
+}
