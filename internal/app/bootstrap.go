@@ -3,9 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/ferdiebergado/goexpress"
 	"github.com/ferdiebergado/gopherkit/env"
@@ -32,7 +35,11 @@ const (
 	cfgFile = "config.json"
 )
 
-func Run(signalCtx context.Context) error {
+func Run() error {
+	slog.Info("Starting server...")
+	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
+
 	if os.Getenv(envEnv) != "production" {
 		if err := env.Load(".env"); err != nil {
 			return fmt.Errorf("load env: %w", err)
@@ -79,6 +86,8 @@ func Run(signalCtx context.Context) error {
 	if err := api.Shutdown(); err != nil {
 		return fmt.Errorf("api shutdown: %w", err)
 	}
+
+	slog.Info("Shutdown complete.")
 
 	return nil
 }
