@@ -22,15 +22,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-type Providers struct {
-	Signer    jwt.Signer
-	Mailer    email.Mailer
-	Validator validation.Validator
-	Hasher    hash.Hasher
-	Router    router.Router
-	Baker     web.Baker
-}
-
 type App struct {
 	server          *http.Server
 	config          *config.Config
@@ -109,12 +100,12 @@ func (a *App) Shutdown() error {
 	return nil
 }
 
-func New(cfg *config.Config, dbConn *sql.DB, providers *Providers, middlewares []func(http.Handler) http.Handler) *App {
+func New(cfg *config.Config, dbConn *sql.DB, provider *Provider, middlewares []func(http.Handler) http.Handler) *App {
 	serverCtx, stop := context.WithCancel(context.Background())
 	serverCfg := cfg.Server
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", serverCfg.Port),
-		Handler: providers.Router,
+		Handler: provider.Router,
 		BaseContext: func(_ net.Listener) context.Context {
 			return serverCtx
 		},
@@ -129,12 +120,12 @@ func New(cfg *config.Config, dbConn *sql.DB, providers *Providers, middlewares [
 		config:          cfg,
 		db:              dbConn,
 		txManager:       txMgr,
-		signer:          providers.Signer,
-		mailer:          providers.Mailer,
-		validator:       providers.Validator,
-		hasher:          providers.Hasher,
-		router:          providers.Router,
-		baker:           providers.Baker,
+		signer:          provider.Signer,
+		mailer:          provider.Mailer,
+		validator:       provider.Validator,
+		hasher:          provider.Hasher,
+		router:          provider.Router,
+		baker:           provider.Baker,
 		server:          server,
 		middlewares:     middlewares,
 		stop:            stop,

@@ -39,7 +39,7 @@ func setupApp(t *testing.T) (*app.App, func()) {
 		t.Fatalf("connect db: %v", err)
 	}
 
-	providers := &app.Providers{
+	provider := &app.Provider{
 		Signer:    jwt.NewGolangJWTSigner("testsecret", cfg.JWT),
 		Mailer:    &email.SMTPMailer{},
 		Validator: validation.NewGoPlaygroundValidator(),
@@ -48,7 +48,7 @@ func setupApp(t *testing.T) (*app.App, func()) {
 	}
 
 	middlewares := []func(http.Handler) http.Handler{}
-	app := app.New(cfg, conn, providers, middlewares)
+	app := app.New(cfg, conn, provider, middlewares)
 
 	return app, func() {
 		conn.Close()

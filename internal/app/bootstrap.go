@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 
 	"github.com/ferdiebergado/goexpress"
@@ -15,13 +14,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
-	"github.com/ferdiebergado/kubokit/internal/platform/email"
-	"github.com/ferdiebergado/kubokit/internal/platform/hash"
-	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
-	"github.com/ferdiebergado/kubokit/internal/platform/router"
-	"github.com/ferdiebergado/kubokit/internal/platform/validation"
 )
 
 const (
@@ -37,6 +30,7 @@ const (
 
 func Run() error {
 	slog.Info("Starting server...")
+
 	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
@@ -62,7 +56,7 @@ func Run() error {
 		return fmt.Errorf(message.EnvErrFmt, envKey)
 	}
 
-	providers, err := setupProviders(cfg, securityKey)
+	provider, err := newProvider(cfg, securityKey)
 	if err != nil {
 		return fmt.Errorf("setup providers: %w", err)
 	}
@@ -76,7 +70,7 @@ func Run() error {
 	}
 
 	//nolint:contextcheck //This function internally creates a context with cancel.
-	api := New(cfg, dbConn, providers, middlewares)
+	api := New(cfg, dbConn, provider, middlewares)
 	if err = api.Start(signalCtx); err != nil {
 		return fmt.Errorf("start server: %w", err)
 	}
@@ -91,72 +85,10 @@ func Run() error {
 	return nil
 }
 
-func createMailer(cfg *config.Email) (*email.SMTPMailer, error) {
-	const errFmt = "get env %q: %w"
-	smtpHost, err := getEnv(envHost)
-	if err != nil {
-		return nil, fmt.Errorf(errFmt, envHost, err)
-	}
-
-	smtpPortStr, err := getEnv(envPort)
-	if err != nil {
-		return nil, fmt.Errorf(errFmt, envPort, err)
-	}
-
-	smtpPort, err := strconv.Atoi(smtpPortStr)
-	if err != nil {
-		return nil, fmt.Errorf("convert smtp port string to int: %w", err)
-	}
-
-	smtpUser, err := getEnv(envUser)
-	if err != nil {
-		return nil, fmt.Errorf(errFmt, envUser, err)
-	}
-
-	smtpPass, err := getEnv(envPass)
-	if err != nil {
-		return nil, fmt.Errorf(errFmt, envPass, err)
-	}
-
-	smtpCfg := &email.SMTPConfig{
-		User:     smtpUser,
-		Password: smtpPass,
-		Host:     smtpHost,
-		Port:     smtpPort,
-	}
-
-	mailer, err := email.NewSMTPMailer(smtpCfg, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("create smtp mailer: %w", err)
-	}
-	return mailer, nil
-}
-
 func getEnv(envVar string) (string, error) {
 	val, ok := os.LookupEnv(envVar)
 	if !ok {
 		return "", fmt.Errorf(message.EnvErrFmt, val)
 	}
 	return val, nil
-}
-
-func setupProviders(cfg *config.Config, securityKey string) (*Providers, error) {
-	signer := jwt.NewGolangJWTSigner(securityKey, cfg.JWT)
-	mailer, err := createMailer(cfg.Email)
-	if err != nil {
-		return nil, fmt.Errorf("create mailer: %w", err)
-	}
-	hasher := hash.NewArgon2Hasher(cfg.Argon2, securityKey)
-	router := router.NewGoexpressRouter()
-	validator := validation.NewGoPlaygroundValidator()
-	baker := security.NewCSRFCookieBaker(cfg.CSRF)
-
-	return &Providers{
-		Signer:    signer,
-		Hasher:    hasher,
-		Mailer:    mailer,
-		Router:    router,
-		Validator: validator,
-		Baker:     baker,
-	}, nil
 }
