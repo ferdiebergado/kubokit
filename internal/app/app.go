@@ -49,7 +49,7 @@ func (a *App) setupRoutes() {
 	userHandler := userModule.Handler()
 	mountUserRoutes(a.router, userHandler, a.signer)
 
-	authProviders := &auth.Providers{
+	authProvider := &auth.Provider{
 		Cfg:     a.config,
 		DB:      a.db,
 		Hasher:  a.hasher,
@@ -59,9 +59,9 @@ func (a *App) setupRoutes() {
 		Baker:   a.baker,
 		TXMgr:   a.txManager,
 	}
-	authModule := auth.NewModule(authProviders)
+	authModule := auth.NewModule(authProvider)
 	authHandler := authModule.Handler()
-	mountAuthRoutes(a.router, authHandler, a.validator, authProviders)
+	mountAuthRoutes(a.router, authHandler, a.validator, authProvider)
 }
 
 func (a *App) Start(ctx context.Context) error {

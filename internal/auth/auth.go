@@ -12,7 +12,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-type Providers struct {
+type Provider struct {
 	Cfg     *config.Config
 	DB      *sql.DB
 	Hasher  hash.Hasher
@@ -36,10 +36,10 @@ func (m *Module) Service() *Service {
 	return m.svc
 }
 
-func NewModule(providers *Providers) *Module {
-	repo := NewRepository(providers.DB)
-	svc := NewService(repo, providers)
-	handler := NewHandler(svc, providers)
+func NewModule(provider *Provider) *Module {
+	repo := NewRepository(provider.DB)
+	svc := NewService(repo, provider)
+	handler := NewHandler(svc, provider)
 	return &Module{
 		handler: handler,
 		svc:     svc,

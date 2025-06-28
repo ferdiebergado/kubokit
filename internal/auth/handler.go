@@ -294,11 +294,11 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	web.RespondOK(w, &msg, struct{}{})
 }
 
-func NewHandler(userSvc AuthService, providers *Providers) *Handler {
+func NewHandler(userSvc AuthService, provider *Provider) *Handler {
 	return &Handler{
 		svc:    userSvc,
-		signer: providers.Signer,
-		cfg:    providers.Cfg,
-		baker:  providers.Baker,
+		signer: provider.Signer,
+		cfg:    provider.Cfg,
+		baker:  provider.Baker,
 	}
 }

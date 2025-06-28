@@ -128,7 +128,7 @@ func TestService_RegisterUser(t *testing.T) {
 				},
 			}
 			stubTxMgr := &db.StubTxManager{}
-			providers := &auth.Providers{
+			provider := &auth.Provider{
 				Hasher:  hasher,
 				Mailer:  mailer,
 				Signer:  signer,
@@ -139,7 +139,7 @@ func TestService_RegisterUser(t *testing.T) {
 				TXMgr:   stubTxMgr,
 			}
 
-			authSvc := auth.NewService(authRepo, providers)
+			authSvc := auth.NewService(authRepo, provider)
 			ctx := context.Background()
 			params := auth.RegisterUserParams{
 				Email:    tt.email,

@@ -209,14 +209,14 @@ func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) err
 	})
 }
 
-func NewService(repo AuthRepository, providers *Providers) *Service {
+func NewService(repo AuthRepository, provider *Provider) *Service {
 	return &Service{
 		repo:      repo,
-		userSvc:   providers.UserSvc,
-		hasher:    providers.Hasher,
-		mailer:    providers.Mailer,
-		signer:    providers.Signer,
-		cfg:       providers.Cfg,
-		txManager: providers.TXMgr,
+		userSvc:   provider.UserSvc,
+		hasher:    provider.Hasher,
+		mailer:    provider.Mailer,
+		signer:    provider.Signer,
+		cfg:       provider.Cfg,
+		txManager: provider.TXMgr,
 	}
 }

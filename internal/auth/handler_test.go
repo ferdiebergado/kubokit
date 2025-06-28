@@ -72,8 +72,8 @@ func TestHandler_RegisterUser(t *testing.T) {
 				RegisterUserFunc: tt.regUserFunc,
 			}
 
-			providers := &auth.Providers{}
-			authHandler := auth.NewHandler(svc, providers)
+			provider := &auth.Provider{}
+			authHandler := auth.NewHandler(svc, provider)
 
 			paramsCtx := web.NewContextWithParams(context.Background(), tt.params)
 			req := httptest.NewRequestWithContext(paramsCtx, http.MethodPost, "/auth/register", nil)
@@ -159,12 +159,12 @@ func TestHandler_LoginUser(t *testing.T) {
 			baker := &security.StubBaker{
 				BakeFunc: tc.bakeFunc,
 			}
-			providers := &auth.Providers{
+			provider := &auth.Provider{
 				Cfg:    cfg,
 				Signer: signer,
 				Baker:  baker,
 			}
-			authHandler := auth.NewHandler(svc, providers)
+			authHandler := auth.NewHandler(svc, provider)
 
 			ctx := web.NewContextWithParams(context.Background(), tc.input)
 			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/", http.NoBody)
@@ -183,18 +183,18 @@ func TestHandler_VerifyEmail(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
-		userID    string
-		providers *auth.Providers
-		svc       auth.AuthService
-		code      int
-		token     string
-		ctx       context.Context
+		name     string
+		userID   string
+		provider *auth.Provider
+		svc      auth.AuthService
+		code     int
+		token    string
+		ctx      context.Context
 	}{
 		{
 			name:   "Email verified successfully",
 			userID: "123",
-			providers: &auth.Providers{
+			provider: &auth.Provider{
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (string, error) {
 						return "123", nil
@@ -213,7 +213,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 		{
 			name:   "User does not exists",
 			userID: "123",
-			providers: &auth.Providers{
+			provider: &auth.Provider{
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (string, error) {
 						return "123", nil
@@ -232,7 +232,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 		{
 			name:   "Verification failed due to database error",
 			userID: "123",
-			providers: &auth.Providers{
+			provider: &auth.Provider{
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (string, error) {
 						return "123", nil
@@ -253,7 +253,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			authHandler := auth.NewHandler(tc.svc, tc.providers)
+			authHandler := auth.NewHandler(tc.svc, tc.provider)
 			req := httptest.NewRequestWithContext(tc.ctx, http.MethodGet, "/auth/verify?token="+tc.token, http.NoBody)
 			rec := httptest.NewRecorder()
 			authHandler.VerifyEmail(rec, req)
@@ -272,7 +272,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 	tests := []struct {
 		name      string
 		userID    string
-		providers *auth.Providers
+		providers *auth.Provider
 		svc       auth.AuthService
 		code      int
 		ctx       context.Context
@@ -281,7 +281,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 		{
 			name:      "Password was reset successfully",
 			userID:    "123",
-			providers: &auth.Providers{},
+			providers: &auth.Provider{},
 			svc: &auth.StubService{
 				ResetPasswordFunc: func(ctx context.Context, params auth.ResetPasswordParams) error {
 					return nil

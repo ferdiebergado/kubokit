@@ -15,9 +15,9 @@ func mountUserRoutes(r router.Router, handler *user.Handler, signer jwt.Signer) 
 	}, auth.RequireToken(signer))
 }
 
-func mountAuthRoutes(r router.Router, handler *auth.Handler, validator validation.Validator, providers *auth.Providers) {
-	maxBodySize := providers.Cfg.Server.MaxBodyBytes
-	signer := providers.Signer
+func mountAuthRoutes(r router.Router, handler *auth.Handler, validator validation.Validator, provider *auth.Provider) {
+	maxBodySize := provider.Cfg.Server.MaxBodyBytes
+	signer := provider.Signer
 
 	r.Group("/auth", func(gr router.Router) {
 		gr.Post("/register", handler.RegisterUser,
