@@ -56,7 +56,7 @@ func Run() error {
 		return fmt.Errorf(message.EnvErrFmt, envKey)
 	}
 
-	provider, err := newProvider(cfg, securityKey)
+	provider, err := newProvider(cfg, securityKey, dbConn)
 	if err != nil {
 		return fmt.Errorf("setup providers: %w", err)
 	}

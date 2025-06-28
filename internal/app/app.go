@@ -114,12 +114,10 @@ func New(cfg *config.Config, dbConn *sql.DB, provider *Provider, middlewares []f
 		IdleTimeout:  serverCfg.IdleTimeout.Duration,
 	}
 
-	txMgr := db.NewSQLTxManager(dbConn)
-
 	return &App{
 		config:          cfg,
 		db:              dbConn,
-		txManager:       txMgr,
+		txManager:       provider.TxMgr,
 		signer:          provider.Signer,
 		mailer:          provider.Mailer,
 		validator:       provider.Validator,

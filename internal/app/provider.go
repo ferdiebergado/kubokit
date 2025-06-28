@@ -1,12 +1,14 @@
 package app
 
 import (
+	"database/sql"
 	"fmt"
 	"strconv"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
+	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
@@ -15,15 +17,17 @@ import (
 )
 
 type Provider struct {
+	DB        *sql.DB
 	Signer    jwt.Signer
 	Mailer    email.Mailer
 	Validator validation.Validator
 	Hasher    hash.Hasher
 	Router    router.Router
 	Baker     web.Baker
+	TxMgr     db.TxManager
 }
 
-func newProvider(cfg *config.Config, securityKey string) (*Provider, error) {
+func newProvider(cfg *config.Config, securityKey string, dbConn *sql.DB) (*Provider, error) {
 	signer := jwt.NewGolangJWTSigner(securityKey, cfg.JWT)
 	mailer, err := createMailer(cfg.Email)
 	if err != nil {
@@ -33,14 +37,17 @@ func newProvider(cfg *config.Config, securityKey string) (*Provider, error) {
 	router := router.NewGoexpressRouter()
 	validator := validation.NewGoPlaygroundValidator()
 	baker := security.NewCSRFCookieBaker(cfg.CSRF)
+	txMgr := db.NewSQLTxManager(dbConn)
 
 	provider := &Provider{
+		DB:        dbConn,
 		Signer:    signer,
 		Hasher:    hasher,
 		Mailer:    mailer,
 		Router:    router,
 		Validator: validator,
 		Baker:     baker,
+		TxMgr:     txMgr,
 	}
 
 	return provider, nil
