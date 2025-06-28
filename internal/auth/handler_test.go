@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -189,7 +190,114 @@ func TestHandler_LoginUser(t *testing.T) {
 			if gotCode != wantCode {
 				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
 			}
+		})
+	}
+}
 
+func TestHandler_VerifyEmail(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		userID    string
+		providers *auth.Providers
+		svc       auth.AuthService
+		code      int
+		token     string
+		ctx       context.Context
+	}{
+		{
+			name:   "Email verified successfully",
+			userID: "123",
+			providers: &auth.Providers{
+				Cfg:    nil,
+				DB:     nil,
+				Hasher: nil,
+				Signer: &jwt.StubSigner{
+					VerifyFunc: func(tokenString string) (string, error) {
+						return "123", nil
+					},
+				},
+				Mailer:  nil,
+				UserSvc: nil,
+				Baker:   nil,
+				TXMgr:   nil,
+			},
+			svc: &auth.StubService{
+				VerifyUserfunc: func(ctx context.Context, token string) error {
+					return nil
+				},
+			},
+			code:  http.StatusOK,
+			token: "test_token",
+			ctx:   user.NewContextWithUser(context.Background(), "123"),
+		},
+		{
+			name:   "User does not exists",
+			userID: "123",
+			providers: &auth.Providers{
+				Cfg:    nil,
+				DB:     nil,
+				Hasher: nil,
+				Signer: &jwt.StubSigner{
+					VerifyFunc: func(tokenString string) (string, error) {
+						return "123", nil
+					},
+				},
+				Mailer:  nil,
+				UserSvc: nil,
+				Baker:   nil,
+				TXMgr:   nil,
+			},
+			svc: &auth.StubService{
+				VerifyUserfunc: func(ctx context.Context, token string) error {
+					return user.ErrNotFound
+				},
+			},
+			code:  http.StatusNotFound,
+			token: "test_token",
+			ctx:   user.NewContextWithUser(context.Background(), "123"),
+		},
+		{
+			name:   "Verification failed due to database error",
+			userID: "123",
+			providers: &auth.Providers{
+				Cfg:    nil,
+				DB:     nil,
+				Hasher: nil,
+				Signer: &jwt.StubSigner{
+					VerifyFunc: func(tokenString string) (string, error) {
+						return "123", nil
+					},
+				},
+				Mailer:  nil,
+				UserSvc: nil,
+				Baker:   nil,
+				TXMgr:   nil,
+			},
+			svc: &auth.StubService{
+				VerifyUserfunc: func(ctx context.Context, token string) error {
+					return errors.New("query failed")
+				},
+			},
+			code:  http.StatusInternalServerError,
+			token: "test_token",
+			ctx:   user.NewContextWithUser(context.Background(), "123"),
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			authHandler := auth.NewHandler(tc.svc, tc.providers)
+			req := httptest.NewRequestWithContext(tc.ctx, http.MethodGet, "/auth/verify?token="+tc.token, http.NoBody)
+			rec := httptest.NewRecorder()
+			authHandler.VerifyEmail(rec, req)
+
+			gotCode, wantCode := rec.Code, tc.code
+			if gotCode != wantCode {
+				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
+			}
 		})
 	}
 }
