@@ -21,7 +21,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func setupApp(t *testing.T) (*app.App, func()) {
+func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 	t.Helper()
 
 	if err := env.Load("../../.env.testing"); err != nil {
@@ -40,6 +40,7 @@ func setupApp(t *testing.T) (*app.App, func()) {
 	}
 
 	provider := &app.Provider{
+		DB:        conn,
 		Signer:    jwt.NewGolangJWTSigner("testsecret", cfg.JWT),
 		Mailer:    &email.SMTPMailer{},
 		Validator: validation.NewGoPlaygroundValidator(),
@@ -48,11 +49,13 @@ func setupApp(t *testing.T) (*app.App, func()) {
 	}
 
 	middlewares := []func(http.Handler) http.Handler{}
-	app := app.New(cfg, conn, provider, middlewares)
+	api = app.New(cfg, provider, middlewares)
 
-	return app, func() {
+	cleanUpFunc = func() {
 		conn.Close()
 	}
+
+	return api, cleanUpFunc
 }
 
 func TestIntegration_StartAndShutdown(t *testing.T) {

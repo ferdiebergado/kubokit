@@ -13,7 +13,7 @@ import (
 	"github.com/ferdiebergado/gopherkit/env"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
-	"github.com/ferdiebergado/kubokit/internal/pkg/message"
+	kenv "github.com/ferdiebergado/kubokit/internal/pkg/env"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 )
 
@@ -47,9 +47,9 @@ func Run() error {
 	}
 	defer dbConn.Close()
 
-	securityKey, ok := os.LookupEnv(envKey)
-	if !ok {
-		return fmt.Errorf(message.EnvErrFmt, envKey)
+	securityKey, err := kenv.Env(envKey)
+	if err != nil {
+		return fmt.Errorf("get security key from env: %w", err)
 	}
 
 	provider, err := newProvider(cfg, securityKey, dbConn)
@@ -66,7 +66,7 @@ func Run() error {
 	}
 
 	//nolint:contextcheck //This function internally creates a context with cancel.
-	api := New(cfg, dbConn, provider, middlewares)
+	api := New(cfg, provider, middlewares)
 	if err = api.Start(signalCtx); err != nil {
 		return fmt.Errorf("start server: %w", err)
 	}

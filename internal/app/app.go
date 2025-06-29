@@ -100,7 +100,7 @@ func (a *App) Shutdown() error {
 	return nil
 }
 
-func New(cfg *config.Config, dbConn *sql.DB, provider *Provider, middlewares []func(http.Handler) http.Handler) *App {
+func New(cfg *config.Config, provider *Provider, middlewares []func(http.Handler) http.Handler) *App {
 	serverCtx, stop := context.WithCancel(context.Background())
 	serverCfg := cfg.Server
 	server := &http.Server{
@@ -116,7 +116,7 @@ func New(cfg *config.Config, dbConn *sql.DB, provider *Provider, middlewares []f
 
 	return &App{
 		config:          cfg,
-		db:              dbConn,
+		db:              provider.DB,
 		txManager:       provider.TxMgr,
 		signer:          provider.Signer,
 		mailer:          provider.Mailer,
