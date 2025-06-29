@@ -69,7 +69,7 @@ func Load(envFile string) error {
 func Env(envVar string) (string, error) {
 	val, ok := os.LookupEnv(envVar)
 	if !ok {
-		return "", fmt.Errorf(message.EnvErrFmt, val)
+		return "", fmt.Errorf(message.FmtErrEnv, val)
 	}
 	return val, nil
 }
