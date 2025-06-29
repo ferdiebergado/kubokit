@@ -118,12 +118,14 @@ func TestHandler_LoginUser(t *testing.T) {
 	defaultDuration := 30 * timeUnit
 
 	tests := []struct {
-		name       string
-		input      auth.UserLoginRequest
-		code       int
-		loginFunc  func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken string, err error)
-		verifyFunc func(tokenString string) (string, error)
-		bakeFunc   func() (*http.Cookie, error)
+		name                      string
+		input                     auth.UserLoginRequest
+		code                      int
+		loginFunc                 func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken string, err error)
+		verifyFunc                func(tokenString string) (string, error)
+		bakeFunc                  func() (*http.Cookie, error)
+		gotBody, wantBody         any
+		refreshCookie, csrfCookie *http.Cookie
 	}{
 		{
 			name: "Registered user with verified email",
@@ -133,13 +135,45 @@ func TestHandler_LoginUser(t *testing.T) {
 			},
 			code: http.StatusOK,
 			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken string, err error) {
-				return "access_token", "refresh_token", nil
+				return "test_access_token", "test_refresh_token", nil
 			},
 			verifyFunc: func(tokenString string) (string, error) {
 				return testEmail, nil
 			},
 			bakeFunc: func() (*http.Cookie, error) {
-				return &http.Cookie{}, nil
+				cookie := &http.Cookie{
+					Name:     "csrf_token",
+					Value:    "test_csrf_token",
+					Path:     "/",
+					SameSite: http.SameSiteStrictMode,
+					MaxAge:   int(defaultDuration.Seconds()),
+					Secure:   true,
+				}
+				return cookie, nil
+			},
+			gotBody: &web.OKResponse[auth.UserLoginResponse]{},
+			wantBody: &web.OKResponse[auth.UserLoginResponse]{
+				Message: auth.MsgLoggedIn,
+				Data: auth.UserLoginResponse{
+					AccessToken: "test_access_token",
+				},
+			},
+			refreshCookie: &http.Cookie{
+				Name:     "refresh_token",
+				Value:    "test_refresh_token",
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+				MaxAge:   int(defaultDuration.Seconds()),
+				HttpOnly: true,
+				Secure:   true,
+			},
+			csrfCookie: &http.Cookie{
+				Name:     "csrf_token",
+				Value:    "test_csrf_token",
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+				MaxAge:   int(defaultDuration.Seconds()),
+				Secure:   true,
 			},
 		},
 	}
@@ -157,6 +191,12 @@ func TestHandler_LoginUser(t *testing.T) {
 				Cookie: &config.Cookie{
 					Name:   "refresh_token",
 					MaxAge: timex.Duration{Duration: defaultDuration},
+				},
+				CSRF: &config.CSRF{
+					CookieName:   "csrf_token",
+					HeaderName:   "X-CSRF-Token",
+					TokenLength:  8,
+					CookieMaxAge: timex.Duration{Duration: defaultDuration},
 				},
 			}
 			baker := &security.StubBaker{
@@ -177,6 +217,38 @@ func TestHandler_LoginUser(t *testing.T) {
 			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
 				t.Errorf(message.FmtErrStatusCode, gotCode, wantCode)
+			}
+
+			if err := json.Unmarshal(rec.Body.Bytes(), &tc.gotBody); err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(tc.gotBody, tc.wantBody) {
+				t.Errorf("rec.Body = %+v, want: %+v", tc.gotBody, tc.wantBody)
+			}
+
+			if tc.refreshCookie != nil {
+				cookies := rec.Result().Cookies()
+				gotCookie, err := web.FindCookie(cookies, cfg.Cookie.Name)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if !reflect.DeepEqual(gotCookie, tc.refreshCookie) {
+					t.Errorf("refreshCookie = %+v\n want: %+v", gotCookie, tc.refreshCookie)
+				}
+			}
+
+			if tc.csrfCookie != nil {
+				cookies := rec.Result().Cookies()
+				gotCookie, err := web.FindCookie(cookies, cfg.CSRF.CookieName)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if !reflect.DeepEqual(gotCookie, tc.csrfCookie) {
+					t.Errorf("csrfCookie = %+v\n want: %+v", gotCookie, tc.csrfCookie)
+				}
 			}
 		})
 	}
