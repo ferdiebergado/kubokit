@@ -16,6 +16,13 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/platform/validation"
 )
 
+const (
+	envSMTPHost = "SMTP_HOST"
+	envSMTPPort = "SMTP_PORT"
+	envSMTPUser = "SMTP_USER"
+	envSMTPPass = "SMTP_PASS"
+)
+
 type Provider struct {
 	DB        *sql.DB
 	Signer    jwt.Signer
@@ -55,14 +62,15 @@ func newProvider(cfg *config.Config, securityKey string, dbConn *sql.DB) (*Provi
 
 func createMailer(cfg *config.Email) (*email.SMTPMailer, error) {
 	const errFmt = "get env %q: %w"
-	smtpHost, err := getEnv(envHost)
+
+	smtpHost, err := getEnv(envSMTPHost)
 	if err != nil {
-		return nil, fmt.Errorf(errFmt, envHost, err)
+		return nil, fmt.Errorf(errFmt, envSMTPHost, err)
 	}
 
-	smtpPortStr, err := getEnv(envPort)
+	smtpPortStr, err := getEnv(envSMTPPort)
 	if err != nil {
-		return nil, fmt.Errorf(errFmt, envPort, err)
+		return nil, fmt.Errorf(errFmt, envSMTPPort, err)
 	}
 
 	smtpPort, err := strconv.Atoi(smtpPortStr)
@@ -70,14 +78,14 @@ func createMailer(cfg *config.Email) (*email.SMTPMailer, error) {
 		return nil, fmt.Errorf("convert smtp port string to int: %w", err)
 	}
 
-	smtpUser, err := getEnv(envUser)
+	smtpUser, err := getEnv(envSMTPUser)
 	if err != nil {
-		return nil, fmt.Errorf(errFmt, envUser, err)
+		return nil, fmt.Errorf(errFmt, envSMTPUser, err)
 	}
 
-	smtpPass, err := getEnv(envPass)
+	smtpPass, err := getEnv(envSMTPPass)
 	if err != nil {
-		return nil, fmt.Errorf(errFmt, envPass, err)
+		return nil, fmt.Errorf(errFmt, envSMTPPass, err)
 	}
 
 	smtpCfg := &email.SMTPConfig{
@@ -89,7 +97,7 @@ func createMailer(cfg *config.Email) (*email.SMTPMailer, error) {
 
 	mailer, err := email.NewSMTPMailer(smtpCfg, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("create smtp mailer: %w", err)
+		return nil, fmt.Errorf("new smtp mailer: %w", err)
 	}
 	return mailer, nil
 }

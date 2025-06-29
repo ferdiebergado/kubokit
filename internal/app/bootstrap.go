@@ -18,12 +18,8 @@ import (
 )
 
 const (
-	envEnv  = "ENV"
-	envKey  = "KEY"
-	envHost = "SMTP_HOST"
-	envPort = "SMTP_PORT"
-	envUser = "SMTP_USER"
-	envPass = "SMTP_PASS"
+	envEnv = "ENV"
+	envKey = "KEY"
 
 	cfgFile = "config.json"
 )
