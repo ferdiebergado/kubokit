@@ -80,11 +80,3 @@ func Run() error {
 
 	return nil
 }
-
-func getEnv(envVar string) (string, error) {
-	val, ok := os.LookupEnv(envVar)
-	if !ok {
-		return "", fmt.Errorf(message.EnvErrFmt, val)
-	}
-	return val, nil
-}
