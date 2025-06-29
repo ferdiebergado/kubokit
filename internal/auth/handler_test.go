@@ -108,6 +108,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 func TestHandler_LoginUser(t *testing.T) {
 	t.Parallel()
+
 	const (
 		testEmail = "test@example.com"
 		testPass  = "test"
@@ -144,6 +145,8 @@ func TestHandler_LoginUser(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			svc := &auth.StubService{
 				LoginUserFunc: tc.loginFunc,
 			}
@@ -167,7 +170,7 @@ func TestHandler_LoginUser(t *testing.T) {
 			authHandler := auth.NewHandler(svc, provider)
 
 			ctx := web.NewContextWithParams(context.Background(), tc.input)
-			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/", http.NoBody)
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/login", http.NoBody)
 			rec := httptest.NewRecorder()
 			authHandler.LoginUser(rec, req)
 
@@ -309,6 +312,216 @@ func TestHandler_ResetPassword(t *testing.T) {
 			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
 				t.Errorf(message.FmtErrStatusCode, gotCode, wantCode)
+			}
+		})
+	}
+}
+
+func TestHandler_RefreshToken(t *testing.T) {
+	t.Parallel()
+
+	const (
+		userID       = "1"
+		csrfToken    = "abc"
+		refreshToken = "123"
+		accessToken  = "xyz"
+		timeUnit     = time.Minute
+	)
+
+	defaultDuration := 30 * timeUnit
+
+	cfg := &config.Config{
+		Cookie: &config.Cookie{
+			Name:   "refresh_token",
+			MaxAge: timex.Duration{Duration: defaultDuration},
+		},
+		CSRF: &config.CSRF{
+			HeaderName:   "X-CSRF-Token",
+			CookieName:   "csrf_token",
+			TokenLength:  8,
+			CookieMaxAge: timex.Duration{Duration: defaultDuration},
+		},
+		JWT: &config.JWT{
+			JTILength:  8,
+			Issuer:     "test@example.com",
+			TTL:        timex.Duration{Duration: defaultDuration},
+			RefreshTTL: timex.Duration{Duration: defaultDuration},
+		},
+	}
+
+	tests := []struct {
+		name                      string
+		refreshCookie, csrfCookie *http.Cookie
+		csrfHeader                string
+		signer                    jwt.Signer
+		baker                     web.Baker
+		code                      int
+		gotBody                   any
+		wantBody                  any
+	}{
+		{
+			name: "With valid refresh, csrf tokens and header",
+			refreshCookie: &http.Cookie{
+				Name:     cfg.Cookie.Name,
+				Value:    "123",
+				MaxAge:   int(cfg.Cookie.MaxAge.Duration),
+				Secure:   true,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			},
+			csrfCookie: &http.Cookie{
+				Name:     cfg.CSRF.CookieName,
+				Value:    "abc",
+				MaxAge:   int(cfg.CSRF.CookieMaxAge.Duration),
+				Secure:   true,
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			},
+			csrfHeader: "abc",
+			signer: &jwt.StubSigner{
+				VerifyFunc: func(tokenString string) (string, error) {
+					return "1", nil
+				},
+				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+					return "xyz", nil
+				},
+			},
+			baker: &security.StubBaker{
+				BakeFunc: func() (*http.Cookie, error) {
+					return &http.Cookie{
+						Name:     cfg.CSRF.CookieName,
+						Value:    "abc",
+						MaxAge:   int(cfg.CSRF.CookieMaxAge.Duration),
+						Secure:   true,
+						Path:     "/",
+						SameSite: http.SameSiteStrictMode,
+					}, nil
+				},
+			},
+			code:    http.StatusOK,
+			gotBody: &web.OKResponse[auth.UserLoginResponse]{},
+			wantBody: &web.OKResponse[auth.UserLoginResponse]{
+				Message: "Token refreshed.",
+				Data: auth.UserLoginResponse{
+					AccessToken: "xyz",
+				},
+			},
+		},
+		{
+			name: "Missing refresh cookie",
+			csrfCookie: &http.Cookie{
+				Name:     cfg.CSRF.CookieName,
+				Value:    "abc",
+				MaxAge:   int(cfg.CSRF.CookieMaxAge.Duration),
+				Secure:   true,
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			},
+			csrfHeader: "abc",
+			code:       http.StatusUnauthorized,
+			gotBody:    &web.ErrorResponse{},
+			wantBody: &web.ErrorResponse{
+				Message: message.InvalidUser,
+			},
+		},
+		{
+			name: "Missing csrf cookie",
+			refreshCookie: &http.Cookie{
+				Name:     cfg.Cookie.Name,
+				Value:    "123",
+				MaxAge:   int(cfg.Cookie.MaxAge.Duration),
+				Secure:   true,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			},
+			csrfHeader: "abc",
+			code:       http.StatusForbidden,
+			gotBody:    &web.ErrorResponse{},
+			wantBody: &web.ErrorResponse{
+				Message: message.InvalidInput,
+			},
+		},
+		{
+			name: "Missing csrf header",
+			refreshCookie: &http.Cookie{
+				Name:     cfg.Cookie.Name,
+				Value:    "123",
+				MaxAge:   int(cfg.Cookie.MaxAge.Duration),
+				Secure:   true,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			},
+			csrfCookie: &http.Cookie{
+				Name:     cfg.CSRF.CookieName,
+				Value:    "abc",
+				MaxAge:   int(cfg.CSRF.CookieMaxAge.Duration),
+				Secure:   true,
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			},
+			code:    http.StatusForbidden,
+			gotBody: &web.ErrorResponse{},
+			wantBody: &web.ErrorResponse{
+				Message: message.InvalidInput,
+			},
+		},
+		{
+			name: "Missing csrf cookie and header",
+			refreshCookie: &http.Cookie{
+				Name:     cfg.Cookie.Name,
+				Value:    "123",
+				MaxAge:   int(cfg.Cookie.MaxAge.Duration),
+				Secure:   true,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			},
+			code:    http.StatusForbidden,
+			gotBody: &web.ErrorResponse{},
+			wantBody: &web.ErrorResponse{
+				Message: message.InvalidInput,
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			provider := &auth.Provider{
+				Cfg:    cfg,
+				Signer: tc.signer,
+				Baker:  tc.baker,
+			}
+			svc := &auth.StubService{}
+			authHandler := auth.NewHandler(svc, provider)
+
+			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", http.NoBody)
+			if tc.refreshCookie != nil {
+				req.AddCookie(tc.refreshCookie)
+			}
+			if tc.csrfCookie != nil {
+				req.AddCookie(tc.csrfCookie)
+			}
+			if tc.csrfHeader != "" {
+				req.Header.Set(cfg.CSRF.HeaderName, tc.csrfHeader)
+			}
+			rec := httptest.NewRecorder()
+			authHandler.RefreshToken(rec, req)
+
+			gotCode, wantCode := rec.Code, tc.code
+			if gotCode != wantCode {
+				t.Errorf(message.FmtErrStatusCode, gotCode, wantCode)
+			}
+
+			if err := json.Unmarshal(rec.Body.Bytes(), &tc.gotBody); err != nil {
+				t.Fatalf("unmarshal response body: %v", err)
+			}
+
+			if !reflect.DeepEqual(tc.gotBody, tc.wantBody) {
+				t.Errorf("rec.Body = %+v, want: %+v", tc.gotBody, tc.wantBody)
 			}
 		})
 	}
