@@ -159,7 +159,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, csrfCookie)
 
-	msg := "Logged in."
+	msg := MsgLoggedIn
 	data := &UserLoginResponse{
 		AccessToken: accessToken,
 	}
