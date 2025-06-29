@@ -133,9 +133,7 @@ func TestService_RegisterUser(t *testing.T) {
 				Mailer:  mailer,
 				Signer:  signer,
 				Cfg:     cfg,
-				DB:      nil,
 				UserSvc: userSvc,
-				Baker:   nil,
 				TXMgr:   stubTxMgr,
 			}
 

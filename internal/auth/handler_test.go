@@ -354,7 +354,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 		refreshCookie, csrfCookie *http.Cookie
 		csrfHeader                string
 		signer                    jwt.Signer
-		baker                     web.Baker
+		csrfBaker                 web.Baker
 		code                      int
 		gotBody                   any
 		wantBody                  any
@@ -387,7 +387,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 					return "xyz", nil
 				},
 			},
-			baker: &security.StubBaker{
+			csrfBaker: &security.StubBaker{
 				CheckFunc: func(c *http.Cookie) error {
 					return nil
 				},
@@ -411,7 +411,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 				Path:     "/",
 				SameSite: http.SameSiteStrictMode,
 			},
-			baker: &security.StubBaker{
+			csrfBaker: &security.StubBaker{
 				CheckFunc: func(c *http.Cookie) error {
 					return nil
 				},
@@ -442,7 +442,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 				Path:     "/",
 				SameSite: http.SameSiteStrictMode,
 			},
-			baker: &security.StubBaker{
+			csrfBaker: &security.StubBaker{
 				CheckFunc: func(c *http.Cookie) error {
 					return nil
 				},
@@ -470,7 +470,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 				HttpOnly: true,
 				SameSite: http.SameSiteStrictMode,
 			},
-			baker: &security.StubBaker{
+			csrfBaker: &security.StubBaker{
 				CheckFunc: func(c *http.Cookie) error {
 					return nil
 				},
@@ -501,7 +501,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 				Path:     "/",
 				SameSite: http.SameSiteStrictMode,
 			},
-			baker: &security.StubBaker{
+			csrfBaker: &security.StubBaker{
 				CheckFunc: func(c *http.Cookie) error {
 					return nil
 				},
@@ -523,7 +523,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 				HttpOnly: true,
 				SameSite: http.SameSiteStrictMode,
 			},
-			baker: &security.StubBaker{
+			csrfBaker: &security.StubBaker{
 				CheckFunc: func(c *http.Cookie) error {
 					return nil
 				},
@@ -553,7 +553,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 				Path:     "/",
 				SameSite: http.SameSiteStrictMode,
 			},
-			baker: &security.StubBaker{
+			csrfBaker: &security.StubBaker{
 				CheckFunc: func(c *http.Cookie) error {
 					return errors.New("mac mismatch")
 				},
@@ -573,7 +573,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			provider := &auth.Provider{
 				Cfg:       cfg,
 				Signer:    tc.signer,
-				CSRFBaker: tc.baker,
+				CSRFBaker: tc.csrfBaker,
 			}
 			svc := &auth.StubService{}
 			authHandler := auth.NewHandler(svc, provider)

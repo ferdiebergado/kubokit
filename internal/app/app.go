@@ -35,7 +35,7 @@ type App struct {
 	hasher          hash.Hasher
 	router          router.Router
 	txManager       db.TxManager
-	baker           web.Baker
+	csrfBaker       web.Baker
 }
 
 func (a *App) registerMiddlewares() {
@@ -50,14 +50,14 @@ func (a *App) setupRoutes() {
 	mountUserRoutes(a.router, userHandler, a.signer)
 
 	authProvider := &auth.Provider{
-		Cfg:     a.config,
-		DB:      a.db,
-		Hasher:  a.hasher,
-		Signer:  a.signer,
-		Mailer:  a.mailer,
-		UserSvc: userModule.Service(),
-		Baker:   a.baker,
-		TXMgr:   a.txManager,
+		Cfg:       a.config,
+		DB:        a.db,
+		Hasher:    a.hasher,
+		Signer:    a.signer,
+		Mailer:    a.mailer,
+		UserSvc:   userModule.Service(),
+		CSRFBaker: a.csrfBaker,
+		TXMgr:     a.txManager,
 	}
 	authModule := auth.NewModule(authProvider)
 	authHandler := authModule.Handler()
@@ -123,7 +123,7 @@ func New(cfg *config.Config, provider *Provider, middlewares []func(http.Handler
 		validator:       provider.Validator,
 		hasher:          provider.Hasher,
 		router:          provider.Router,
-		baker:           provider.Baker,
+		csrfBaker:       provider.CSRFBaker,
 		server:          server,
 		middlewares:     middlewares,
 		stop:            stop,

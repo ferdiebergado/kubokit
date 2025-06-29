@@ -13,14 +13,14 @@ import (
 )
 
 type Provider struct {
-	Cfg     *config.Config
-	DB      *sql.DB
-	Hasher  hash.Hasher
-	Signer  jwt.Signer
-	Mailer  email.Mailer
-	UserSvc user.UserService
-	Baker   web.Baker
-	TXMgr   db.TxManager
+	Cfg       *config.Config
+	DB        *sql.DB
+	Hasher    hash.Hasher
+	Signer    jwt.Signer
+	Mailer    email.Mailer
+	UserSvc   user.UserService
+	CSRFBaker web.Baker
+	TXMgr     db.TxManager
 }
 
 type Module struct {
