@@ -134,12 +134,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	params := LoginUserParams(req)
 	accessToken, refreshToken, err := h.svc.LoginUser(r.Context(), params)
 	if err != nil {
-		if errors.Is(err, user.ErrNotFound) {
-			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
-			return
-		}
-
-		if errors.Is(err, ErrUserNotVerified) {
+		if errors.Is(err, user.ErrNotFound) || errors.Is(err, ErrIncorrectPassword) || errors.Is(err, ErrUserNotVerified) {
 			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 			return
 		}

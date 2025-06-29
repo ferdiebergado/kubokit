@@ -17,8 +17,9 @@ import (
 var _ AuthService = &Service{}
 
 var (
-	ErrUserNotVerified = errors.New("email not verified")
-	ErrUserExists      = errors.New("user already exists")
+	ErrUserNotVerified   = errors.New("email not verified")
+	ErrUserExists        = errors.New("user already exists")
+	ErrIncorrectPassword = errors.New("incorrect password")
 )
 
 type AuthRepository interface {
@@ -141,7 +142,7 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (access
 	}
 
 	if !ok {
-		return "", "", fmt.Errorf("incorrect password: %w", user.ErrNotFound)
+		return "", "", ErrIncorrectPassword
 	}
 
 	ttl := s.cfg.JWT.TTL.Duration
