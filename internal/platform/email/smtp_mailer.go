@@ -18,13 +18,6 @@ var _ Mailer = &SMTPMailer{}
 
 type templateMap map[string]*template.Template
 
-type SMTPConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-}
-
 type SMTPMailer struct {
 	from      string
 	pass      string
