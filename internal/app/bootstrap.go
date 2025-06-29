@@ -10,10 +10,9 @@ import (
 	"syscall"
 
 	"github.com/ferdiebergado/goexpress"
-	"github.com/ferdiebergado/gopherkit/env"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
-	kenv "github.com/ferdiebergado/kubokit/internal/pkg/env"
+	"github.com/ferdiebergado/kubokit/internal/pkg/env"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 )
 
@@ -47,7 +46,7 @@ func Run() error {
 	}
 	defer dbConn.Close()
 
-	securityKey, err := kenv.Env(envKey)
+	securityKey, err := env.Env(envKey)
 	if err != nil {
 		return fmt.Errorf("get security key from env: %w", err)
 	}
@@ -65,13 +64,11 @@ func Run() error {
 		middleware.CheckContentType,
 	}
 
-	//nolint:contextcheck //This function internally creates a context with cancel.
 	api := New(cfg, provider, middlewares)
 	if err = api.Start(signalCtx); err != nil {
 		return fmt.Errorf("start server: %w", err)
 	}
 
-	//nolint:contextcheck //This function internally passes a context with timeout to the underlying http.Server Shutdown method.
 	if err := api.Shutdown(); err != nil {
 		return fmt.Errorf("api shutdown: %w", err)
 	}

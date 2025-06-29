@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/ferdiebergado/gopherkit/env"
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/pkg/env"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 )
 

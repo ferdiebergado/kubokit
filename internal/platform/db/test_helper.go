@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/ferdiebergado/gopherkit/env"
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/pkg/env"
 )
 
 func Setup(t *testing.T) (*sql.DB, *sql.Tx) {

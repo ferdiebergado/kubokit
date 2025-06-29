@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ferdiebergado/gopherkit/env"
 	"github.com/ferdiebergado/kubokit/internal/app"
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/pkg/env"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
