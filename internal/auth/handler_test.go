@@ -176,6 +176,72 @@ func TestHandler_LoginUser(t *testing.T) {
 				Secure:   true,
 			},
 		},
+		{
+			name: "Registered user with email not yet verified",
+			input: auth.UserLoginRequest{
+				Email:    testEmail,
+				Password: testPass,
+			},
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken string, err error) {
+				return "", "", auth.ErrUserNotVerified
+			},
+			verifyFunc: func(tokenString string) (string, error) {
+				return "", nil
+			},
+			bakeFunc: func() (*http.Cookie, error) {
+				cookie := &http.Cookie{}
+				return cookie, nil
+			},
+			code:    http.StatusUnauthorized,
+			gotBody: &web.ErrorResponse{},
+			wantBody: &web.ErrorResponse{
+				Message: message.InvalidUser,
+			},
+		},
+		{
+			name: "Unregistered user",
+			input: auth.UserLoginRequest{
+				Email:    testEmail,
+				Password: testPass,
+			},
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken string, err error) {
+				return "", "", user.ErrNotFound
+			},
+			verifyFunc: func(tokenString string) (string, error) {
+				return "", nil
+			},
+			bakeFunc: func() (*http.Cookie, error) {
+				cookie := &http.Cookie{}
+				return cookie, nil
+			},
+			code:    http.StatusUnauthorized,
+			gotBody: &web.ErrorResponse{},
+			wantBody: &web.ErrorResponse{
+				Message: message.InvalidUser,
+			},
+		},
+		{
+			name: "Incorrect password",
+			input: auth.UserLoginRequest{
+				Email:    testEmail,
+				Password: "anotherpass",
+			},
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken string, err error) {
+				return "", "", auth.ErrIncorrectPassword
+			},
+			verifyFunc: func(tokenString string) (string, error) {
+				return "", nil
+			},
+			bakeFunc: func() (*http.Cookie, error) {
+				cookie := &http.Cookie{}
+				return cookie, nil
+			},
+			code:    http.StatusUnauthorized,
+			gotBody: &web.ErrorResponse{},
+			wantBody: &web.ErrorResponse{
+				Message: message.InvalidUser,
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -227,29 +293,26 @@ func TestHandler_LoginUser(t *testing.T) {
 				t.Errorf("rec.Body = %+v, want: %+v", tc.gotBody, tc.wantBody)
 			}
 
-			if tc.refreshCookie != nil {
-				cookies := rec.Result().Cookies()
-				gotCookie, err := web.FindCookie(cookies, cfg.Cookie.Name)
-				if err != nil {
-					t.Fatal(err)
-				}
+			cookies := rec.Result().Cookies()
 
-				if !reflect.DeepEqual(gotCookie, tc.refreshCookie) {
-					t.Errorf("refreshCookie = %+v\n want: %+v", gotCookie, tc.refreshCookie)
-				}
+			refreshCookie, err := web.FindCookie(cookies, cfg.Cookie.Name)
+			if err != nil && tc.refreshCookie != nil {
+				t.Fatal(err)
 			}
 
-			if tc.csrfCookie != nil {
-				cookies := rec.Result().Cookies()
-				gotCookie, err := web.FindCookie(cookies, cfg.CSRF.CookieName)
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				if !reflect.DeepEqual(gotCookie, tc.csrfCookie) {
-					t.Errorf("csrfCookie = %+v\n want: %+v", gotCookie, tc.csrfCookie)
-				}
+			if !reflect.DeepEqual(refreshCookie, tc.refreshCookie) {
+				t.Errorf("refreshCookie = %+v\n want: %+v", refreshCookie, tc.refreshCookie)
 			}
+
+			csrfCookie, err := web.FindCookie(cookies, cfg.CSRF.CookieName)
+			if err != nil && tc.csrfCookie != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(csrfCookie, tc.csrfCookie) {
+				t.Errorf("csrfCookie = %+v\n want: %+v", csrfCookie, tc.csrfCookie)
+			}
+
 		})
 	}
 }
