@@ -48,14 +48,14 @@ func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
 //nolint:gosec //G101: No credentials are hardcoded.
 const queryUserChangePassword = "UPDATE users SET password_hash = $1 WHERE email = $2"
 
-func (r *Repository) ChangeUserPassword(ctx context.Context, email, newPassword string) error {
+func (r *Repository) ChangeUserPassword(ctx context.Context, email, passwordHash string) error {
 	// Get the current executor (either *sql.DB or *sql.Tx from context)
 	executor := r.db // Default to *sql.DB
 	if tx := db.TxFromContext(ctx); tx != nil {
 		executor = tx // Use the transaction if present in context
 	}
 
-	res, err := executor.ExecContext(ctx, queryUserChangePassword, newPassword, email)
+	res, err := executor.ExecContext(ctx, queryUserChangePassword, passwordHash, email)
 	if err != nil {
 		return fmt.Errorf("query to change password: %w", err)
 	}
