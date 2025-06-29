@@ -46,7 +46,7 @@ INSERT INTO users (id, email, password_hash, verified_at, metadata, created_at, 
 );
 `
 
-func TestIntegrationRepository_GetAllUsers(t *testing.T) {
+func TestIntegrationRepository_ListUsers(t *testing.T) {
 	t.Parallel()
 
 	conn, tx := db.Setup(t)
@@ -59,7 +59,7 @@ func TestIntegrationRepository_GetAllUsers(t *testing.T) {
 	ctx := context.Background()
 	txCtx := db.NewContextWithTx(ctx, tx)
 
-	row := tx.QueryRow("SELECT COUNT(*) FROM users")
+	row := tx.QueryRow("SELECT COUNT(id) FROM users")
 	var numUsers int
 	if err = row.Scan(&numUsers); err != nil {
 		t.Fatal(err)
@@ -139,7 +139,7 @@ func TestIntegrationRepository_FindUserByEmail(t *testing.T) {
 			CreatedAt: time.Date(2025, time.May, 9, 18, 0, 0, 0, time.Local),
 			UpdatedAt: time.Date(2025, time.May, 9, 18, 0, 0, 0, time.Local),
 		},
-		Email:        "alice@example.com",
+		Email:        testEmail,
 		PasswordHash: "$2a$10$e0MYzXyjpJS7Pd0RVvHwHeFx4fQnhdQnZZF9uG6x1Z1ZzR12uLh9e",
 		VerifiedAt:   &verifiedAt,
 	}
