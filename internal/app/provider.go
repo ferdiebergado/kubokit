@@ -39,7 +39,7 @@ func newProvider(cfg *config.Config, securityKey string, dbConn *sql.DB) (*Provi
 	hasher := hash.NewArgon2Hasher(cfg.Argon2, securityKey)
 	router := router.NewGoexpressRouter()
 	validator := validation.NewGoPlaygroundValidator()
-	baker := security.NewCSRFCookieBaker(cfg.CSRF)
+	baker := security.NewCSRFCookieBaker(cfg.CSRF, securityKey)
 	txMgr := db.NewSQLTxManager(dbConn)
 
 	provider := &Provider{

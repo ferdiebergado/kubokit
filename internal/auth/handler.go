@@ -29,10 +29,10 @@ type AuthService interface {
 }
 
 type Handler struct {
-	svc    AuthService
-	signer jwt.Signer
-	cfg    *config.Config
-	baker  web.Baker
+	svc       AuthService
+	signer    jwt.Signer
+	cfg       *config.Config
+	csrfBaker web.Baker
 }
 
 type RegisterUserRequest struct {
@@ -152,7 +152,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	refreshCookie := security.NewSecureCookie(refreshCookieCfg.Name, refreshToken, refreshCookieCfg.MaxAge.Duration)
 	http.SetCookie(w, refreshCookie)
 
-	csrfCookie, err := h.baker.Bake()
+	csrfCookie, err := h.csrfBaker.Bake()
 	if err != nil {
 		web.RespondInternalServerError(w, err)
 		return
@@ -179,6 +179,11 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	sentToken := r.Header.Get(csrfCfg.HeaderName)
 	if subtle.ConstantTimeCompare([]byte(csrfCookie.Value), []byte(sentToken)) == 0 {
 		web.RespondForbidden(w, errors.New("invalid CSRF token"), message.InvalidInput, nil)
+		return
+	}
+
+	if err := h.csrfBaker.Check(csrfCookie); err != nil {
+		web.RespondForbidden(w, err, message.InvalidInput, nil)
 		return
 	}
 
@@ -218,7 +223,7 @@ func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 	logoutCookie := security.NewSecureCookie(cookieName, "", -1)
 	http.SetCookie(w, logoutCookie)
 
-	csrfCookie, err := h.baker.Bake()
+	csrfCookie, err := h.csrfBaker.Bake()
 	if err != nil {
 		web.RespondInternalServerError(w, err)
 		return
@@ -296,9 +301,9 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 
 func NewHandler(userSvc AuthService, provider *Provider) *Handler {
 	return &Handler{
-		svc:    userSvc,
-		signer: provider.Signer,
-		cfg:    provider.Cfg,
-		baker:  provider.Baker,
+		svc:       userSvc,
+		signer:    provider.Signer,
+		cfg:       provider.Cfg,
+		csrfBaker: provider.CSRFBaker,
 	}
 }

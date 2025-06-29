@@ -163,9 +163,9 @@ func TestHandler_LoginUser(t *testing.T) {
 				BakeFunc: tc.bakeFunc,
 			}
 			provider := &auth.Provider{
-				Cfg:    cfg,
-				Signer: signer,
-				Baker:  baker,
+				Cfg:       cfg,
+				Signer:    signer,
+				CSRFBaker: baker,
 			}
 			authHandler := auth.NewHandler(svc, provider)
 
@@ -388,15 +388,8 @@ func TestHandler_RefreshToken(t *testing.T) {
 				},
 			},
 			baker: &security.StubBaker{
-				BakeFunc: func() (*http.Cookie, error) {
-					return &http.Cookie{
-						Name:     cfg.CSRF.CookieName,
-						Value:    "abc",
-						MaxAge:   int(cfg.CSRF.CookieMaxAge.Duration),
-						Secure:   true,
-						Path:     "/",
-						SameSite: http.SameSiteStrictMode,
-					}, nil
+				CheckFunc: func(c *http.Cookie) error {
+					return nil
 				},
 			},
 			code:    http.StatusOK,
@@ -418,9 +411,50 @@ func TestHandler_RefreshToken(t *testing.T) {
 				Path:     "/",
 				SameSite: http.SameSiteStrictMode,
 			},
+			baker: &security.StubBaker{
+				CheckFunc: func(c *http.Cookie) error {
+					return nil
+				},
+			},
 			csrfHeader: "abc",
 			code:       http.StatusUnauthorized,
 			gotBody:    &web.ErrorResponse{},
+			wantBody: &web.ErrorResponse{
+				Message: message.InvalidUser,
+			},
+		},
+		{
+			name: "Expired refresh cookie",
+			refreshCookie: &http.Cookie{
+				Name:     cfg.Cookie.Name,
+				Value:    "123",
+				MaxAge:   int(cfg.Cookie.MaxAge.Duration),
+				Secure:   true,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			},
+			csrfCookie: &http.Cookie{
+				Name:     cfg.CSRF.CookieName,
+				Value:    "abc",
+				MaxAge:   int(cfg.CSRF.CookieMaxAge.Duration),
+				Secure:   true,
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			},
+			baker: &security.StubBaker{
+				CheckFunc: func(c *http.Cookie) error {
+					return nil
+				},
+			},
+			csrfHeader: "abc",
+			code:       http.StatusUnauthorized,
+			signer: &jwt.StubSigner{
+				VerifyFunc: func(tokenString string) (string, error) {
+					return "", errors.New("token is expired")
+				},
+			},
+			gotBody: &web.ErrorResponse{},
 			wantBody: &web.ErrorResponse{
 				Message: message.InvalidUser,
 			},
@@ -435,6 +469,11 @@ func TestHandler_RefreshToken(t *testing.T) {
 				Path:     "/",
 				HttpOnly: true,
 				SameSite: http.SameSiteStrictMode,
+			},
+			baker: &security.StubBaker{
+				CheckFunc: func(c *http.Cookie) error {
+					return nil
+				},
 			},
 			csrfHeader: "abc",
 			code:       http.StatusForbidden,
@@ -462,6 +501,11 @@ func TestHandler_RefreshToken(t *testing.T) {
 				Path:     "/",
 				SameSite: http.SameSiteStrictMode,
 			},
+			baker: &security.StubBaker{
+				CheckFunc: func(c *http.Cookie) error {
+					return nil
+				},
+			},
 			code:    http.StatusForbidden,
 			gotBody: &web.ErrorResponse{},
 			wantBody: &web.ErrorResponse{
@@ -479,8 +523,44 @@ func TestHandler_RefreshToken(t *testing.T) {
 				HttpOnly: true,
 				SameSite: http.SameSiteStrictMode,
 			},
+			baker: &security.StubBaker{
+				CheckFunc: func(c *http.Cookie) error {
+					return nil
+				},
+			},
 			code:    http.StatusForbidden,
 			gotBody: &web.ErrorResponse{},
+			wantBody: &web.ErrorResponse{
+				Message: message.InvalidInput,
+			},
+		},
+		{
+			name: "Invalid csrf signature",
+			refreshCookie: &http.Cookie{
+				Name:     cfg.Cookie.Name,
+				Value:    "123",
+				MaxAge:   int(cfg.Cookie.MaxAge.Duration),
+				Secure:   true,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			},
+			csrfCookie: &http.Cookie{
+				Name:     cfg.CSRF.CookieName,
+				Value:    "abc",
+				MaxAge:   int(cfg.CSRF.CookieMaxAge.Duration),
+				Secure:   true,
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			},
+			baker: &security.StubBaker{
+				CheckFunc: func(c *http.Cookie) error {
+					return errors.New("mac mismatch")
+				},
+			},
+			csrfHeader: "abc",
+			code:       http.StatusForbidden,
+			gotBody:    &web.ErrorResponse{},
 			wantBody: &web.ErrorResponse{
 				Message: message.InvalidInput,
 			},
@@ -491,9 +571,9 @@ func TestHandler_RefreshToken(t *testing.T) {
 			t.Parallel()
 
 			provider := &auth.Provider{
-				Cfg:    cfg,
-				Signer: tc.signer,
-				Baker:  tc.baker,
+				Cfg:       cfg,
+				Signer:    tc.signer,
+				CSRFBaker: tc.baker,
 			}
 			svc := &auth.StubService{}
 			authHandler := auth.NewHandler(svc, provider)
