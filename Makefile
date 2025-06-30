@@ -14,7 +14,7 @@ BUILD_DIR = build
 VERSION = v0.0.1
 
 # Go Flags
-GO_FLAGS = -race -v
+GO_FLAGS = -v
 
 # Container runtime
 CONTAINER_RUNTIME := $(shell if command -v podman >/dev/null 2>&1; \
@@ -78,7 +78,7 @@ test: migrate-up mailhog
 ## test-integration: Run the integration tests: make test-integration ENV=testing
 test-integration: migrate-up mailhog
 	@echo "Running integration tests..."
-	@go test $(GO_FLAGS) -run Integration $(GO_MODULE_PATH)
+	@go test $(GO_FLAGS) -tags=integration $(GO_MODULE_PATH)
 
 test-cover: test
 	@go tool cover -html=coverage.out

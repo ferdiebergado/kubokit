@@ -1,3 +1,5 @@
+//go:build integration
+
 package app_test
 
 import (
@@ -58,7 +60,7 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 	return api, cleanUpFunc
 }
 
-func TestIntegration_StartAndShutdown(t *testing.T) {
+func TestIntegrationApp_StartAndShutdown(t *testing.T) {
 	app, cleanup := setupApp(t)
 	defer cleanup()
 
