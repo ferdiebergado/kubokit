@@ -12,6 +12,7 @@ import (
 
 func TestSMTPMailer_SendHTML(t *testing.T) {
 	t.Parallel()
+
 	const rootPath = "../../../"
 	if err := env.Load(rootPath + ".env.testing"); err != nil {
 		t.Fatal(err)
@@ -23,7 +24,7 @@ func TestSMTPMailer_SendHTML(t *testing.T) {
 	}
 
 	user := os.Getenv("SMTP_USER")
-	smtpCfg := &email.SMTPConfig{
+	smtpCfg := &config.SMTP{
 		Host:     os.Getenv("SMTP_HOST"),
 		Port:     port,
 		User:     user,

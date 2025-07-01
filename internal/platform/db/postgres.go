@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"os"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -14,16 +13,9 @@ import (
 // NewPostgresDB creates and validates a postgres database connection.
 func NewPostgresDB(signalCtx context.Context, cfg *config.DB) (*sql.DB, error) {
 	slog.Info("Connecting to the database...")
-	const dsnFmt = "postgres://%s:%s@%s:%s/%s?sslmode=%s"
 
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPass := os.Getenv("DB_PASS")
-	dbName := os.Getenv("DB_NAME")
-	dbSSL := os.Getenv("DB_SSLMODE")
-
-	dsn := fmt.Sprintf(dsnFmt, dbUser, dbPass, dbHost, dbPort, dbName, dbSSL)
+	const dsnFmt = "postgres://%s:%s@%s:%d/%s?sslmode=%s"
+	dsn := fmt.Sprintf(dsnFmt, cfg.User, cfg.Pass, cfg.Host, cfg.Port, cfg.Name, cfg.SSLMode)
 	conn, err := sql.Open(cfg.Driver, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
@@ -41,7 +33,7 @@ func NewPostgresDB(signalCtx context.Context, cfg *config.DB) (*sql.DB, error) {
 		return nil, fmt.Errorf("connect to database: %w", err)
 	}
 
-	slog.Info("Connected to the database.", "db", dbName)
+	slog.Info("Connected to the database.", "db", cfg.Name)
 
 	return conn, nil
 }

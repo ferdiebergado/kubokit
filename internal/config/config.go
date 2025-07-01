@@ -6,14 +6,28 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strconv"
 
+	"github.com/ferdiebergado/kubokit/internal/pkg/env"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 )
 
+const maskChar = "*"
+
+type App struct {
+	Env string `json:"env,omitempty" env:"ENV"`
+	Key string `json:"key,omitempty" env:"KEY"`
+}
+
+func (a *App) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("env", a.Env),
+		slog.String("key", maskChar),
+	)
+}
+
 type Server struct {
-	URL             string         `json:"url,omitempty"`
-	Port            int            `json:"port,omitempty"`
+	URL             string         `json:"url,omitempty" env:"URL"`
+	Port            int            `json:"port,omitempty" env:"PORT"`
 	ReadTimeout     timex.Duration `json:"read_timeout,omitempty"`
 	WriteTimeout    timex.Duration `json:"write_timeout,omitempty"`
 	IdleTimeout     timex.Duration `json:"idle_timeout,omitempty"`
@@ -22,12 +36,36 @@ type Server struct {
 }
 
 type DB struct {
+	Host    string `json:"host,omitempty" env:"DB_HOST"`
+	Port    int    `json:"port,omitempty" env:"DB_PORT"`
+	User    string `json:"user,omitempty" env:"DB_USER"`
+	Pass    string `json:"pass,omitempty" env:"DB_PASS"`
+	Name    string `json:"name,omitempty" env:"DB_NAME"`
+	SSLMode string `json:"ssl_mode,omitempty" env:"DB_SSLMODE"`
+
 	Driver          string         `json:"driver,omitempty"`
 	MaxOpenConns    int            `json:"max_open_conns,omitempty"`
 	MaxIdleConns    int            `json:"max_idle_conns,omitempty"`
 	ConnMaxIdleTime timex.Duration `json:"conn_max_idle_time,omitempty"`
 	ConnMaxLifetime timex.Duration `json:"conn_max_lifetime,omitempty"`
 	PingTimeout     timex.Duration `json:"ping_timeout,omitempty"`
+}
+
+func (d *DB) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("host", d.Host),
+		slog.Int("port", d.Port),
+		slog.String("user", d.User),
+		slog.String("pass", maskChar),
+		slog.String("name", d.Name),
+		slog.String("ssl_mode", d.SSLMode),
+		slog.String("driver", d.Driver),
+		slog.Int("max_open_conns", d.MaxOpenConns),
+		slog.Int("max_idle_conns", d.MaxIdleConns),
+		slog.Duration("conn_max_idle", d.ConnMaxIdleTime.Duration),
+		slog.Duration("conn_max_lifetime", d.ConnMaxLifetime.Duration),
+		slog.Duration("ping_timeout", d.PingTimeout.Duration),
+	)
 }
 
 type JWT struct {
@@ -49,6 +87,22 @@ type Email struct {
 	VerifyTTL timex.Duration `json:"verify_ttl,omitempty"`
 }
 
+type SMTP struct {
+	Host     string `json:"host,omitempty" env:"SMTP_HOST"`
+	Port     int    `json:"port,omitempty" env:"SMTP_PORT"`
+	User     string `json:"user,omitempty" env:"SMTP_USER"`
+	Password string `json:"password,omitempty" env:"SMTP_PASS"`
+}
+
+func (s *SMTP) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("host", s.Host),
+		slog.Int("port", s.Port),
+		slog.String("user", s.User),
+		slog.String("pass", maskChar),
+	)
+}
+
 type Argon2 struct {
 	Memory     uint32 `json:"memory,omitempty"`
 	Iterations uint32 `json:"iterations,omitempty"`
@@ -65,24 +119,28 @@ type CSRF struct {
 }
 
 type Config struct {
+	*App    `json:"app,omitempty"`
 	*Server `json:"server,omitempty"`
 	*DB     `json:"db,omitempty"`
 	*JWT    `json:"jwt,omitempty"`
 	*Cookie `json:"cookie,omitempty"`
+	*SMTP   `json:"smtp,omitempty"`
 	*Email  `json:"email,omitempty"`
 	*Argon2 `json:"argon2,omitempty"`
 	*CSRF   `json:"csrf,omitempty"`
 }
 
-func (o *Config) LogValue() slog.Value {
+func (c *Config) LogValue() slog.Value {
 	return slog.GroupValue(
-		slog.Any("server", o.Server),
-		slog.Any("db", o.DB),
-		slog.Any("jwt", o.JWT),
-		slog.Any("cookie", o.Cookie),
-		slog.Any("email", o.Email),
-		slog.Any("argon2", o.Argon2),
-		slog.Any("csrf", o.CSRF),
+		slog.Any("app", c.App),
+		slog.Any("server", c.Server),
+		slog.Any("db", c.DB),
+		slog.Any("jwt", c.JWT),
+		slog.Any("cookie", c.Cookie),
+		slog.Any("smtp", c.SMTP),
+		slog.Any("email", c.Email),
+		slog.Any("argon2", c.Argon2),
+		slog.Any("csrf", c.CSRF),
 	)
 }
 
@@ -93,7 +151,7 @@ func Load(cfgFile string) (*Config, error) {
 		return nil, fmt.Errorf("parse config file %q: %w", cfgFile, err)
 	}
 
-	if err := overrideWithEnv(cfg); err != nil {
+	if err := env.OverrideStruct(cfg); err != nil {
 		return nil, fmt.Errorf("override with env: %w", err)
 	}
 
@@ -114,19 +172,4 @@ func parseCfgFile(cfgFile string) (*Config, error) {
 	}
 
 	return &cfg, nil
-}
-
-func overrideWithEnv(cfg *Config) error {
-	if url, ok := os.LookupEnv("URL"); ok {
-		cfg.Server.URL = url
-	}
-
-	if portStr, ok := os.LookupEnv("PORT"); ok {
-		port, err := strconv.Atoi(portStr)
-		if err != nil {
-			return fmt.Errorf("convert port string %q to integer: %w", portStr, err)
-		}
-		cfg.Server.Port = port
-	}
-	return nil
 }

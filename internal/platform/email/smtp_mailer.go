@@ -85,7 +85,7 @@ func (e *SMTPMailer) SendPlain(to []string, subject string, body string) error {
 	return e.send(to, subject, body, "text/plain")
 }
 
-func NewSMTPMailer(cfg *SMTPConfig, opts *config.Email) (*SMTPMailer, error) {
+func NewSMTPMailer(cfg *config.SMTP, opts *config.Email) (*SMTPMailer, error) {
 	path := opts.Templates
 	layoutFile := filepath.Join(path, opts.Layout)
 	tmplMap, err := parsePages(path, layoutFile)

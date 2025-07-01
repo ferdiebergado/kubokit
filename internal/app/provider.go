@@ -28,11 +28,7 @@ type Provider struct {
 
 func newProvider(cfg *config.Config, securityKey string, dbConn *sql.DB) (*Provider, error) {
 	signer := jwt.NewGolangJWTSigner(securityKey, cfg.JWT)
-	smtpCfg, err := email.NewSMTPConfig()
-	if err != nil {
-		return nil, fmt.Errorf("new smtp config: %w", err)
-	}
-	mailer, err := email.NewSMTPMailer(smtpCfg, cfg.Email)
+	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
 	if err != nil {
 		return nil, fmt.Errorf("new smtp mailer: %w", err)
 	}

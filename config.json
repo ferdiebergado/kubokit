@@ -1,4 +1,8 @@
 {
+  "app": {
+    "env": "development",
+    "key": "secure_random_key"
+  },
   "server": {
     "url": "localhost:8080",
     "port": 8080,
@@ -9,6 +13,12 @@
     "max_body_bytes": 1024000
   },
   "db": {
+    "host": "localhost",
+    "port": 5432,
+    "user": "postgres",
+    "pass": "postgres",
+    "name": "postgres",
+    "ssl_mode": "require",
     "driver": "pgx",
     "max_open_conns": 30,
     "max_idle_conns": 10,
@@ -25,6 +35,12 @@
   "cookie": {
     "name": "refresh_token",
     "max_age": "24h"
+  },
+  "smtp": {
+    "host": "localhost",
+    "port": 1080,
+    "user": "user@example.com",
+    "password": "example"
   },
   "email": {
     "templates": "web/templates",
