@@ -14,15 +14,18 @@ import (
 const maskChar = "*"
 
 type App struct {
-	Env string `json:"env,omitempty" env:"ENV"`
-	Key string `json:"key,omitempty" env:"KEY"`
-	URL string `json:"url,omitempty" env:"URL"`
+	Env      string `json:"env,omitempty" env:"ENV"`
+	Key      string `json:"key,omitempty" env:"KEY"`
+	URL      string `json:"url,omitempty" env:"URL"`
+	LogLevel string `json:"log_level,omitempty" env:"LOG_LEVEL"`
 }
 
 func (a *App) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("env", a.Env),
 		slog.String("key", maskChar),
+		slog.String("url", a.URL),
+		slog.String("log_level", a.LogLevel),
 	)
 }
 

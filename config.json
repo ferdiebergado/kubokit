@@ -1,10 +1,11 @@
 {
   "app": {
     "env": "development",
-    "key": "secure_random_key"
+    "key": "secure_random_key",
+    "url": "localhost:8080",
+    "log_level": "info"
   },
   "server": {
-    "url": "localhost:8080",
     "port": 8080,
     "read_timeout": "10s",
     "write_timeout": "20s",

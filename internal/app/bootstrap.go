@@ -13,23 +13,29 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
 	"github.com/ferdiebergado/kubokit/internal/pkg/env"
+	"github.com/ferdiebergado/kubokit/internal/pkg/logging"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 )
 
 const (
-	envEnv = "ENV"
-	envKey = "KEY"
+	envEnv      = "ENV"
+	envLogLevel = "LOG_LEVEL"
 
 	cfgFile = "config.json"
 )
 
 func Run() error {
-	slog.Info("Starting server...")
-
 	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
-	if os.Getenv(envEnv) != "production" {
+	appEnv := os.Getenv(envEnv)
+	logLevel := os.Getenv(envLogLevel)
+
+	logging.SetupLogger(appEnv, logLevel, os.Stdout)
+
+	slog.Info("Starting server...")
+
+	if appEnv != "production" {
 		if err := env.Load(".env"); err != nil {
 			return fmt.Errorf("load env: %w", err)
 		}
