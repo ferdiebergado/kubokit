@@ -116,8 +116,10 @@ func TestService_RegisterUser(t *testing.T) {
 			}
 
 			cfg := &config.Config{
+				App: &config.App{
+					URL: "localhost:8888",
+				},
 				Server: &config.Server{
-					URL:  "localhost:8888",
 					Port: 8888,
 				},
 				Email: &config.Email{

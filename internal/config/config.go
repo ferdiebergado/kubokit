@@ -16,6 +16,7 @@ const maskChar = "*"
 type App struct {
 	Env string `json:"env,omitempty" env:"ENV"`
 	Key string `json:"key,omitempty" env:"KEY"`
+	URL string `json:"url,omitempty" env:"URL"`
 }
 
 func (a *App) LogValue() slog.Value {
@@ -26,7 +27,6 @@ func (a *App) LogValue() slog.Value {
 }
 
 type Server struct {
-	URL             string         `json:"url,omitempty" env:"URL"`
 	Port            int            `json:"port,omitempty" env:"PORT"`
 	ReadTimeout     timex.Duration `json:"read_timeout,omitempty"`
 	WriteTimeout    timex.Duration `json:"write_timeout,omitempty"`

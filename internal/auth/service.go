@@ -88,7 +88,7 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 func (s *Service) sendEmail(email *HTMLEmail) {
 	slog.Info("Sending email...")
 
-	audience := s.cfg.Server.URL + email.URI
+	audience := s.cfg.App.URL + email.URI
 	ttl := s.cfg.Email.VerifyTTL.Duration
 	token, err := s.signer.Sign(email.Payload, []string{audience}, ttl)
 	if err != nil {
