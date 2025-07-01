@@ -46,12 +46,7 @@ func Run() error {
 	}
 	defer dbConn.Close()
 
-	securityKey, err := env.Env(envKey)
-	if err != nil {
-		return fmt.Errorf("get security key from env: %w", err)
-	}
-
-	provider, err := newProvider(cfg, securityKey, dbConn)
+	provider, err := newProvider(cfg, dbConn)
 	if err != nil {
 		return fmt.Errorf("setup providers: %w", err)
 	}

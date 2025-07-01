@@ -26,7 +26,8 @@ type Provider struct {
 	TxMgr     db.TxManager
 }
 
-func newProvider(cfg *config.Config, securityKey string, dbConn *sql.DB) (*Provider, error) {
+func newProvider(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
+	securityKey := cfg.App.Key
 	signer := jwt.NewGolangJWTSigner(securityKey, cfg.JWT)
 	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
 	if err != nil {
