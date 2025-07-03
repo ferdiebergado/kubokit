@@ -56,7 +56,7 @@ func (s *GolangJWTSigner) Verify(tokenString string) (string, error) {
 	return claims.Subject, nil
 }
 
-func NewGolangJWTSigner(key string, cfg *config.JWT) *GolangJWTSigner {
+func NewGolangJWTSigner(cfg *config.JWT, key string) *GolangJWTSigner {
 	return &GolangJWTSigner{
 		method: jwt.SigningMethodHS256,
 		key:    key,

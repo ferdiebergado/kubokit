@@ -43,7 +43,7 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 
 	provider := &app.Provider{
 		DB:        conn,
-		Signer:    jwt.NewGolangJWTSigner("testsecret", cfg.JWT),
+		Signer:    jwt.NewGolangJWTSigner(cfg.JWT, "testsecret"),
 		Mailer:    &email.SMTPMailer{},
 		Validator: validation.NewGoPlaygroundValidator(),
 		Hasher:    hash.NewArgon2Hasher(cfg.Argon2, "testsecret"),
