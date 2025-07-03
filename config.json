@@ -2,8 +2,9 @@
   "app": {
     "env": "development",
     "key": "secure_random_key",
-    "url": "localhost:8080",
-    "log_level": "info"
+    "url": "http://localhost:8080",
+    "log_level": "info",
+    "allowed_origin": "http://localhost:3000"
   },
   "server": {
     "port": 8080,
