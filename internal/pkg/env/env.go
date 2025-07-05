@@ -191,6 +191,9 @@ func setReflectFieldValue(field *reflect.StructField, fieldValue *reflect.Value,
 // Env returns the value of the environment variable named by the key.
 // If the variable is not present in the environment, it returns the provided fallback value.
 func Env(key, fallback string) string {
+	if key == "" || fallback == "" {
+		return ""
+	}
 	if val, ok := os.LookupEnv(key); ok {
 		return val
 	}
