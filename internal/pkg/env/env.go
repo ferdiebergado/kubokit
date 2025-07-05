@@ -153,13 +153,30 @@ func setFieldFromEnv(field *reflect.StructField, fieldValue *reflect.Value) erro
 			return fmt.Errorf("failed to parse int for field %s from env var %s: %w", field.Name, envVarName, err)
 		}
 		fieldValue.SetInt(intValue)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		uintValue, err := strconv.ParseUint(envVarValue, 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse uint for field %s from env var %s: %w", field.Name, envVarName, err)
+		}
+		fieldValue.SetUint(uintValue)
+	case reflect.Float32, reflect.Float64:
+		floatValue, err := strconv.ParseFloat(envVarValue, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse float for field %s from env var %s: %w", field.Name, envVarName, err)
+		}
+		fieldValue.SetFloat(floatValue)
 	case reflect.Bool:
 		boolValue, err := strconv.ParseBool(envVarValue)
 		if err != nil {
 			return fmt.Errorf("failed to parse bool for field %s from env var %s: %w", field.Name, envVarName, err)
 		}
 		fieldValue.SetBool(boolValue)
-	// Add more cases for other types (float, uint, etc.) as needed
+	case reflect.Invalid:
+		return fmt.Errorf("unsupported field type Invalid for field %s (env var: %s)", field.Name, envVarName)
+	case reflect.Complex64, reflect.Complex128:
+		return fmt.Errorf("unsupported field type Complex for field %s (env var: %s)", field.Name, envVarName)
+	case reflect.Array, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice, reflect.Struct, reflect.UnsafePointer:
+		return fmt.Errorf("unsupported field type %s for field %s (env var: %s)", fieldValue.Kind(), field.Name, envVarName)
 	default:
 		return fmt.Errorf("unsupported field type %s for field %s (env var: %s)", fieldValue.Kind(), field.Name, envVarName)
 	}
