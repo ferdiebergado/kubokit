@@ -144,6 +144,11 @@ func setFieldFromEnv(field *reflect.StructField, fieldValue *reflect.Value) erro
 		slog.Warn("Field cannot be set directly (e.g., unexported, complex type not handled).", "field", field.Name)
 		return nil
 	}
+	return setReflectFieldValue(field, fieldValue, envVarName, envVarValue)
+}
+
+// setReflectFieldValue sets the value of a reflect.Value based on its kind and the provided string value.
+func setReflectFieldValue(field *reflect.StructField, fieldValue *reflect.Value, envVarName, envVarValue string) error {
 	switch fieldValue.Kind() {
 	case reflect.String:
 		fieldValue.SetString(envVarValue)
