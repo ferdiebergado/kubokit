@@ -48,3 +48,26 @@ func TestOverrideStruct(t *testing.T) {
 		t.Errorf("env.OverrideStruct(&got) = %+v, want: %+v", got, want)
 	}
 }
+
+func TestEnv(t *testing.T) {
+	const fallback = "example.com"
+
+	tests := []struct {
+		name, envVar, envVal, fallback, val string
+	}{
+		{"EnvVar is set", "HOST", "localhost", fallback, "localhost"},
+		{"EnvVar is not set", "HOST", "", fallback, fallback},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.envVal != "" {
+				t.Setenv(tc.envVar, tc.envVal)
+			}
+			val := env.Env(tc.envVar, tc.fallback)
+
+			if val != tc.val {
+				t.Errorf("env.Env(%q, %q) = %q, want: %q", tc.envVar, tc.fallback, val, tc.val)
+			}
+		})
+	}
+}
