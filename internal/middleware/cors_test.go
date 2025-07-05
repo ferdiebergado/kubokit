@@ -11,17 +11,7 @@ import (
 func TestMiddleware_CORS(t *testing.T) {
 	t.Parallel()
 
-	const (
-		allowedOrigin  = "localhost:3000"
-		allowedHeaders = "Content-Type, Authorization, X-CSRF-Token"
-		allowedMethods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-		allowedCreds   = "true"
-
-		headerAllowOrigin  = "Access-Control-Allow-Origin"
-		headerAllowCreds   = "Access-Control-Allow-Credentials"
-		headerAllowHeaders = "Access-Control-Allow-Headers"
-		headerAllowMethods = "Access-Control-Allow-Methods"
-	)
+	const allowedOrigin = "localhost:3000"
 
 	tests := []struct {
 		name, method, origin string
@@ -34,10 +24,10 @@ func TestMiddleware_CORS(t *testing.T) {
 			origin: allowedOrigin,
 			code:   http.StatusOK,
 			headers: map[string]string{
-				headerAllowOrigin:  allowedOrigin,
-				headerAllowCreds:   allowedCreds,
-				headerAllowHeaders: allowedHeaders,
-				headerAllowMethods: allowedMethods,
+				middleware.HeaderAllowOrigin:  allowedOrigin,
+				middleware.HeaderAllowMethods: middleware.AllowedMethods,
+				middleware.HeaderAllowHeaders: middleware.AllowedHeaders,
+				middleware.HeaderAllowCreds:   middleware.AllowedCreds,
 			},
 		},
 		{
@@ -46,10 +36,10 @@ func TestMiddleware_CORS(t *testing.T) {
 			origin: allowedOrigin,
 			code:   http.StatusOK,
 			headers: map[string]string{
-				headerAllowOrigin:  allowedOrigin,
-				headerAllowCreds:   allowedCreds,
-				headerAllowHeaders: allowedHeaders,
-				headerAllowMethods: allowedMethods,
+				middleware.HeaderAllowOrigin:  allowedOrigin,
+				middleware.HeaderAllowMethods: middleware.AllowedMethods,
+				middleware.HeaderAllowHeaders: middleware.AllowedHeaders,
+				middleware.HeaderAllowCreds:   middleware.AllowedCreds,
 			},
 		},
 		{
@@ -58,10 +48,10 @@ func TestMiddleware_CORS(t *testing.T) {
 			origin: allowedOrigin,
 			code:   http.StatusNoContent,
 			headers: map[string]string{
-				headerAllowOrigin:  allowedOrigin,
-				headerAllowCreds:   allowedCreds,
-				headerAllowHeaders: allowedHeaders,
-				headerAllowMethods: allowedMethods,
+				middleware.HeaderAllowOrigin:  allowedOrigin,
+				middleware.HeaderAllowMethods: middleware.AllowedMethods,
+				middleware.HeaderAllowHeaders: middleware.AllowedHeaders,
+				middleware.HeaderAllowCreds:   middleware.AllowedCreds,
 			},
 		},
 		{
