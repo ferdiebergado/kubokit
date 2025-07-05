@@ -11,6 +11,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
+	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -210,14 +211,14 @@ func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) err
 	})
 }
 
-func NewService(repo AuthRepository, provider *Provider) *Service {
+func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.UserService) *Service {
 	return &Service{
 		repo:      repo,
-		userSvc:   provider.UserSvc,
+		userSvc:   userSvc,
 		hasher:    provider.Hasher,
 		mailer:    provider.Mailer,
 		signer:    provider.Signer,
 		cfg:       provider.Cfg,
-		txManager: provider.TXMgr,
+		txManager: provider.TxMgr,
 	}
 }

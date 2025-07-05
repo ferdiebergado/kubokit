@@ -20,6 +20,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/platform/router"
 	"github.com/ferdiebergado/kubokit/internal/platform/validation"
+	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -37,6 +38,9 @@ type App struct {
 	router          router.Router
 	txManager       db.TxManager
 	csrfBaker       web.Baker
+	userHandler     *user.Handler
+	userSvc         user.UserService
+	authHandler     *auth.Handler
 }
 
 func (a *App) registerMiddlewares() {
@@ -51,23 +55,30 @@ func (a *App) registerMiddlewares() {
 }
 
 func (a *App) setupRoutes() {
-	userModule := user.NewModule(a.db)
-	userHandler := userModule.Handler()
-	mountUserRoutes(a.router, userHandler, a.signer)
+	maxBodySize := a.config.Server.MaxBodyBytes
 
-	authProvider := &auth.Provider{
-		Cfg:       a.config,
-		DB:        a.db,
-		Hasher:    a.hasher,
-		Signer:    a.signer,
-		Mailer:    a.mailer,
-		UserSvc:   userModule.Service(),
-		CSRFBaker: a.csrfBaker,
-		TXMgr:     a.txManager,
-	}
-	authModule := auth.NewModule(authProvider)
-	authHandler := authModule.Handler()
-	mountAuthRoutes(a.router, authHandler, a.validator, authProvider)
+	a.router.Group("/auth", func(gr router.Router) {
+		gr.Post("/register", a.authHandler.RegisterUser,
+			middleware.DecodePayload[auth.RegisterUserRequest](maxBodySize),
+			middleware.ValidateInput[auth.RegisterUserRequest](a.validator))
+		gr.Post("/login", a.authHandler.LoginUser,
+			middleware.DecodePayload[auth.UserLoginRequest](maxBodySize),
+			middleware.ValidateInput[auth.UserLoginRequest](a.validator))
+		gr.Get("/verify", a.authHandler.VerifyEmail, auth.VerifyToken(a.signer))
+		gr.Post("/refresh", a.authHandler.RefreshToken)
+		gr.Post("/logout", a.authHandler.LogoutUser)
+		gr.Post("/forgot", a.authHandler.ForgotPassword,
+			middleware.DecodePayload[auth.ForgotPasswordRequest](maxBodySize),
+			middleware.ValidateInput[auth.ForgotPasswordRequest](a.validator))
+		gr.Post("/reset", a.authHandler.ResetPassword,
+			auth.VerifyToken(a.signer),
+			middleware.DecodePayload[auth.ResetPasswordRequest](maxBodySize),
+			middleware.ValidateInput[auth.ResetPasswordRequest](a.validator))
+	})
+
+	a.router.Group("/users", func(gr router.Router) {
+		gr.Get("/", a.userHandler.ListUsers)
+	}, auth.RequireToken(a.signer))
 }
 
 func (a *App) Start(ctx context.Context) error {
@@ -106,7 +117,8 @@ func (a *App) Shutdown() error {
 	return nil
 }
 
-func New(cfg *config.Config, provider *Provider, middlewares []func(http.Handler) http.Handler) *App {
+func New(provider *provider.Provider, middlewares []func(http.Handler) http.Handler) *App {
+	cfg := provider.Cfg
 	serverCtx, stop := context.WithCancel(context.Background())
 	serverCfg := cfg.Server
 	handler := middleware.CORS(cfg.App.AllowedOrigin)(provider.Router)
@@ -121,6 +133,13 @@ func New(cfg *config.Config, provider *Provider, middlewares []func(http.Handler
 		IdleTimeout:  serverCfg.IdleTimeout.Duration,
 	}
 
+	userModule := user.NewModule(provider.DB)
+	userHandler := userModule.Handler()
+	userSvc := userModule.Service()
+
+	authModule := auth.NewModule(provider, userSvc)
+	authHandler := authModule.Handler()
+
 	return &App{
 		config:          cfg,
 		db:              provider.DB,
@@ -131,6 +150,9 @@ func New(cfg *config.Config, provider *Provider, middlewares []func(http.Handler
 		hasher:          provider.Hasher,
 		router:          provider.Router,
 		csrfBaker:       provider.CSRFBaker,
+		userHandler:     userHandler,
+		userSvc:         userSvc,
+		authHandler:     authHandler,
 		server:          server,
 		middlewares:     middlewares,
 		stop:            stop,

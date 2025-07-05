@@ -1,4 +1,4 @@
-package app
+package provider
 
 import (
 	"database/sql"
@@ -16,6 +16,7 @@ import (
 )
 
 type Provider struct {
+	Cfg       *config.Config
 	DB        *sql.DB
 	Signer    jwt.Signer
 	Mailer    email.Mailer
@@ -26,7 +27,7 @@ type Provider struct {
 	TxMgr     db.TxManager
 }
 
-func newProvider(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
+func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
 	securityKey := cfg.App.Key
 	signer := jwt.NewGolangJWTSigner(cfg.JWT, securityKey)
 	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
@@ -40,6 +41,7 @@ func newProvider(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
 	txMgr := db.NewSQLTxManager(dbConn)
 
 	provider := &Provider{
+		Cfg:       cfg,
 		DB:        dbConn,
 		Signer:    signer,
 		Hasher:    hasher,

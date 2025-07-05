@@ -15,6 +15,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/env"
 	"github.com/ferdiebergado/kubokit/internal/pkg/logging"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
+	"github.com/ferdiebergado/kubokit/internal/provider"
 )
 
 const (
@@ -52,7 +53,7 @@ func Run() error {
 	}
 	defer dbConn.Close()
 
-	provider, err := newProvider(cfg, dbConn)
+	providers, err := provider.New(cfg, dbConn)
 	if err != nil {
 		return fmt.Errorf("setup providers: %w", err)
 	}
@@ -65,7 +66,7 @@ func Run() error {
 		middleware.CheckContentType,
 	}
 
-	api := New(cfg, provider, middlewares)
+	api := New(providers, middlewares)
 	if err = api.Start(signalCtx); err != nil {
 		return fmt.Errorf("start server: %w", err)
 	}

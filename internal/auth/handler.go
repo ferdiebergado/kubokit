@@ -13,6 +13,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
+	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -294,9 +295,9 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	web.RespondOK(w, &msg, struct{}{})
 }
 
-func NewHandler(userSvc AuthService, provider *Provider) *Handler {
+func NewHandler(svc AuthService, provider *provider.Provider) *Handler {
 	return &Handler{
-		svc:       userSvc,
+		svc:       svc,
 		signer:    provider.Signer,
 		cfg:       provider.Cfg,
 		csrfBaker: provider.CSRFBaker,

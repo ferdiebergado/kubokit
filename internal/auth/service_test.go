@@ -14,6 +14,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
+	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -130,16 +131,15 @@ func TestService_RegisterUser(t *testing.T) {
 				},
 			}
 			stubTxMgr := &db.StubTxManager{}
-			provider := &auth.Provider{
-				Hasher:  hasher,
-				Mailer:  mailer,
-				Signer:  signer,
-				Cfg:     cfg,
-				UserSvc: userSvc,
-				TXMgr:   stubTxMgr,
+			provider := &provider.Provider{
+				Hasher: hasher,
+				Mailer: mailer,
+				Signer: signer,
+				Cfg:    cfg,
+				TxMgr:  stubTxMgr,
 			}
 
-			authSvc := auth.NewService(authRepo, provider)
+			authSvc := auth.NewService(authRepo, provider, userSvc)
 			ctx := context.Background()
 			params := auth.RegisterUserParams{
 				Email:    tt.email,

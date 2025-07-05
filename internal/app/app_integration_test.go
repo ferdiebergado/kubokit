@@ -19,6 +19,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/platform/router"
 	"github.com/ferdiebergado/kubokit/internal/platform/validation"
+	"github.com/ferdiebergado/kubokit/internal/provider"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -41,7 +42,8 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 		t.Fatalf("connect db: %v", err)
 	}
 
-	provider := &app.Provider{
+	provider := &provider.Provider{
+		Cfg:       cfg,
 		DB:        conn,
 		Signer:    jwt.NewGolangJWTSigner(cfg.JWT, "testsecret"),
 		Mailer:    &email.SMTPMailer{},
@@ -51,7 +53,7 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 	}
 
 	middlewares := []func(http.Handler) http.Handler{}
-	api = app.New(cfg, provider, middlewares)
+	api = app.New(provider, middlewares)
 
 	cleanUpFunc = func() {
 		conn.Close()

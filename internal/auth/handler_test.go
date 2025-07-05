@@ -18,6 +18,7 @@ import (
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
+	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -72,7 +73,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 				RegisterUserFunc: tt.regUserFunc,
 			}
 
-			provider := &auth.Provider{}
+			provider := &provider.Provider{}
 			authHandler := auth.NewHandler(svc, provider)
 
 			paramsCtx := web.NewContextWithParams(context.Background(), tt.params)
@@ -268,7 +269,7 @@ func TestHandler_LoginUser(t *testing.T) {
 			baker := &security.StubBaker{
 				BakeFunc: tc.bakeFunc,
 			}
-			provider := &auth.Provider{
+			provider := &provider.Provider{
 				Cfg:       cfg,
 				Signer:    signer,
 				CSRFBaker: baker,
@@ -323,7 +324,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 	tests := []struct {
 		name     string
 		userID   string
-		provider *auth.Provider
+		provider *provider.Provider
 		svc      auth.AuthService
 		code     int
 		token    string
@@ -332,7 +333,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 		{
 			name:   "Email verified successfully",
 			userID: "123",
-			provider: &auth.Provider{
+			provider: &provider.Provider{
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (string, error) {
 						return "123", nil
@@ -351,7 +352,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 		{
 			name:   "User does not exists",
 			userID: "123",
-			provider: &auth.Provider{
+			provider: &provider.Provider{
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (string, error) {
 						return "123", nil
@@ -370,7 +371,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 		{
 			name:   "Verification failed due to database error",
 			userID: "123",
-			provider: &auth.Provider{
+			provider: &provider.Provider{
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (string, error) {
 						return "123", nil
@@ -410,7 +411,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 	tests := []struct {
 		name      string
 		userID    string
-		providers *auth.Provider
+		providers *provider.Provider
 		svc       auth.AuthService
 		code      int
 		ctx       context.Context
@@ -419,7 +420,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 		{
 			name:      "Password was reset successfully",
 			userID:    "123",
-			providers: &auth.Provider{},
+			providers: &provider.Provider{},
 			svc: &auth.StubService{
 				ResetPasswordFunc: func(ctx context.Context, params auth.ResetPasswordParams) error {
 					return nil
@@ -705,7 +706,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			provider := &auth.Provider{
+			provider := &provider.Provider{
 				Cfg:       cfg,
 				Signer:    tc.signer,
 				CSRFBaker: tc.csrfBaker,
