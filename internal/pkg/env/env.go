@@ -8,8 +8,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 )
 
 // Loads environment variables from a file
@@ -66,14 +64,6 @@ func Load(envFile string) error {
 
 	slog.Info("Environment file loaded successfully", "file", envFile)
 	return nil
-}
-
-func Env(envVar string) (string, error) {
-	val, ok := os.LookupEnv(envVar)
-	if !ok {
-		return "", fmt.Errorf(message.FmtErrEnv, val)
-	}
-	return val, nil
 }
 
 // OverrideStruct populates the struct fields with values from environment variables
@@ -172,4 +162,13 @@ func OverrideStruct(v any) error {
 		}
 	}
 	return nil
+}
+
+// Env returns the value of the environment variable named by the key.
+// If the variable is not present in the environment, it returns the provided fallback value.
+func Env(key, fallback string) string {
+	if val, ok := os.LookupEnv(key); ok {
+		return val
+	}
+	return fallback
 }
