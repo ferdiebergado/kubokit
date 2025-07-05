@@ -41,7 +41,7 @@ type App struct {
 
 func (a *App) registerMiddlewares() {
 	if len(a.middlewares) == 0 {
-		slog.Warn("Mo middlewares registered")
+		slog.Warn("No middlewares registered")
 		return
 	}
 
