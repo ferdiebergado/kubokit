@@ -19,19 +19,17 @@ import (
 )
 
 const (
-	envEnv      = "ENV"
-	envLogLevel = "LOG_LEVEL"
+	envEnv          = "ENV"
+	envLogLevel     = "LOG_LEVEL"
+	defaultEnv      = "development"
+	defaultLogLevel = "info"
 
 	cfgFile = "config.json"
 )
 
 func Run() error {
-	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	defer stop()
-
-	appEnv := os.Getenv(envEnv)
-	logLevel := os.Getenv(envLogLevel)
-
+	appEnv := env.Env(envEnv, defaultEnv)
+	logLevel := env.Env(envLogLevel, defaultLogLevel)
 	logging.SetupLogger(appEnv, logLevel, os.Stdout)
 
 	slog.Info("Starting server...")
@@ -46,6 +44,9 @@ func Run() error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
+
+	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
 
 	dbConn, err := db.NewPostgresDB(signalCtx, cfg.DB)
 	if err != nil {
