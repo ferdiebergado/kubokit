@@ -60,7 +60,6 @@ func Run() error {
 	middlewares := []func(http.Handler) http.Handler{
 		middleware.InjectWriter,
 		goexpress.RecoverFromPanic,
-		middleware.CORS(cfg.App.AllowedOrigin),
 		middleware.LogRequest,
 		middleware.ContextGuard,
 		middleware.CheckContentType,

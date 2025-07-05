@@ -12,6 +12,7 @@ import (
 
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/middleware"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
@@ -108,9 +109,10 @@ func (a *App) Shutdown() error {
 func New(cfg *config.Config, provider *Provider, middlewares []func(http.Handler) http.Handler) *App {
 	serverCtx, stop := context.WithCancel(context.Background())
 	serverCfg := cfg.Server
+	handler := middleware.CORS(cfg.App.AllowedOrigin)(provider.Router)
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", serverCfg.Port),
-		Handler: provider.Router,
+		Handler: handler,
 		BaseContext: func(_ net.Listener) context.Context {
 			return serverCtx
 		},
