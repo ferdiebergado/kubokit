@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 )
 
 type Executor interface {
@@ -18,3 +19,5 @@ type TxManager interface {
 	// based on the function's return value.
 	RunInTx(ctx context.Context, fn func(ctx context.Context) error) error
 }
+
+var ErrUniqueConstraintViolation = errors.New("unique constraint violation")

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -36,4 +37,12 @@ func NewPostgresDB(signalCtx context.Context, cfg *config.DB) (*sql.DB, error) {
 	slog.Info("Connected to the database.", "db", cfg.Name)
 
 	return conn, nil
+}
+
+func IsUniqueConstraintViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	return strings.Contains(err.Error(), "SQLSTATE 23505")
 }

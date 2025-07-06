@@ -35,6 +35,9 @@ func (r *Repository) CreateUser(ctx context.Context, params CreateUserParams) (U
 	row := executor.QueryRowContext(ctx, query, params.Email, params.Password)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		if db.IsUniqueConstraintViolation(err) {
+			return u, db.ErrUniqueConstraintViolation
+		}
 		return u, fmt.Errorf("query to create user: %w", err)
 	}
 	return u, nil

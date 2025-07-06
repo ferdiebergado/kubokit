@@ -153,3 +153,68 @@ func TestIntegrationRepository_FindUserByEmail(t *testing.T) {
 		t.Errorf("repo.FindUserByEmail(txCtx, %q) = %+v, want: %+v", testEmail, u, wantUser)
 	}
 }
+
+func TestIntegrationRepository_CreateUser(t *testing.T) {
+	t.Parallel()
+
+	conn, tx := db.Setup(t)
+
+	_, err := tx.Exec(querySeedUsers)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name   string
+		params user.CreateUserParams
+		err    error
+	}{
+		{
+			name: "User is available",
+			params: user.CreateUserParams{
+				Email:    "agnis@example.com",
+				Password: "hashed",
+			},
+			err: err,
+		},
+		{
+			name: "User already exists",
+			params: user.CreateUserParams{
+				Email:    "agnis@example.com",
+				Password: "hashed",
+			},
+			err: db.ErrUniqueConstraintViolation,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			txCtx := db.NewContextWithTx(ctx, tx)
+
+			repo := user.NewRepository(conn)
+			u, err := repo.CreateUser(txCtx, tc.params)
+			if err != nil {
+				if tc.err == nil {
+					t.Fatalf("failed to create user: %v", err)
+				}
+
+				if err != tc.err {
+					t.Errorf("repo.CreateUser(txCtx, tc.params) = %v, want: %v", err, tc.err)
+				}
+			} else {
+				gotEmail, wantEmail := u.Email, tc.params.Email
+				if gotEmail != wantEmail {
+					t.Errorf("u.Email = %q, want: %q", gotEmail, wantEmail)
+				}
+
+				if u.CreatedAt.IsZero() {
+					t.Errorf("u.CreatedAt = %v, want: non-zero", u.CreatedAt)
+				}
+
+				if u.UpdatedAt.IsZero() {
+					t.Errorf("u.UpdatedAt = %v, want: non-zero", u.UpdatedAt)
+				}
+			}
+		})
+	}
+}
