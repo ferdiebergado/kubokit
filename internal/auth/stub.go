@@ -13,6 +13,7 @@ type StubService struct {
 	LoginUserFunc         func(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error)
 	SendPasswordResetFunc func(email string)
 	ResetPasswordFunc     func(ctx context.Context, params ResetPasswordParams) error
+	RefreshTokenFunc      func(token string) (accessToken string, err error)
 }
 
 func (s StubService) RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error) {
@@ -48,6 +49,13 @@ func (s *StubService) ResetPassword(ctx context.Context, params ResetPasswordPar
 		return errors.New("ResetPassword not implemented by stub")
 	}
 	return s.ResetPasswordFunc(ctx, params)
+}
+
+func (s *StubService) RefreshToken(token string) (accessToken string, err error) {
+	if s.RefreshTokenFunc == nil {
+		return "", errors.New("RefreshToken not implemented by stub")
+	}
+	return s.RefreshTokenFunc(token)
 }
 
 type StubRepo struct {

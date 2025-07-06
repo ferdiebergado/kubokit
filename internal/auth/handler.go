@@ -25,6 +25,7 @@ type AuthService interface {
 	LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error)
 	SendPasswordReset(email string)
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
+	RefreshToken(token string) (accessToken string, err error)
 }
 
 type Handler struct {
@@ -155,30 +156,26 @@ type RefreshTokenResponse struct {
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	refreshToken, err := extractBearerToken(r.Header.Get("Authorization"))
-	if err != nil || refreshToken == "" {
+	token, err := extractBearerToken(r.Header.Get("Authorization"))
+	if err != nil || token == "" {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	userID, err := h.signer.Verify(refreshToken)
+	accessToken, err := h.svc.RefreshToken(token)
 	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
-		return
-	}
+		if errors.Is(err, ErrInvalidToken) {
+			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+			return
+		}
 
-	cfgJWT := h.cfgJWT
-
-	ttl := cfgJWT.TTL.Duration
-	newAccessToken, err := h.signer.Sign(userID, []string{cfgJWT.Issuer}, ttl)
-	if err != nil {
 		web.RespondInternalServerError(w, err)
 		return
 	}
 
 	msg := "Token refreshed."
 	data := &RefreshTokenResponse{
-		AccessToken: newAccessToken,
+		AccessToken: accessToken,
 	}
 	web.RespondOK(w, &msg, data)
 }

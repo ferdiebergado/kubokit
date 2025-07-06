@@ -467,6 +467,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 
 	tests := []struct {
 		name, refreshToken string
+		svc                auth.AuthService
 		signer             jwt.Signer
 		code               int
 		gotBody            any
@@ -483,6 +484,11 @@ func TestHandler_RefreshToken(t *testing.T) {
 					return "access_token", nil
 				},
 			},
+			svc: &auth.StubService{
+				RefreshTokenFunc: func(token string) (accessToken string, err error) {
+					return "access_token", nil
+				},
+			},
 			code:    http.StatusOK,
 			gotBody: &web.OKResponse[auth.RefreshTokenResponse]{},
 			wantBody: &web.OKResponse[auth.RefreshTokenResponse]{
@@ -494,6 +500,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 		},
 		{
 			name:    "Missing refresh token",
+			svc:     &auth.StubService{},
 			code:    http.StatusUnauthorized,
 			gotBody: &web.ErrorResponse{},
 			wantBody: &web.ErrorResponse{
@@ -504,12 +511,17 @@ func TestHandler_RefreshToken(t *testing.T) {
 		{
 			name:         "Expired refresh token",
 			refreshToken: "expired_refresh_token",
-			code:         http.StatusUnauthorized,
 			signer: &jwt.StubSigner{
 				VerifyFunc: func(tokenString string) (string, error) {
 					return "", errors.New("token is expired")
 				},
 			},
+			svc: &auth.StubService{
+				RefreshTokenFunc: func(token string) (accessToken string, err error) {
+					return "", auth.ErrInvalidToken
+				},
+			},
+			code:    http.StatusUnauthorized,
 			gotBody: &web.ErrorResponse{},
 			wantBody: &web.ErrorResponse{
 				Message: message.InvalidUser,
@@ -524,8 +536,8 @@ func TestHandler_RefreshToken(t *testing.T) {
 				Cfg:    cfg,
 				Signer: tc.signer,
 			}
-			svc := &auth.StubService{}
-			authHandler, err := auth.NewHandler(svc, provider)
+
+			authHandler, err := auth.NewHandler(tc.svc, provider)
 			if err != nil {
 				t.Fatal(err)
 			}

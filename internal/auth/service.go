@@ -219,6 +219,22 @@ func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) err
 	})
 }
 
+func (s *Service) RefreshToken(token string) (string, error) {
+	userID, err := s.signer.Verify(token)
+	if err != nil {
+		return "", ErrInvalidToken
+	}
+
+	cfgJWT := s.cfgJWT
+	ttl := cfgJWT.TTL.Duration
+	accessToken, err := s.signer.Sign(userID, []string{cfgJWT.Issuer}, ttl)
+	if err != nil {
+		return "", fmt.Errorf("create access token: %w", err)
+	}
+
+	return accessToken, nil
+}
+
 func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.UserService) (*Service, error) {
 	if provider == nil {
 		return nil, errors.New("provider should not be nil")
