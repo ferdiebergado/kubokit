@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"crypto/subtle"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/provider"
@@ -30,12 +28,9 @@ type AuthService interface {
 }
 
 type Handler struct {
-	svc       AuthService
-	signer    jwt.Signer
-	cfgCookie *config.Cookie
-	cfgCSRF   *config.CSRF
-	cfgJWT    *config.JWT
-	csrfBaker web.Baker
+	svc    AuthService
+	signer jwt.Signer
+	cfgJWT *config.JWT
 }
 
 type RegisterUserRequest struct {
@@ -124,7 +119,8 @@ func (r *UserLoginRequest) LogValue() slog.Value {
 }
 
 type UserLoginResponse struct {
-	AccessToken string `json:"access_token,omitempty"`
+	AccessToken  string `json:"access_token,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
 }
 
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
@@ -146,90 +142,45 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshCookieCfg := h.cfgCookie
-	refreshCookie := security.NewSecureCookie(refreshCookieCfg.Name, refreshToken, refreshCookieCfg.MaxAge.Duration)
-	http.SetCookie(w, refreshCookie)
-
-	csrfCookie, err := h.csrfBaker.Bake()
-	if err != nil {
-		web.RespondInternalServerError(w, err)
-		return
-	}
-	http.SetCookie(w, csrfCookie)
-
 	msg := MsgLoggedIn
 	data := &UserLoginResponse{
-		AccessToken: accessToken,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}
 	web.RespondOK(w, &msg, data)
 }
 
+type RefreshTokenResponse struct {
+	AccessToken string `json:"access_token,omitempty"`
+}
+
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	csrfCfg := h.cfgCSRF
-	csrfCookieName := csrfCfg.CookieName
-	csrfCookie, err := r.Cookie(csrfCookieName)
-
-	if err != nil || csrfCookie.Value == "" {
-		web.RespondForbidden(w, errors.New("CSRF token missing"), message.InvalidInput, nil)
+	refreshToken, err := extractBearerToken(r.Header.Get("Authorization"))
+	if err != nil || refreshToken == "" {
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	sentToken := r.Header.Get(csrfCfg.HeaderName)
-	if subtle.ConstantTimeCompare([]byte(csrfCookie.Value), []byte(sentToken)) == 0 {
-		web.RespondForbidden(w, errors.New("invalid CSRF token"), message.InvalidInput, nil)
-		return
-	}
-
-	if err := h.csrfBaker.Check(csrfCookie); err != nil {
-		web.RespondForbidden(w, err, message.InvalidInput, nil)
-		return
-	}
-
-	refreshCookie, err := r.Cookie(h.cfgCookie.Name)
+	userID, err := h.signer.Verify(refreshToken)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	userID, err := h.signer.Verify(refreshCookie.Value)
-	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
-		return
-	}
+	cfgJWT := h.cfgJWT
 
-	ttl := h.cfgJWT.TTL.Duration
-	newAccessToken, err := h.signer.Sign(userID, []string{h.cfgJWT.Issuer}, ttl)
+	ttl := cfgJWT.TTL.Duration
+	newAccessToken, err := h.signer.Sign(userID, []string{cfgJWT.Issuer}, ttl)
 	if err != nil {
 		web.RespondInternalServerError(w, err)
 		return
 	}
 
 	msg := "Token refreshed."
-	data := &UserLoginResponse{
+	data := &RefreshTokenResponse{
 		AccessToken: newAccessToken,
 	}
 	web.RespondOK(w, &msg, data)
-}
-
-func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
-	cookieName := h.cfgCookie.Name
-	if _, err := r.Cookie(cookieName); err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
-		return
-	}
-
-	logoutCookie := security.NewSecureCookie(cookieName, "", -1)
-	http.SetCookie(w, logoutCookie)
-
-	csrfCookie, err := h.csrfBaker.Bake()
-	if err != nil {
-		web.RespondInternalServerError(w, err)
-		return
-	}
-	http.SetCookie(w, csrfCookie)
-
-	msg := "Logged out."
-	web.RespondOK(w, &msg, struct{}{})
 }
 
 type ForgotPasswordRequest struct {
@@ -303,16 +254,6 @@ func NewHandler(svc AuthService, provider *provider.Provider) (*Handler, error) 
 		return nil, errors.New("config should not be nil")
 	}
 
-	cfgCookie := cfg.Cookie
-	if cfgCookie == nil {
-		return nil, errors.New("cookie config should not be nil")
-	}
-
-	cfgCSRF := cfg.CSRF
-	if cfgCSRF == nil {
-		return nil, errors.New("CSRF config should not be nil")
-	}
-
 	cfgJWT := cfg.JWT
 	if cfgJWT == nil {
 		return nil, errors.New("JWT config should not be nil")
@@ -322,17 +263,10 @@ func NewHandler(svc AuthService, provider *provider.Provider) (*Handler, error) 
 		return nil, errors.New("signer should not be nil")
 	}
 
-	if provider.CSRFBaker == nil {
-		return nil, errors.New("csrf baker should not be nil")
-	}
-
 	handler := &Handler{
-		svc:       svc,
-		cfgCookie: cfgCookie,
-		cfgCSRF:   cfgCSRF,
-		cfgJWT:    cfgJWT,
-		signer:    provider.Signer,
-		csrfBaker: provider.CSRFBaker,
+		svc:    svc,
+		cfgJWT: cfgJWT,
+		signer: provider.Signer,
 	}
 
 	return handler, nil

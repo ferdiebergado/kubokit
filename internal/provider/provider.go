@@ -6,8 +6,6 @@ import (
 	"fmt"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
-	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -24,7 +22,6 @@ type Provider struct {
 	Validator validation.Validator
 	Hasher    hash.Hasher
 	Router    router.Router
-	CSRFBaker web.Baker
 	TxMgr     db.TxManager
 }
 
@@ -46,10 +43,6 @@ func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("new hasher: %w", err)
 	}
-	csrfBaker, err := security.NewCSRFCookieBaker(cfg.CSRF, securityKey)
-	if err != nil {
-		return nil, fmt.Errorf("new csrf baker: %w", err)
-	}
 
 	router := router.NewGoexpressRouter()
 	validator := validation.NewGoPlaygroundValidator()
@@ -63,7 +56,6 @@ func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
 		Mailer:    mailer,
 		Router:    router,
 		Validator: validator,
-		CSRFBaker: csrfBaker,
 		TxMgr:     txMgr,
 	}
 

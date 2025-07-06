@@ -13,7 +13,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
-	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -37,7 +36,6 @@ type App struct {
 	hasher          hash.Hasher
 	router          router.Router
 	txManager       db.TxManager
-	csrfBaker       web.Baker
 	userHandler     *user.Handler
 	userSvc         user.UserService
 	authHandler     *auth.Handler
@@ -66,7 +64,6 @@ func (a *App) setupRoutes() {
 			middleware.ValidateInput[auth.UserLoginRequest](a.validator))
 		gr.Get("/verify", a.authHandler.VerifyEmail, auth.VerifyToken(a.signer))
 		gr.Post("/refresh", a.authHandler.RefreshToken)
-		gr.Post("/logout", a.authHandler.LogoutUser)
 		gr.Post("/forgot", a.authHandler.ForgotPassword,
 			middleware.DecodePayload[auth.ForgotPasswordRequest](maxBodySize),
 			middleware.ValidateInput[auth.ForgotPasswordRequest](a.validator))
@@ -156,7 +153,6 @@ func New(provider *provider.Provider, middlewares []func(http.Handler) http.Hand
 		validator:       provider.Validator,
 		hasher:          provider.Hasher,
 		router:          provider.Router,
-		csrfBaker:       provider.CSRFBaker,
 		userHandler:     userHandler,
 		userSvc:         userSvc,
 		authHandler:     authHandler,

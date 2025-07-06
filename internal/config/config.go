@@ -80,11 +80,6 @@ type JWT struct {
 	RefreshTTL timex.Duration `json:"refresh_ttl,omitempty"`
 }
 
-type Cookie struct {
-	Name   string         `json:"name,omitempty"`
-	MaxAge timex.Duration `json:"max_age,omitempty"`
-}
-
 type Email struct {
 	Templates string         `json:"templates,omitempty"`
 	Layout    string         `json:"layout,omitempty"`
@@ -116,23 +111,14 @@ type Argon2 struct {
 	KeyLength  uint32 `json:"key_length,omitempty"`
 }
 
-type CSRF struct {
-	HeaderName   string         `json:"header_name,omitempty"`
-	CookieName   string         `json:"cookie_name,omitempty"`
-	TokenLength  uint32         `json:"token_length,omitempty"`
-	CookieMaxAge timex.Duration `json:"cookie_max_age,omitempty"`
-}
-
 type Config struct {
 	*App    `json:"app,omitempty"`
 	*Server `json:"server,omitempty"`
 	*DB     `json:"db,omitempty"`
 	*JWT    `json:"jwt,omitempty"`
-	*Cookie `json:"cookie,omitempty"`
 	*SMTP   `json:"smtp,omitempty"`
 	*Email  `json:"email,omitempty"`
 	*Argon2 `json:"argon2,omitempty"`
-	*CSRF   `json:"csrf,omitempty"`
 }
 
 func (c *Config) LogValue() slog.Value {
@@ -141,11 +127,9 @@ func (c *Config) LogValue() slog.Value {
 		slog.Any("server", c.Server),
 		slog.Any("db", c.DB),
 		slog.Any("jwt", c.JWT),
-		slog.Any("cookie", c.Cookie),
 		slog.Any("smtp", c.SMTP),
 		slog.Any("email", c.Email),
 		slog.Any("argon2", c.Argon2),
-		slog.Any("csrf", c.CSRF),
 	)
 }
 

@@ -4,8 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"net/http"
-	"time"
 )
 
 func GenerateRandomBytes(length uint32) ([]byte, error) {
@@ -56,16 +54,4 @@ func ConstantTimeCompareStr(a, b string) bool {
 		result |= int(a[i] ^ b[i])
 	}
 	return result == 0
-}
-
-func NewSecureCookie(name, val string, maxAge time.Duration) *http.Cookie {
-	return &http.Cookie{
-		Name:     name,
-		Value:    val,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int(maxAge.Seconds()),
-	}
 }

@@ -11,7 +11,7 @@ const (
 	HeaderAllowCreds   = "Access-Control-Allow-Credentials"
 
 	AllowedMethods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-	AllowedHeaders = "Content-Type, Authorization, X-CSRF-Token"
+	AllowedHeaders = "Content-Type, Authorization"
 	AllowedCreds   = "true"
 )
 
