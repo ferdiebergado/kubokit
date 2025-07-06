@@ -58,9 +58,6 @@ func TestIntegrationRepository_ListUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
-	txCtx := db.NewContextWithTx(ctx, tx)
-
 	row := tx.QueryRow("SELECT COUNT(id) FROM users")
 	var numUsers int
 	if err = row.Scan(&numUsers); err != nil {
@@ -71,6 +68,8 @@ func TestIntegrationRepository_ListUsers(t *testing.T) {
 		t.Fatal("no users were inserted")
 	}
 
+	ctx := context.Background()
+	txCtx := db.NewContextWithTx(ctx, tx)
 	repo := user.NewRepository(conn)
 
 	users, err := repo.ListUsers(txCtx)
@@ -91,7 +90,7 @@ func TestIntegrationRepository_FindUser(t *testing.T) {
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to seed users: %v", err)
 	}
 
 	ctx := context.Background()

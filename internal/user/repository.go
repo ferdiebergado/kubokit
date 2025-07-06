@@ -21,19 +21,18 @@ type CreateUserParams struct {
 	Email, Password string
 }
 
-const QueryUserCreate = `
-INSERT INTO users (email, password_hash)
-VALUES ($1, $2)
-RETURNING id, email, created_at, updated_at
-`
-
 func (r *Repository) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
+	const query = `
+	INSERT INTO users (email, password_hash)
+	VALUES ($1, $2)
+	RETURNING id, email, created_at, updated_at
+	`
 	// Get the current executor (either *sql.DB or *sql.Tx from context)
 	executor := r.db // Default to *sql.DB
 	if tx := db.TxFromContext(ctx); tx != nil {
 		executor = tx // Use the transaction if present in context
 	}
-	row := executor.QueryRowContext(ctx, QueryUserCreate, params.Email, params.Password)
+	row := executor.QueryRowContext(ctx, query, params.Email, params.Password)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return u, fmt.Errorf("query to create user: %w", err)
@@ -41,19 +40,18 @@ func (r *Repository) CreateUser(ctx context.Context, params CreateUserParams) (U
 	return u, nil
 }
 
-const QueryUserFindByEmail = `
-SELECT id, email, password_hash, created_at, updated_at, verified_at FROM users
-WHERE email = $1
-LIMIT 1
-`
-
 func (r *Repository) FindUserByEmail(ctx context.Context, email string) (*User, error) {
+	const query = `
+	SELECT id, email, password_hash, created_at, updated_at, verified_at
+	FROM users
+	WHERE email = $1
+	`
 	// Get the current executor (either *sql.DB or *sql.Tx from context)
 	executor := r.db // Default to *sql.DB
 	if tx := db.TxFromContext(ctx); tx != nil {
 		executor = tx // Use the transaction if present in context
 	}
-	row := executor.QueryRowContext(ctx, QueryUserFindByEmail, email)
+	row := executor.QueryRowContext(ctx, query, email)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt, &u.VerifiedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -64,15 +62,15 @@ func (r *Repository) FindUserByEmail(ctx context.Context, email string) (*User, 
 	return &u, nil
 }
 
-const QueryUserList = "SELECT id, email, verified_at, created_at, updated_at FROM users"
-
 func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
+	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users"
+
 	// Get the current executor (either *sql.DB or *sql.Tx from context)
 	executor := r.db // Default to *sql.DB
 	if tx := db.TxFromContext(ctx); tx != nil {
 		executor = tx // Use the transaction if present in context
 	}
-	rows, err := executor.QueryContext(ctx, QueryUserList)
+	rows, err := executor.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("query to list all users: %w", err)
 	}
@@ -99,15 +97,15 @@ func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-const QueryFindUser = "SELECT id, email, verified_at, created_at, updated_at FROM users WHERE id = $1"
-
 func (r *Repository) FindUser(ctx context.Context, userID string) (User, error) {
+	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users WHERE id = $1"
+
 	// Get the current executor (either *sql.DB or *sql.Tx from context)
 	executor := r.db // Default to *sql.DB
 	if tx := db.TxFromContext(ctx); tx != nil {
 		executor = tx // Use the transaction if present in context
 	}
-	row := executor.QueryRowContext(ctx, QueryFindUser, userID)
+	row := executor.QueryRowContext(ctx, query, userID)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
 		return u, fmt.Errorf("query to find user with id %s: %w", userID, err)

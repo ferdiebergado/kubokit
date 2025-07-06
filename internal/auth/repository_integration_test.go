@@ -35,11 +35,8 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 
 	_, err := tx.Exec(queryUserSeed)
 	if err != nil {
-		t.Fatalf("seed users: %v", err)
+		t.Fatalf("failed to seed users: %v", err)
 	}
-
-	ctx := context.Background()
-	txCtx := db.NewContextWithTx(ctx, tx)
 
 	tests := []struct {
 		name   string
@@ -49,22 +46,30 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 		{"User exists", "3d594650-3436-11e5-bf21-0800200c9a66", nil},
 		{"User does not exists", "00000000-0000-0000-0000-000000000000", user.ErrNotFound},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			txCtx := db.NewContextWithTx(ctx, tx)
 			repo := auth.NewRepository(conn)
-			if err = repo.VerifyUser(txCtx, tt.userID); !errors.Is(err, tt.err) {
-				t.Errorf("repo.VerifyUser(txCtx, %q) = %v, want: %v", tt.userID, err, tt.err)
+			if err := repo.VerifyUser(txCtx, tc.userID); !errors.Is(err, tc.err) {
+				t.Errorf("repo.VerifyUser(txCtx, %q) = %v, want: %v", tc.userID, err, tc.err)
 			}
 
-			if tt.err == nil {
-				const query = "SELECT verified_at FROM users WHERE id = $1"
+			if tc.err == nil {
+				const query = "SELECT verified_at, updated_at FROM users WHERE id = $1"
 				var verifiedAt *time.Time
-				row := tx.QueryRowContext(ctx, query, tt.userID)
-				if err := row.Scan(&verifiedAt); err != nil {
-					t.Fatalf("failed to fetch user: %v", err)
+				var updatedAt time.Time
+				row := tx.QueryRowContext(ctx, query, tc.userID)
+				if err := row.Scan(&verifiedAt, &updatedAt); err != nil {
+					t.Fatalf("failed to fetch verified user: %v", err)
 				}
-				if verifiedAt == nil {
-					t.Errorf("verifiedAt = %v, want: not nil", verifiedAt)
+
+				if verifiedAt.IsZero() {
+					t.Errorf("verifiedAt = %v, want: non-zero", verifiedAt)
+				}
+
+				if !updatedAt.Equal(*verifiedAt) {
+					t.Errorf("updatedAt = %v, want: %v", updatedAt, verifiedAt)
 				}
 			}
 		})
@@ -78,11 +83,8 @@ func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
 
 	_, err := tx.Exec(queryUserSeed)
 	if err != nil {
-		t.Fatalf("seed users: %v", err)
+		t.Fatalf("failed to seed users: %v", err)
 	}
-
-	ctx := context.Background()
-	txCtx := db.NewContextWithTx(ctx, tx)
 
 	tests := []struct {
 		name         string
@@ -93,23 +95,42 @@ func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
 		{"User exists", "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa", "bob@example.com", nil},
 		{"User does not exists", "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa", "sue@example.com", user.ErrNotFound},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := auth.NewRepository(conn)
-			testPassword := "test"
-			if err = repo.ChangeUserPassword(txCtx, tt.email, testPassword); !errors.Is(err, tt.err) {
-				t.Errorf("repo.ChangeUserPassword(txCtx, %q, %q) = %v, want: %v", tt.email, testPassword, err, tt.err)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			txCtx := db.NewContextWithTx(ctx, tx)
+
+			var initialUpdatedAt time.Time
+
+			if tc.err == nil {
+				const query = "SELECT updated_at FROM users WHERE email = $1"
+				row := tx.QueryRowContext(ctx, query, tc.email)
+				if err := row.Scan(&initialUpdatedAt); err != nil {
+					t.Fatalf("failed to fetch current user: %v", err)
+				}
 			}
 
-			if tt.err == nil {
-				const query = "SELECT password_hash FROM users WHERE email = $1"
+			repo := auth.NewRepository(conn)
+			const testPassword = "test"
+			if err = repo.ChangeUserPassword(txCtx, tc.email, testPassword); !errors.Is(err, tc.err) {
+				t.Errorf("repo.ChangeUserPassword(txCtx, %q, %q) = %v, want: %v", tc.email, testPassword, err, tc.err)
+			}
+
+			if tc.err == nil {
+				const query = "SELECT password_hash, updated_at FROM users WHERE email = $1"
 				var passwordHash string
-				row := tx.QueryRowContext(ctx, query, tt.email)
-				if err := row.Scan(&passwordHash); err != nil {
-					t.Fatalf("failed to fetch user: %v", err)
+				var updatedAt time.Time
+
+				row := tx.QueryRowContext(ctx, query, tc.email)
+				if err := row.Scan(&passwordHash, &updatedAt); err != nil {
+					t.Fatalf("failed to fetch updated user: %v", err)
 				}
-				if passwordHash == "" || passwordHash == tt.passwordHash {
-					t.Errorf("passwordHash = %q, want: not equal to %q", passwordHash, tt.passwordHash)
+				if passwordHash == "" || passwordHash == tc.passwordHash {
+					t.Errorf("passwordHash = %q, want: not equal to %q", passwordHash, tc.passwordHash)
+				}
+
+				if updatedAt.Before(initialUpdatedAt) || updatedAt.Equal(initialUpdatedAt) {
+					t.Errorf("updatedAt = %v, want: after %v", updatedAt, initialUpdatedAt)
 				}
 			}
 		})
