@@ -129,6 +129,12 @@ func TestService_RegisterUser(t *testing.T) {
 					Sender:    "test@example.com",
 					VerifyTTL: timex.Duration{Duration: 5 * time.Minute},
 				},
+				JWT: &config.JWT{
+					JTILength:  8,
+					Issuer:     "localhost:8888",
+					TTL:        timex.Duration{Duration: 15 * time.Minute},
+					RefreshTTL: timex.Duration{Duration: 24 * time.Hour},
+				},
 			}
 			stubTxMgr := &db.StubTxManager{}
 			provider := &provider.Provider{
@@ -139,7 +145,11 @@ func TestService_RegisterUser(t *testing.T) {
 				TxMgr:  stubTxMgr,
 			}
 
-			authSvc := auth.NewService(authRepo, provider, userSvc)
+			authSvc, err := auth.NewService(authRepo, provider, userSvc)
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			ctx := context.Background()
 			params := auth.RegisterUserParams{
 				Email:    tt.email,

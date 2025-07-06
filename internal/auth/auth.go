@@ -1,6 +1,9 @@
 package auth
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
@@ -18,12 +21,26 @@ func (m *Module) Service() *Service {
 	return m.svc
 }
 
-func NewModule(provider *provider.Provider, userSvc user.UserService) *Module {
+func NewModule(provider *provider.Provider, userSvc user.UserService) (*Module, error) {
+	if provider == nil {
+		return nil, errors.New("provider should not be nil")
+	}
+
 	repo := NewRepository(provider.DB)
-	svc := NewService(repo, provider, userSvc)
-	handler := NewHandler(svc, provider)
-	return &Module{
+	svc, err := NewService(repo, provider, userSvc)
+	if err == nil {
+		return nil, fmt.Errorf("new service: %w", err)
+	}
+
+	handler, err := NewHandler(svc, provider)
+	if err != nil {
+		return nil, fmt.Errorf("new auth handler: %w", err)
+	}
+
+	module := &Module{
 		handler: handler,
 		svc:     svc,
 	}
+
+	return module, nil
 }

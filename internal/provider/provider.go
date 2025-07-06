@@ -2,6 +2,7 @@ package provider
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
@@ -28,16 +29,30 @@ type Provider struct {
 }
 
 func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
+	if cfg == nil || dbConn == nil {
+		return nil, errors.New("config and dbconn should not be nil")
+	}
+
 	securityKey := cfg.App.Key
-	signer := jwt.NewGolangJWTSigner(cfg.JWT, securityKey)
+	signer, err := jwt.NewGolangJWTSigner(cfg.JWT, securityKey)
+	if err != nil {
+		return nil, fmt.Errorf("new jwt signer: %w", err)
+	}
 	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
 	if err != nil {
-		return nil, fmt.Errorf("new smtp mailer: %w", err)
+		return nil, fmt.Errorf("new mailer: %w", err)
 	}
-	hasher := hash.NewArgon2Hasher(cfg.Argon2, securityKey)
+	hasher, err := hash.NewArgon2Hasher(cfg.Argon2, securityKey)
+	if err != nil {
+		return nil, fmt.Errorf("new hasher: %w", err)
+	}
+	csrfBaker, err := security.NewCSRFCookieBaker(cfg.CSRF, securityKey)
+	if err != nil {
+		return nil, fmt.Errorf("new csrf baker: %w", err)
+	}
+
 	router := router.NewGoexpressRouter()
 	validator := validation.NewGoPlaygroundValidator()
-	csrfBaker := security.NewCSRFCookieBaker(cfg.CSRF, securityKey)
 	txMgr := db.NewSQLTxManager(dbConn)
 
 	provider := &Provider{

@@ -22,12 +22,18 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
+const (
+	testEmail = "test@example.com"
+	testPass  = "test"
+	timeUnit  = time.Minute
+)
+
+var defaultDuration = 30 * timeUnit
+
 func TestHandler_RegisterUser(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now().Truncate(0)
-	testEmail := "test@example.com"
-	testPass := "test"
 
 	tests := []struct {
 		name        string
@@ -73,8 +79,54 @@ func TestHandler_RegisterUser(t *testing.T) {
 				RegisterUserFunc: tt.regUserFunc,
 			}
 
-			provider := &provider.Provider{}
-			authHandler := auth.NewHandler(svc, provider)
+			cfg := &config.Config{
+				Cookie: &config.Cookie{
+					Name:   "refresh_token",
+					MaxAge: timex.Duration{Duration: defaultDuration},
+				},
+				CSRF: &config.CSRF{
+					CookieName:   "csrf_token",
+					HeaderName:   "X-CSRF-Token",
+					TokenLength:  8,
+					CookieMaxAge: timex.Duration{Duration: defaultDuration},
+				},
+				JWT: &config.JWT{
+					JTILength:  8,
+					Issuer:     "example.com",
+					TTL:        timex.Duration{Duration: defaultDuration},
+					RefreshTTL: timex.Duration{Duration: defaultDuration},
+				},
+			}
+
+			signer := jwt.StubSigner{
+				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+					return "1", nil
+				},
+			}
+			csrfBaker := security.StubBaker{
+				BakeFunc: func() (*http.Cookie, error) {
+					cookie := &http.Cookie{
+						Name:     "X-CSRF-Token",
+						Value:    "csrf123",
+						Path:     "/",
+						MaxAge:   int(defaultDuration.Seconds()),
+						Secure:   true,
+						SameSite: 0,
+					}
+
+					return cookie, nil
+				},
+			}
+
+			provider := &provider.Provider{
+				Cfg:       cfg,
+				Signer:    &signer,
+				CSRFBaker: &csrfBaker,
+			}
+			authHandler, err := auth.NewHandler(svc, provider)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			paramsCtx := web.NewContextWithParams(context.Background(), tt.params)
 			req := httptest.NewRequestWithContext(paramsCtx, http.MethodPost, "/auth/register", nil)
@@ -109,14 +161,6 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 func TestHandler_LoginUser(t *testing.T) {
 	t.Parallel()
-
-	const (
-		testEmail = "test@example.com"
-		testPass  = "test"
-		timeUnit  = time.Minute
-	)
-
-	defaultDuration := 30 * timeUnit
 
 	tests := []struct {
 		name                      string
@@ -251,6 +295,7 @@ func TestHandler_LoginUser(t *testing.T) {
 			svc := &auth.StubService{
 				LoginUserFunc: tc.loginFunc,
 			}
+
 			signer := &jwt.StubSigner{
 				VerifyFunc: tc.verifyFunc,
 			}
@@ -265,6 +310,12 @@ func TestHandler_LoginUser(t *testing.T) {
 					TokenLength:  8,
 					CookieMaxAge: timex.Duration{Duration: defaultDuration},
 				},
+				JWT: &config.JWT{
+					JTILength:  8,
+					Issuer:     "example.com",
+					TTL:        timex.Duration{Duration: defaultDuration},
+					RefreshTTL: timex.Duration{Duration: defaultDuration},
+				},
 			}
 			baker := &security.StubBaker{
 				BakeFunc: tc.bakeFunc,
@@ -274,7 +325,10 @@ func TestHandler_LoginUser(t *testing.T) {
 				Signer:    signer,
 				CSRFBaker: baker,
 			}
-			authHandler := auth.NewHandler(svc, provider)
+			authHandler, err := auth.NewHandler(svc, provider)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			ctx := web.NewContextWithParams(context.Background(), tc.input)
 			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/login", http.NoBody)
@@ -286,7 +340,7 @@ func TestHandler_LoginUser(t *testing.T) {
 				t.Errorf(message.FmtErrStatusCode, gotCode, wantCode)
 			}
 
-			if err := json.Unmarshal(rec.Body.Bytes(), &tc.gotBody); err != nil {
+			if err = json.Unmarshal(rec.Body.Bytes(), &tc.gotBody); err != nil {
 				t.Fatal(err)
 			}
 
@@ -313,7 +367,6 @@ func TestHandler_LoginUser(t *testing.T) {
 			if !reflect.DeepEqual(csrfCookie, tc.csrfCookie) {
 				t.Errorf("csrfCookie = %+v\n want: %+v", csrfCookie, tc.csrfCookie)
 			}
-
 		})
 	}
 }
@@ -334,11 +387,30 @@ func TestHandler_VerifyEmail(t *testing.T) {
 			name:   "Email verified successfully",
 			userID: "123",
 			provider: &provider.Provider{
+				Cfg: &config.Config{
+					Cookie: &config.Cookie{
+						Name:   "refresh_token",
+						MaxAge: timex.Duration{Duration: defaultDuration},
+					},
+					CSRF: &config.CSRF{
+						CookieName:   "csrf_token",
+						HeaderName:   "X-CSRF-Token",
+						TokenLength:  8,
+						CookieMaxAge: timex.Duration{Duration: defaultDuration},
+					},
+					JWT: &config.JWT{
+						JTILength:  8,
+						Issuer:     "example.com",
+						TTL:        timex.Duration{Duration: defaultDuration},
+						RefreshTTL: timex.Duration{Duration: defaultDuration},
+					},
+				},
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (string, error) {
 						return "123", nil
 					},
 				},
+				CSRFBaker: &security.StubBaker{},
 			},
 			svc: &auth.StubService{
 				VerifyUserfunc: func(ctx context.Context, token string) error {
@@ -353,11 +425,30 @@ func TestHandler_VerifyEmail(t *testing.T) {
 			name:   "User does not exists",
 			userID: "123",
 			provider: &provider.Provider{
+				Cfg: &config.Config{
+					Cookie: &config.Cookie{
+						Name:   "refresh_token",
+						MaxAge: timex.Duration{Duration: defaultDuration},
+					},
+					CSRF: &config.CSRF{
+						CookieName:   "csrf_token",
+						HeaderName:   "X-CSRF-Token",
+						TokenLength:  8,
+						CookieMaxAge: timex.Duration{Duration: defaultDuration},
+					},
+					JWT: &config.JWT{
+						JTILength:  8,
+						Issuer:     "example.com",
+						TTL:        timex.Duration{Duration: defaultDuration},
+						RefreshTTL: timex.Duration{Duration: defaultDuration},
+					},
+				},
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (string, error) {
 						return "123", nil
 					},
 				},
+				CSRFBaker: &security.StubBaker{},
 			},
 			svc: &auth.StubService{
 				VerifyUserfunc: func(ctx context.Context, token string) error {
@@ -372,11 +463,30 @@ func TestHandler_VerifyEmail(t *testing.T) {
 			name:   "Verification failed due to database error",
 			userID: "123",
 			provider: &provider.Provider{
+				Cfg: &config.Config{
+					Cookie: &config.Cookie{
+						Name:   "refresh_token",
+						MaxAge: timex.Duration{Duration: defaultDuration},
+					},
+					CSRF: &config.CSRF{
+						CookieName:   "csrf_token",
+						HeaderName:   "X-CSRF-Token",
+						TokenLength:  8,
+						CookieMaxAge: timex.Duration{Duration: defaultDuration},
+					},
+					JWT: &config.JWT{
+						JTILength:  8,
+						Issuer:     "example.com",
+						TTL:        timex.Duration{Duration: defaultDuration},
+						RefreshTTL: timex.Duration{Duration: defaultDuration},
+					},
+				},
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (string, error) {
 						return "123", nil
 					},
 				},
+				CSRFBaker: &security.StubBaker{},
 			},
 			svc: &auth.StubService{
 				VerifyUserfunc: func(ctx context.Context, token string) error {
@@ -392,7 +502,11 @@ func TestHandler_VerifyEmail(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			authHandler := auth.NewHandler(tc.svc, tc.provider)
+			authHandler, err := auth.NewHandler(tc.svc, tc.provider)
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			req := httptest.NewRequestWithContext(tc.ctx, http.MethodGet, "/auth/verify?token="+tc.token, http.NoBody)
 			rec := httptest.NewRecorder()
 			authHandler.VerifyEmail(rec, req)
@@ -418,9 +532,50 @@ func TestHandler_ResetPassword(t *testing.T) {
 		params    auth.ResetPasswordRequest
 	}{
 		{
-			name:      "Password was reset successfully",
-			userID:    "123",
-			providers: &provider.Provider{},
+			name:   "Password was reset successfully",
+			userID: "123",
+			providers: &provider.Provider{
+				Cfg: &config.Config{
+					Cookie: &config.Cookie{
+						Name:   "refresh_token",
+						MaxAge: timex.Duration{Duration: defaultDuration},
+					},
+					CSRF: &config.CSRF{
+						CookieName:   "csrf_token",
+						HeaderName:   "X-CSRF-Token",
+						TokenLength:  8,
+						CookieMaxAge: timex.Duration{Duration: defaultDuration},
+					},
+					JWT: &config.JWT{
+						JTILength:  8,
+						Issuer:     "example.com",
+						TTL:        timex.Duration{Duration: defaultDuration},
+						RefreshTTL: timex.Duration{Duration: defaultDuration},
+					},
+				},
+				Signer: &jwt.StubSigner{
+					VerifyFunc: func(tokenString string) (string, error) {
+						return "1", nil
+					},
+					SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+						return "xyz", nil
+					},
+				},
+				CSRFBaker: &security.StubBaker{
+					BakeFunc: func() (*http.Cookie, error) {
+						cookie := &http.Cookie{
+							Name:     "X-CSRF-Token",
+							Value:    "csrf123",
+							Path:     "/",
+							MaxAge:   int(defaultDuration.Seconds()),
+							Secure:   true,
+							SameSite: 0,
+						}
+
+						return cookie, nil
+					},
+				},
+			},
 			svc: &auth.StubService{
 				ResetPasswordFunc: func(ctx context.Context, params auth.ResetPasswordParams) error {
 					return nil
@@ -439,7 +594,10 @@ func TestHandler_ResetPassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			authHandler := auth.NewHandler(tc.svc, tc.providers)
+			authHandler, err := auth.NewHandler(tc.svc, tc.providers)
+			if err != nil {
+				t.Fatal(err)
+			}
 			ctx := web.NewContextWithParams(tc.ctx, tc.params)
 			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/reset", http.NoBody)
 			rec := httptest.NewRecorder()
@@ -455,16 +613,6 @@ func TestHandler_ResetPassword(t *testing.T) {
 
 func TestHandler_RefreshToken(t *testing.T) {
 	t.Parallel()
-
-	const (
-		userID       = "1"
-		csrfToken    = "abc"
-		refreshToken = "123"
-		accessToken  = "xyz"
-		timeUnit     = time.Minute
-	)
-
-	defaultDuration := 30 * timeUnit
 
 	cfg := &config.Config{
 		Cookie: &config.Cookie{
@@ -558,6 +706,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			wantBody: &web.ErrorResponse{
 				Message: message.InvalidUser,
 			},
+			signer: &jwt.StubSigner{},
 		},
 		{
 			name: "Expired refresh cookie",
@@ -611,6 +760,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 					return nil
 				},
 			},
+			signer:     &jwt.StubSigner{},
 			csrfHeader: "abc",
 			code:       http.StatusForbidden,
 			gotBody:    &web.ErrorResponse{},
@@ -642,6 +792,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 					return nil
 				},
 			},
+			signer:  &jwt.StubSigner{},
 			code:    http.StatusForbidden,
 			gotBody: &web.ErrorResponse{},
 			wantBody: &web.ErrorResponse{
@@ -664,6 +815,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 					return nil
 				},
 			},
+			signer:  &jwt.StubSigner{},
 			code:    http.StatusForbidden,
 			gotBody: &web.ErrorResponse{},
 			wantBody: &web.ErrorResponse{
@@ -694,6 +846,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 					return errors.New("mac mismatch")
 				},
 			},
+			signer:     &jwt.StubSigner{},
 			csrfHeader: "abc",
 			code:       http.StatusForbidden,
 			gotBody:    &web.ErrorResponse{},
@@ -712,7 +865,11 @@ func TestHandler_RefreshToken(t *testing.T) {
 				CSRFBaker: tc.csrfBaker,
 			}
 			svc := &auth.StubService{}
-			authHandler := auth.NewHandler(svc, provider)
+			authHandler, err := auth.NewHandler(svc, provider)
+			if err != nil {
+				t.Fatal(err)
+
+			}
 
 			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", http.NoBody)
 			if tc.refreshCookie != nil {

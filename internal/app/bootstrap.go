@@ -67,7 +67,11 @@ func Run() error {
 		middleware.CheckContentType,
 	}
 
-	api := New(providers, middlewares)
+	api, err := New(providers, middlewares)
+	if err != nil {
+		return fmt.Errorf("new api: %w", err)
+	}
+
 	if err = api.Start(signalCtx); err != nil {
 		return fmt.Errorf("start server: %w", err)
 	}

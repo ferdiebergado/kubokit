@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -56,11 +57,17 @@ func (s *GolangJWTSigner) Verify(tokenString string) (string, error) {
 	return claims.Subject, nil
 }
 
-func NewGolangJWTSigner(cfg *config.JWT, key string) *GolangJWTSigner {
-	return &GolangJWTSigner{
+func NewGolangJWTSigner(cfg *config.JWT, key string) (*GolangJWTSigner, error) {
+	if cfg == nil || key == "" {
+		return nil, errors.New("config or key should not be nil or empty")
+	}
+
+	signer := &GolangJWTSigner{
 		method: jwt.SigningMethodHS256,
 		key:    key,
 		jtiLen: cfg.JTILength,
 		issuer: cfg.Issuer,
 	}
+
+	return signer, nil
 }

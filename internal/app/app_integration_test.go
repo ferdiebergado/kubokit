@@ -42,18 +42,31 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 		t.Fatalf("connect db: %v", err)
 	}
 
+	signer, err := jwt.NewGolangJWTSigner(cfg.JWT, "testsecret")
+	if err != nil {
+		t.Fatalf("new jwt signer: %v", err)
+	}
+
+	hasher, err := hash.NewArgon2Hasher(cfg.Argon2, "testsecret")
+	if err != nil {
+		t.Fatalf("new hasher: %v", err)
+	}
+
 	provider := &provider.Provider{
 		Cfg:       cfg,
 		DB:        conn,
-		Signer:    jwt.NewGolangJWTSigner(cfg.JWT, "testsecret"),
+		Signer:    signer,
 		Mailer:    &email.SMTPMailer{},
 		Validator: validation.NewGoPlaygroundValidator(),
-		Hasher:    hash.NewArgon2Hasher(cfg.Argon2, "testsecret"),
+		Hasher:    hasher,
 		Router:    router.NewGoexpressRouter(),
 	}
 
 	middlewares := []func(http.Handler) http.Handler{}
-	api = app.New(provider, middlewares)
+	api, err = app.New(provider, middlewares)
+	if err != nil {
+		t.Fatalf("new api: %v", err)
+	}
 
 	cleanUpFunc = func() {
 		conn.Close()

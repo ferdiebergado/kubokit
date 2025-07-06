@@ -117,7 +117,11 @@ func (a *App) Shutdown() error {
 	return nil
 }
 
-func New(provider *provider.Provider, middlewares []func(http.Handler) http.Handler) *App {
+func New(provider *provider.Provider, middlewares []func(http.Handler) http.Handler) (*App, error) {
+	if provider == nil {
+		return nil, errors.New("provider should not be nil")
+	}
+
 	cfg := provider.Cfg
 	serverCtx, stop := context.WithCancel(context.Background())
 	serverCfg := cfg.Server
@@ -137,10 +141,13 @@ func New(provider *provider.Provider, middlewares []func(http.Handler) http.Hand
 	userHandler := userModule.Handler()
 	userSvc := userModule.Service()
 
-	authModule := auth.NewModule(provider, userSvc)
+	authModule, err := auth.NewModule(provider, userSvc)
+	if err != nil {
+		return nil, fmt.Errorf("new auth module: %w", err)
+	}
 	authHandler := authModule.Handler()
 
-	return &App{
+	api := &App{
 		config:          cfg,
 		db:              provider.DB,
 		txManager:       provider.TxMgr,
@@ -158,4 +165,6 @@ func New(provider *provider.Provider, middlewares []func(http.Handler) http.Hand
 		stop:            stop,
 		shutdownTimeout: serverCfg.ShutdownTimeout.Duration,
 	}
+
+	return api, nil
 }

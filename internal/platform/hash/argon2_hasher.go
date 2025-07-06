@@ -3,6 +3,7 @@ package hash
 import (
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -82,8 +83,12 @@ func (h *Argon2Hasher) Verify(plain, hashed string) (bool, error) {
 	return false, nil
 }
 
-func NewArgon2Hasher(cfg *config.Argon2, pepper string) *Argon2Hasher {
-	return &Argon2Hasher{
+func NewArgon2Hasher(cfg *config.Argon2, pepper string) (*Argon2Hasher, error) {
+	if cfg == nil || pepper == "" {
+		return nil, errors.New("config or pepper should not be nil or empty")
+	}
+
+	hasher := &Argon2Hasher{
 		memory:     cfg.Memory,
 		iterations: cfg.Iterations,
 		threads:    cfg.Threads,
@@ -91,4 +96,6 @@ func NewArgon2Hasher(cfg *config.Argon2, pepper string) *Argon2Hasher {
 		keyLen:     cfg.KeyLength,
 		pepper:     pepper,
 	}
+
+	return hasher, nil
 }

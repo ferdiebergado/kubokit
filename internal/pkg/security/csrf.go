@@ -66,11 +66,17 @@ func (c *CSRFCookieBaker) Check(csrfCookie *http.Cookie) error {
 
 // NewCSRFCookieBaker creates and returns a new instance of CSRFCookieBaker configured
 // with the provided CSRF configuration and security key.
-func NewCSRFCookieBaker(cfg *config.CSRF, securityKey string) *CSRFCookieBaker {
-	return &CSRFCookieBaker{
+func NewCSRFCookieBaker(cfg *config.CSRF, securityKey string) (*CSRFCookieBaker, error) {
+	if cfg == nil || securityKey == "" {
+		return nil, errors.New("config or security key should not be nil or empty")
+	}
+
+	baker := &CSRFCookieBaker{
 		name:       cfg.CookieName,
 		length:     cfg.TokenLength,
 		expiration: cfg.CookieMaxAge.Duration,
 		pepper:     securityKey,
 	}
+
+	return baker, nil
 }

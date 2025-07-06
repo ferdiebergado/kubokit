@@ -32,7 +32,9 @@ type AuthService interface {
 type Handler struct {
 	svc       AuthService
 	signer    jwt.Signer
-	cfg       *config.Config
+	cfgCookie *config.Cookie
+	cfgCSRF   *config.CSRF
+	cfgJWT    *config.JWT
 	csrfBaker web.Baker
 }
 
@@ -144,7 +146,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshCookieCfg := h.cfg.Cookie
+	refreshCookieCfg := h.cfgCookie
 	refreshCookie := security.NewSecureCookie(refreshCookieCfg.Name, refreshToken, refreshCookieCfg.MaxAge.Duration)
 	http.SetCookie(w, refreshCookie)
 
@@ -163,7 +165,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	csrfCfg := h.cfg.CSRF
+	csrfCfg := h.cfgCSRF
 	csrfCookieName := csrfCfg.CookieName
 	csrfCookie, err := r.Cookie(csrfCookieName)
 
@@ -183,7 +185,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshCookie, err := r.Cookie(h.cfg.Cookie.Name)
+	refreshCookie, err := r.Cookie(h.cfgCookie.Name)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
@@ -195,8 +197,8 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ttl := h.cfg.JWT.TTL.Duration
-	newAccessToken, err := h.signer.Sign(userID, []string{h.cfg.JWT.Issuer}, ttl)
+	ttl := h.cfgJWT.TTL.Duration
+	newAccessToken, err := h.signer.Sign(userID, []string{h.cfgJWT.Issuer}, ttl)
 	if err != nil {
 		web.RespondInternalServerError(w, err)
 		return
@@ -210,7 +212,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
-	cookieName := h.cfg.Cookie.Name
+	cookieName := h.cfgCookie.Name
 	if _, err := r.Cookie(cookieName); err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
@@ -295,11 +297,43 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	web.RespondOK(w, &msg, struct{}{})
 }
 
-func NewHandler(svc AuthService, provider *provider.Provider) *Handler {
-	return &Handler{
+func NewHandler(svc AuthService, provider *provider.Provider) (*Handler, error) {
+	cfg := provider.Cfg
+	if cfg == nil {
+		return nil, errors.New("config should not be nil")
+	}
+
+	cfgCookie := cfg.Cookie
+	if cfgCookie == nil {
+		return nil, errors.New("cookie config should not be nil")
+	}
+
+	cfgCSRF := cfg.CSRF
+	if cfgCSRF == nil {
+		return nil, errors.New("CSRF config should not be nil")
+	}
+
+	cfgJWT := cfg.JWT
+	if cfgJWT == nil {
+		return nil, errors.New("JWT config should not be nil")
+	}
+
+	if provider.Signer == nil {
+		return nil, errors.New("signer should not be nil")
+	}
+
+	if provider.CSRFBaker == nil {
+		return nil, errors.New("csrf baker should not be nil")
+	}
+
+	handler := &Handler{
 		svc:       svc,
+		cfgCookie: cfgCookie,
+		cfgCSRF:   cfgCSRF,
+		cfgJWT:    cfgJWT,
 		signer:    provider.Signer,
-		cfg:       provider.Cfg,
 		csrfBaker: provider.CSRFBaker,
 	}
+
+	return handler, nil
 }

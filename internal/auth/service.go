@@ -34,7 +34,9 @@ type Service struct {
 	hasher    hash.Hasher
 	signer    jwt.Signer
 	mailer    email.Mailer
-	cfg       *config.Config
+	cfgJWT    *config.JWT
+	cfgEmail  *config.Email
+	appURL    string
 	txManager db.TxManager
 }
 
@@ -89,8 +91,8 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 func (s *Service) sendEmail(email *HTMLEmail) {
 	slog.Info("Sending email...")
 
-	audience := s.cfg.App.URL + email.URI
-	ttl := s.cfg.Email.VerifyTTL.Duration
+	audience := s.appURL + email.URI
+	ttl := s.cfgEmail.VerifyTTL.Duration
 	token, err := s.signer.Sign(email.Payload, []string{audience}, ttl)
 	if err != nil {
 		slog.Error("failed to generate token", "reason", err)
@@ -146,14 +148,16 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (access
 		return "", "", ErrIncorrectPassword
 	}
 
-	ttl := s.cfg.JWT.TTL.Duration
-	accessToken, err = s.signer.Sign(u.ID, []string{s.cfg.JWT.Issuer}, ttl)
+	cfgJWT := s.cfgJWT
+
+	ttl := cfgJWT.TTL.Duration
+	accessToken, err = s.signer.Sign(u.ID, []string{cfgJWT.Issuer}, ttl)
 	if err != nil {
 		return "", "", fmt.Errorf("sign access token: %w", err)
 	}
 
-	refreshTTL := s.cfg.JWT.RefreshTTL.Duration
-	refreshToken, err = s.signer.Sign(u.ID, []string{s.cfg.JWT.Issuer}, refreshTTL)
+	refreshTTL := s.cfgJWT.RefreshTTL.Duration
+	refreshToken, err = s.signer.Sign(u.ID, []string{cfgJWT.Issuer}, refreshTTL)
 	if err != nil {
 		return "", "", fmt.Errorf("sign refresh token: %w", err)
 	}
@@ -211,14 +215,60 @@ func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) err
 	})
 }
 
-func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.UserService) *Service {
-	return &Service{
+func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.UserService) (*Service, error) {
+	if provider == nil {
+		return nil, errors.New("provider should not be nil")
+	}
+
+	if provider.Hasher == nil {
+		return nil, errors.New("hasher should not be nil")
+	}
+
+	if provider.Mailer == nil {
+		return nil, errors.New("mailer should not be nil")
+	}
+
+	if provider.Signer == nil {
+		return nil, errors.New("signer should not be nil")
+	}
+
+	if provider.TxMgr == nil {
+		return nil, errors.New("tx manager should not be nil")
+	}
+
+	cfg := provider.Cfg
+	if cfg == nil {
+		return nil, errors.New("config should not be nil")
+	}
+
+	if cfg.App == nil {
+		return nil, errors.New("app config should not be nil")
+	}
+
+	appURL := cfg.App.URL
+
+	cfgJWT := cfg.JWT
+
+	if cfgJWT == nil {
+		return nil, errors.New("jwt config should not be nil")
+	}
+
+	cfgEmail := cfg.Email
+	if cfgEmail == nil {
+		return nil, errors.New("email config should not be nil")
+	}
+
+	svc := &Service{
 		repo:      repo,
 		userSvc:   userSvc,
 		hasher:    provider.Hasher,
 		mailer:    provider.Mailer,
 		signer:    provider.Signer,
-		cfg:       provider.Cfg,
 		txManager: provider.TxMgr,
+		appURL:    appURL,
+		cfgJWT:    cfgJWT,
+		cfgEmail:  cfgEmail,
 	}
+
+	return svc, nil
 }
