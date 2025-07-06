@@ -114,15 +114,15 @@ func (a *App) Shutdown() error {
 	return nil
 }
 
-func New(provider *provider.Provider, middlewares []func(http.Handler) http.Handler) (*App, error) {
-	if provider == nil {
+func New(providers *provider.Provider, middlewares []func(http.Handler) http.Handler) (*App, error) {
+	if providers == nil {
 		return nil, errors.New("provider should not be nil")
 	}
 
-	cfg := provider.Cfg
-	serverCtx, stop := context.WithCancel(context.Background())
+	cfg := providers.Cfg
 	serverCfg := cfg.Server
-	handler := middleware.CORS(provider.Router)
+	handler := middleware.CORS(providers.Router)
+	serverCtx, stop := context.WithCancel(context.Background())
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", serverCfg.Port),
 		Handler: handler,
@@ -134,11 +134,11 @@ func New(provider *provider.Provider, middlewares []func(http.Handler) http.Hand
 		IdleTimeout:  serverCfg.IdleTimeout.Duration,
 	}
 
-	userModule := user.NewModule(provider.DB)
+	userModule := user.NewModule(providers)
 	userHandler := userModule.Handler()
 	userSvc := userModule.Service()
 
-	authModule, err := auth.NewModule(provider, userSvc)
+	authModule, err := auth.NewModule(providers, userSvc)
 	if err != nil {
 		return nil, fmt.Errorf("new auth module: %w", err)
 	}
@@ -146,13 +146,13 @@ func New(provider *provider.Provider, middlewares []func(http.Handler) http.Hand
 
 	api := &App{
 		config:          cfg,
-		db:              provider.DB,
-		txManager:       provider.TxMgr,
-		signer:          provider.Signer,
-		mailer:          provider.Mailer,
-		validator:       provider.Validator,
-		hasher:          provider.Hasher,
-		router:          provider.Router,
+		db:              providers.DB,
+		txManager:       providers.TxMgr,
+		signer:          providers.Signer,
+		mailer:          providers.Mailer,
+		validator:       providers.Validator,
+		hasher:          providers.Hasher,
+		router:          providers.Router,
 		userHandler:     userHandler,
 		userSvc:         userSvc,
 		authHandler:     authHandler,

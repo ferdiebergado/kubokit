@@ -21,18 +21,18 @@ func (m *Module) Service() *Service {
 	return m.svc
 }
 
-func NewModule(provider *provider.Provider, userSvc user.UserService) (*Module, error) {
-	if provider == nil {
+func NewModule(providers *provider.Provider, userSvc user.UserService) (*Module, error) {
+	if providers == nil {
 		return nil, errors.New("provider should not be nil")
 	}
 
-	repo := NewRepository(provider.DB)
-	svc, err := NewService(repo, provider, userSvc)
+	repo := NewRepository(providers.DB)
+	svc, err := NewService(repo, providers, userSvc)
 	if err != nil {
 		return nil, fmt.Errorf("new service: %w", err)
 	}
 
-	handler, err := NewHandler(svc, provider)
+	handler, err := NewHandler(svc, providers)
 	if err != nil {
 		return nil, fmt.Errorf("new auth handler: %w", err)
 	}

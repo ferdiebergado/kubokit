@@ -60,6 +60,7 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 		Validator: validation.NewGoPlaygroundValidator(),
 		Hasher:    hasher,
 		Router:    router.NewGoexpressRouter(),
+		TxMgr:     db.NewSQLTxManager(conn),
 	}
 
 	middlewares := []func(http.Handler) http.Handler{}
