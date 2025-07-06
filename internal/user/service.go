@@ -2,6 +2,9 @@ package user
 
 import (
 	"context"
+	"fmt"
+
+	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 )
 
 var _ UserService = &Service{}
@@ -15,10 +18,16 @@ type UserRepository interface {
 
 // Service is the implementation of the User Service interface.
 type Service struct {
-	repo UserRepository
+	repo   UserRepository
+	hasher hash.Hasher
 }
 
 func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
+	hash, err := s.hasher.Hash(params.Password)
+	if err != nil {
+		return User{}, fmt.Errorf("hash password: %w", err)
+	}
+	params.Password = hash
 	u, err := s.repo.CreateUser(ctx, params)
 	if err != nil {
 		return u, err
@@ -42,6 +51,9 @@ func (s *Service) ListUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-func NewService(repo UserRepository) *Service {
-	return &Service{repo}
+func NewService(repo UserRepository, hasher hash.Hasher) *Service {
+	return &Service{
+		repo:   repo,
+		hasher: hasher,
+	}
 }

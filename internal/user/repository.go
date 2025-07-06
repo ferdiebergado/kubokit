@@ -18,8 +18,7 @@ type Repository struct {
 }
 
 type CreateUserParams struct {
-	Email        string
-	PasswordHash string
+	Email, Password string
 }
 
 const QueryUserCreate = `
@@ -34,7 +33,7 @@ func (r *Repository) CreateUser(ctx context.Context, params CreateUserParams) (U
 	if tx := db.TxFromContext(ctx); tx != nil {
 		executor = tx // Use the transaction if present in context
 	}
-	row := executor.QueryRowContext(ctx, QueryUserCreate, params.Email, params.PasswordHash)
+	row := executor.QueryRowContext(ctx, QueryUserCreate, params.Email, params.Password)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return u, fmt.Errorf("query to create user: %w", err)

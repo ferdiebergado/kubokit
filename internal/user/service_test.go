@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/model"
+	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -32,7 +33,12 @@ func TestService_ListUsers(t *testing.T) {
 			return users, nil
 		},
 	}
-	service := user.NewService(repo)
+	hasher := &hash.StubHasher{
+		HashFunc: func(_ string) (string, error) {
+			return "hashed", nil
+		},
+	}
+	service := user.NewService(repo, hasher)
 	allUsers, err := service.ListUsers(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -61,14 +67,19 @@ func TestService_CreateUser(t *testing.T) {
 					UpdatedAt: now,
 				},
 				Email:        params.Email,
-				PasswordHash: params.PasswordHash,
+				PasswordHash: params.Password,
 			}, nil
 		},
 	}
-	svc := user.NewService(repo)
+	hasher := &hash.StubHasher{
+		HashFunc: func(_ string) (string, error) {
+			return "hashed", nil
+		},
+	}
+	svc := user.NewService(repo, hasher)
 	params := user.CreateUserParams{
-		Email:        testEmail,
-		PasswordHash: testPass,
+		Email:    testEmail,
+		Password: testPass,
 	}
 	ctx := context.Background()
 	gotUser, err := svc.CreateUser(ctx, params)

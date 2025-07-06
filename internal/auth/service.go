@@ -58,21 +58,16 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 	email := params.Email
 	existing, err := s.userSvc.FindUserByEmail(ctx, email)
 	if err != nil && !errors.Is(err, user.ErrNotFound) {
-		return u, err
+		return u, fmt.Errorf("find user by email: %w", err)
 	}
 
 	if existing != nil {
 		return u, ErrUserExists
 	}
 
-	hash, err := s.hasher.Hash(params.Password)
+	newUser, err := s.userSvc.CreateUser(ctx, user.CreateUserParams{Email: email, Password: params.Password})
 	if err != nil {
-		return u, fmt.Errorf("hash password: %w", err)
-	}
-
-	newUser, err := s.userSvc.CreateUser(ctx, user.CreateUserParams{Email: email, PasswordHash: hash})
-	if err != nil {
-		return u, err
+		return u, fmt.Errorf("create user: %w", err)
 	}
 
 	verifyEmail := &HTMLEmail{
@@ -112,7 +107,7 @@ func (s *Service) sendEmail(email *HTMLEmail) {
 
 func (s *Service) VerifyUser(ctx context.Context, userID string) error {
 	if err := s.repo.VerifyUser(ctx, userID); err != nil {
-		return err
+		return fmt.Errorf("verify user: %w", err)
 	}
 	return nil
 }
@@ -132,7 +127,7 @@ func (p *LoginUserParams) LogValue() slog.Value {
 func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error) {
 	u, err := s.userSvc.FindUserByEmail(ctx, params.Email)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("find user by email: %w", err)
 	}
 
 	if u.VerifiedAt == nil {
@@ -185,12 +180,16 @@ type ResetPasswordParams struct {
 func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
 	u, err := s.userSvc.FindUserByEmail(ctx, params.email)
 	if err != nil {
-		return err
+		return fmt.Errorf("find user by email: %w", err)
 	}
 
-	_, err = s.hasher.Verify(params.currentPassword, u.PasswordHash)
+	ok, err := s.hasher.Verify(params.currentPassword, u.PasswordHash)
 	if err != nil {
 		return fmt.Errorf("verify current password: %w", err)
+	}
+
+	if !ok {
+		return ErrIncorrectPassword
 	}
 
 	newHash, err := s.hasher.Hash(params.newPassword)
@@ -198,7 +197,12 @@ func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 		return fmt.Errorf("hash new password: %w", err)
 	}
 
-	return s.repo.ChangeUserPassword(ctx, u.Email, newHash)
+	err = s.repo.ChangeUserPassword(ctx, u.Email, newHash)
+	if err != nil {
+		return fmt.Errorf("change user password: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) error {

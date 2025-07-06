@@ -1,7 +1,7 @@
 package user
 
 import (
-	"database/sql"
+	"github.com/ferdiebergado/kubokit/internal/provider"
 )
 
 type Module struct {
@@ -18,9 +18,9 @@ func (m *Module) Service() *Service {
 	return m.svc
 }
 
-func NewModule(db *sql.DB) *Module {
-	repo := NewRepository(db)
-	svc := NewService(repo)
+func NewModule(providers *provider.Provider) *Module {
+	repo := NewRepository(providers.DB)
+	svc := NewService(repo, providers.Hasher)
 	handler := NewHandler(svc)
 	return &Module{
 		repo:    repo,
