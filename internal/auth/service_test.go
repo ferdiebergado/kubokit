@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -21,100 +22,88 @@ import (
 func TestService_RegisterUser(t *testing.T) {
 	t.Parallel()
 
+	const user1 = "user1@example.com"
+
 	now := time.Now().Truncate(0)
 
 	tests := []struct {
 		name, email, password string
-		registerUserFunc      func(ctx context.Context, params auth.RegisterUserParams) (user.User, error)
-		createUserFunc        func(ctx context.Context, params user.CreateUserParams) (user.User, error)
-		findUserByEmailFunc   func(ctx context.Context, email string) (*user.User, error)
-		hashFunc              func(plain string) (string, error)
-		sendHTMLFunc          func(to []string, subject, tmplName string, data map[string]string) error
-		signFunc              func(subject string, audience []string, duration time.Duration) (string, error)
-		wantUser              user.User
-		assertFunc            func(t *testing.T, gotUser, wantUser user.User, err error)
+		userSvc               user.UserService
+		hasher                hash.Hasher
+		signer                jwt.Signer
+		mailer                email.Mailer
+		user                  user.User
+		err                   error
 	}{
 		{
-			name:     "Successful Registration",
-			email:    "user1@example.com",
+			name:     "Successful registration",
+			email:    user1,
 			password: "test",
-			registerUserFunc: func(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
-				return user.User{
-					Model: model.Model{
-						ID:        "1",
-						CreatedAt: now,
-						UpdatedAt: now,
-					},
-					Email: params.Email,
-				}, nil
+			userSvc: &user.StubService{
+				CreateUserFunc: func(ctx context.Context, params user.CreateUserParams) (user.User, error) {
+					return user.User{
+						Model: model.Model{
+							ID:        "1",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+						Email: params.Email,
+					}, nil
+				},
+				FindUserByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+					return nil, user.ErrNotFound
+				},
 			},
-			createUserFunc: func(ctx context.Context, params user.CreateUserParams) (user.User, error) {
-				return user.User{
-					Model: model.Model{
-						ID:        "1",
-						CreatedAt: now,
-						UpdatedAt: now,
-					},
-					Email: params.Email,
-				}, nil
+			hasher: &hash.StubHasher{
+				HashFunc: func(plain string) (string, error) {
+					return "hashed", nil
+				},
 			},
-			findUserByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
-				return nil, nil
+			signer: &jwt.StubSigner{
+				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+					return "1", nil
+				},
 			},
-			hashFunc: func(_ string) (string, error) {
-				return "hashed", nil
+			mailer: &email.StubMailer{
+				SendHTMLFunc: func(to []string, subject, tmplName string, data map[string]string) error {
+					return nil
+				},
 			},
-			sendHTMLFunc: func(to []string, subject, tmplName string, data map[string]string) error {
-				return nil
-			},
-			signFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
-				return "signed", nil
-			},
-			wantUser: user.User{
+			user: user.User{
 				Model: model.Model{
 					ID:        "1",
 					CreatedAt: now,
 					UpdatedAt: now,
 				},
-				Email: "user1@example.com",
-			},
-			assertFunc: func(t *testing.T, gotUser, wantUser user.User, err error) {
-				t.Helper()
-
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				if !reflect.DeepEqual(gotUser, wantUser) {
-					t.Errorf("gotUser = %+v, want: %+v", gotUser, wantUser)
-				}
+				Email: user1,
 			},
 		},
+		{
+			name:     "User already exists",
+			email:    user1,
+			password: "test",
+			userSvc: &user.StubService{
+				FindUserByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+					return &user.User{
+						Model: model.Model{
+							ID:        "1",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+						Email: user1,
+					}, nil
+				},
+			},
+			hasher: &hash.StubHasher{},
+			mailer: &email.StubMailer{},
+			signer: &jwt.StubSigner{},
+			user:   user.User{},
+			err:    auth.ErrUserExists,
+		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-
-			authRepo := &auth.StubRepo{
-				RegisterUserFunc: tt.registerUserFunc,
-			}
-
-			userSvc := &user.StubService{
-				CreateUserFunc:      tt.createUserFunc,
-				FindUserByEmailFunc: tt.findUserByEmailFunc,
-			}
-
-			hasher := &hash.StubHasher{
-				HashFunc: tt.hashFunc,
-			}
-
-			mailer := &email.StubMailer{
-				SendHTMLFunc: tt.sendHTMLFunc,
-			}
-
-			signer := &jwt.StubSigner{
-				SignFunc: tt.signFunc,
-			}
 
 			cfg := &config.Config{
 				App: &config.App{
@@ -136,27 +125,38 @@ func TestService_RegisterUser(t *testing.T) {
 					RefreshTTL: timex.Duration{Duration: 24 * time.Hour},
 				},
 			}
-			stubTxMgr := &db.StubTxManager{}
 			provider := &provider.Provider{
-				Hasher: hasher,
-				Mailer: mailer,
-				Signer: signer,
+				Hasher: tc.hasher,
+				Mailer: tc.mailer,
+				Signer: tc.signer,
 				Cfg:    cfg,
-				TxMgr:  stubTxMgr,
+				TxMgr:  &db.StubTxManager{},
 			}
 
-			authSvc, err := auth.NewService(authRepo, provider, userSvc)
+			authSvc, err := auth.NewService(&auth.StubRepo{}, provider, tc.userSvc)
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			ctx := context.Background()
 			params := auth.RegisterUserParams{
-				Email:    tt.email,
-				Password: tt.password,
+				Email:    tc.email,
+				Password: tc.password,
 			}
 			gotUser, err := authSvc.RegisterUser(ctx, params)
-			tt.assertFunc(t, gotUser, tt.wantUser, err)
+			if err != nil {
+				if tc.err == nil {
+					t.Fatal(err)
+				}
+
+				if !errors.Is(err, tc.err) {
+					t.Errorf("authSvc.RegisterUser(ctx, params) = %v, want: %v", err, tc.err)
+				}
+			}
+
+			if !reflect.DeepEqual(gotUser, tc.user) {
+				t.Errorf("authSvc.RegisterUser(ctx, params) = %+v, want: %+v", gotUser, tc.user)
+			}
 		})
 	}
 }
