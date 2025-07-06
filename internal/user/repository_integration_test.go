@@ -4,6 +4,8 @@ package user_test
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -213,6 +215,58 @@ func TestIntegrationRepository_CreateUser(t *testing.T) {
 
 				if u.UpdatedAt.IsZero() {
 					t.Errorf("u.UpdatedAt = %v, want: non-zero", u.UpdatedAt)
+				}
+			}
+		})
+	}
+}
+
+func TestIntegrationRepository_DeleteUser(t *testing.T) {
+	t.Parallel()
+
+	conn, tx := db.Setup(t)
+
+	_, err := tx.Exec(querySeedUsers)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name, userID string
+		err          error
+	}{
+		{
+			name:   "Delete an existing user",
+			userID: "6f1e3e3a-1c55-4f19-8341-8132f374dc5f",
+		},
+		{
+			name:   "Delete a user that does not exists",
+			userID: "6f1e3e3a-1c55-4f19-8341-8132f374dc50",
+			err:    user.ErrNotFound,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			txCtx := db.NewContextWithTx(ctx, tx)
+
+			repo := user.NewRepository(conn)
+			err := repo.DeleteUser(txCtx, tc.userID)
+			if err != nil {
+				if tc.err == nil {
+					t.Fatalf("failed to delete user: %v", err)
+				}
+
+				if err != tc.err {
+					t.Errorf("repo.DeleteUser(txCtx, %q) = %v, want: %v", tc.userID, err, tc.err)
+				}
+			}
+			const query = "SELECT email FROM users WHERE id = $1"
+			row := tx.QueryRow(query, tc.userID)
+			var email string
+			if err := row.Scan(&email); err != nil {
+				if !errors.Is(err, sql.ErrNoRows) {
+					t.Errorf("tx.QueryRow(%q, %q) = %v, want: %v", query, tc.userID, err, sql.ErrNoRows)
 				}
 			}
 		})

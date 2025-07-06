@@ -116,6 +116,31 @@ func (r *Repository) FindUser(ctx context.Context, userID string) (User, error) 
 	return u, nil
 }
 
+func (r *Repository) DeleteUser(ctx context.Context, userID string) error {
+	const query = "DELETE FROM users WHERE id = $1"
+
+	// Get the current executor (either *sql.DB or *sql.Tx from context)
+	executor := r.db // Default to *sql.DB
+	if tx := db.TxFromContext(ctx); tx != nil {
+		executor = tx // Use the transaction if present in context
+	}
+	res, err := executor.ExecContext(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("query to delete user: %w", err)
+	}
+
+	numRows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("get rows affected: %w", err)
+	}
+
+	if numRows == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
 func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db}
 }
