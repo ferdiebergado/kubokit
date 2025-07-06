@@ -28,7 +28,7 @@ func NewModule(provider *provider.Provider, userSvc user.UserService) (*Module, 
 
 	repo := NewRepository(provider.DB)
 	svc, err := NewService(repo, provider, userSvc)
-	if err == nil {
+	if err != nil {
 		return nil, fmt.Errorf("new service: %w", err)
 	}
 

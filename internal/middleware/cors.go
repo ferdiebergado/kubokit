@@ -15,23 +15,18 @@ const (
 	AllowedCreds   = "true"
 )
 
-func CORS(allowedOrigin string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			origin := r.Header.Get("Origin")
-			if origin == allowedOrigin {
-				w.Header().Set(HeaderAllowOrigin, origin)
-				w.Header().Set(HeaderAllowMethods, AllowedMethods)
-				w.Header().Set(HeaderAllowHeaders, AllowedHeaders)
-				w.Header().Set(HeaderAllowCreds, AllowedCreds)
-			}
+func CORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(HeaderAllowOrigin, "*")
+		w.Header().Set(HeaderAllowMethods, AllowedMethods)
+		w.Header().Set(HeaderAllowHeaders, AllowedHeaders)
+		w.Header().Set(HeaderAllowCreds, AllowedCreds)
 
-			if r.Method == http.MethodOptions {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 
-			next.ServeHTTP(w, r)
-		})
-	}
+		next.ServeHTTP(w, r)
+	})
 }

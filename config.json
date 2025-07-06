@@ -3,8 +3,7 @@
     "env": "development",
     "key": "secure_random_key",
     "url": "http://localhost:8080",
-    "log_level": "info",
-    "allowed_origin": "http://localhost:3000"
+    "log_level": "info"
   },
   "server": {
     "port": 8080,

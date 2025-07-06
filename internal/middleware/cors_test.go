@@ -11,62 +11,39 @@ import (
 func TestMiddleware_CORS(t *testing.T) {
 	t.Parallel()
 
-	const allowedOrigin = "localhost:3000"
+	const (
+		origin      = "*"
+		sameOrigin  = "http://localhost:3000"
+		otherOrigin = "http://example.com"
+	)
 
 	tests := []struct {
 		name, method, origin string
 		code                 int
-		headers              map[string]string
 	}{
 		{
-			name:   "GET method with allowed origin",
-			method: http.MethodGet,
-			origin: allowedOrigin,
-			code:   http.StatusOK,
-			headers: map[string]string{
-				middleware.HeaderAllowOrigin:  allowedOrigin,
-				middleware.HeaderAllowMethods: middleware.AllowedMethods,
-				middleware.HeaderAllowHeaders: middleware.AllowedHeaders,
-				middleware.HeaderAllowCreds:   middleware.AllowedCreds,
-			},
-		},
-		{
-			name:   "POST method with allowed origin",
-			method: http.MethodPost,
-			origin: allowedOrigin,
-			code:   http.StatusOK,
-			headers: map[string]string{
-				middleware.HeaderAllowOrigin:  allowedOrigin,
-				middleware.HeaderAllowMethods: middleware.AllowedMethods,
-				middleware.HeaderAllowHeaders: middleware.AllowedHeaders,
-				middleware.HeaderAllowCreds:   middleware.AllowedCreds,
-			},
-		},
-		{
-			name:   "OPTIONS method with allowed origin",
+			name:   "Preflight request from same origin",
 			method: http.MethodOptions,
-			origin: allowedOrigin,
+			origin: sameOrigin,
 			code:   http.StatusNoContent,
-			headers: map[string]string{
-				middleware.HeaderAllowOrigin:  allowedOrigin,
-				middleware.HeaderAllowMethods: middleware.AllowedMethods,
-				middleware.HeaderAllowHeaders: middleware.AllowedHeaders,
-				middleware.HeaderAllowCreds:   middleware.AllowedCreds,
-			},
 		},
 		{
-			name:    "GET method with unknown origin",
-			method:  http.MethodGet,
-			origin:  "example.com",
-			code:    http.StatusOK,
-			headers: map[string]string{},
+			name:   "GET request from same origin",
+			method: http.MethodGet,
+			origin: sameOrigin,
+			code:   http.StatusOK,
 		},
 		{
-			name:    "PUT method with unknown origin",
-			method:  http.MethodPut,
-			origin:  "example.com",
-			code:    http.StatusOK,
-			headers: map[string]string{},
+			name:   "Preflight request from other origin",
+			method: http.MethodOptions,
+			origin: otherOrigin,
+			code:   http.StatusNoContent,
+		},
+		{
+			name:   "POST request from other origin",
+			method: http.MethodPost,
+			origin: otherOrigin,
+			code:   http.StatusOK,
 		},
 	}
 	for _, tc := range tests {
@@ -80,15 +57,22 @@ func TestMiddleware_CORS(t *testing.T) {
 			req := httptest.NewRequest(tc.method, "/", http.NoBody)
 			req.Header.Set("Origin", tc.origin)
 			rec := httptest.NewRecorder()
-			mw := middleware.CORS(allowedOrigin)
-			mw(handler).ServeHTTP(rec, req)
+			mw := middleware.CORS(handler)
+			mw.ServeHTTP(rec, req)
 
 			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
 				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
 			}
 
-			for header, val := range tc.headers {
+			headers := map[string]string{
+				middleware.HeaderAllowOrigin:  origin,
+				middleware.HeaderAllowMethods: middleware.AllowedMethods,
+				middleware.HeaderAllowHeaders: middleware.AllowedHeaders,
+				middleware.HeaderAllowCreds:   middleware.AllowedCreds,
+			}
+
+			for header, val := range headers {
 				gotHeader := rec.Header().Get(header)
 				wantHeader := val
 

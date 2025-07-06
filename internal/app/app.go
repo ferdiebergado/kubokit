@@ -122,7 +122,7 @@ func New(provider *provider.Provider, middlewares []func(http.Handler) http.Hand
 	cfg := provider.Cfg
 	serverCtx, stop := context.WithCancel(context.Background())
 	serverCfg := cfg.Server
-	handler := middleware.CORS(cfg.App.AllowedOrigin)(provider.Router)
+	handler := middleware.CORS(provider.Router)
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", serverCfg.Port),
 		Handler: handler,
