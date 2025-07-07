@@ -29,9 +29,10 @@ type AuthService interface {
 }
 
 type Handler struct {
-	svc    AuthService
-	signer jwt.Signer
-	cfgJWT *config.JWT
+	svc           AuthService
+	signer        jwt.Signer
+	cfgJWT        *config.JWT
+	fpCookieBaker web.Baker
 }
 
 type RegisterUserRequest struct {
@@ -143,7 +144,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fpCookie := NewFingerprintCookie(fingerprint, h.cfgJWT.TTL.Duration)
+	fpCookie := h.fpCookieBaker.Bake(fingerprint)
 	http.SetCookie(w, fpCookie)
 
 	msg := MsgLoggedIn
@@ -176,7 +177,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fpCookie := NewFingerprintCookie(fp, h.cfgJWT.TTL.Duration)
+	fpCookie := h.fpCookieBaker.Bake(fp)
 	http.SetCookie(w, fpCookie)
 
 	msg := "Token refreshed."
@@ -251,7 +252,7 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	web.RespondOK(w, &msg, struct{}{})
 }
 
-func NewHandler(svc AuthService, provider *provider.Provider) (*Handler, error) {
+func NewHandler(svc AuthService, provider *provider.Provider, fpCookieBaker web.Baker) (*Handler, error) {
 	cfg := provider.Cfg
 	if cfg == nil {
 		return nil, errors.New("config should not be nil")
@@ -267,9 +268,10 @@ func NewHandler(svc AuthService, provider *provider.Provider) (*Handler, error) 
 	}
 
 	handler := &Handler{
-		svc:    svc,
-		cfgJWT: cfgJWT,
-		signer: provider.Signer,
+		svc:           svc,
+		cfgJWT:        cfgJWT,
+		signer:        provider.Signer,
+		fpCookieBaker: fpCookieBaker,
 	}
 
 	return handler, nil

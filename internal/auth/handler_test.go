@@ -97,7 +97,12 @@ func TestHandler_RegisterUser(t *testing.T) {
 				Cfg:    cfg,
 				Signer: &signer,
 			}
-			authHandler, err := auth.NewHandler(svc, provider)
+			baker := &auth.StubFingerprintCookieBaker{
+				BakeFunc: func(val string) *http.Cookie {
+					return &http.Cookie{}
+				},
+			}
+			authHandler, err := auth.NewHandler(svc, provider, baker)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -244,7 +249,12 @@ func TestHandler_LoginUser(t *testing.T) {
 				Cfg:    cfg,
 				Signer: signer,
 			}
-			authHandler, err := auth.NewHandler(svc, provider)
+			baker := &auth.StubFingerprintCookieBaker{
+				BakeFunc: func(val string) *http.Cookie {
+					return &http.Cookie{}
+				},
+			}
+			authHandler, err := auth.NewHandler(svc, provider, baker)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -368,7 +378,13 @@ func TestHandler_VerifyEmail(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			authHandler, err := auth.NewHandler(tc.svc, tc.provider)
+			baker := &auth.StubFingerprintCookieBaker{
+				BakeFunc: func(val string) *http.Cookie {
+					return &http.Cookie{}
+				},
+			}
+
+			authHandler, err := auth.NewHandler(tc.svc, tc.provider, baker)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -436,7 +452,13 @@ func TestHandler_ResetPassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			authHandler, err := auth.NewHandler(tc.svc, tc.providers)
+			baker := &auth.StubFingerprintCookieBaker{
+				BakeFunc: func(val string) *http.Cookie {
+					return &http.Cookie{}
+				},
+			}
+
+			authHandler, err := auth.NewHandler(tc.svc, tc.providers, baker)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -537,7 +559,13 @@ func TestHandler_RefreshToken(t *testing.T) {
 				Signer: tc.signer,
 			}
 
-			authHandler, err := auth.NewHandler(tc.svc, provider)
+			baker := &auth.StubFingerprintCookieBaker{
+				BakeFunc: func(val string) *http.Cookie {
+					return &http.Cookie{}
+				},
+			}
+
+			authHandler, err := auth.NewHandler(tc.svc, provider, baker)
 			if err != nil {
 				t.Fatal(err)
 			}

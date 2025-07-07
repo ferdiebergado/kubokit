@@ -76,6 +76,7 @@ type JWT struct {
 	Issuer     string         `json:"issuer,omitempty"`
 	TTL        timex.Duration `json:"ttl,omitempty"`
 	RefreshTTL timex.Duration `json:"refresh_ttl,omitempty"`
+	Cookie     string         `json:"cookie,omitempty"`
 }
 
 type Email struct {

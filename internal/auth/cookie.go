@@ -3,18 +3,34 @@ package auth
 import (
 	"net/http"
 	"time"
+
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 )
 
-func NewFingerprintCookie(fingerprint string, duration time.Duration) *http.Cookie {
+var _ web.Baker = &FingerprintCookieBaker{}
+
+type FingerprintCookieBaker struct {
+	CookieName     string
+	CookieDuration time.Duration
+}
+
+func (f *FingerprintCookieBaker) Bake(fingerprint string) *http.Cookie {
 	cookie := &http.Cookie{
-		Name:     "__Secure-fp",
+		Name:     f.CookieName,
 		Value:    fingerprint,
 		Path:     "/",
-		MaxAge:   time.Now().Add(duration).Second(),
+		MaxAge:   time.Now().Add(f.CookieDuration).Second(),
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	}
 
 	return cookie
+}
+
+func NewFingerprintCookieBaker(name string, duration time.Duration) *FingerprintCookieBaker {
+	return &FingerprintCookieBaker{
+		CookieName:     name,
+		CookieDuration: duration,
+	}
 }

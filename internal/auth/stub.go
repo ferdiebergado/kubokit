@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"net/http"
 
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
@@ -91,4 +92,15 @@ func (r *StubRepo) ChangeUserPassword(ctx context.Context, email, newPassword st
 		return errors.New("ChangeUserPassword not implemented by stub")
 	}
 	return r.ChangeUserPasswordFunc(ctx, email, newPassword)
+}
+
+type StubFingerprintCookieBaker struct {
+	BakeFunc func(val string) *http.Cookie
+}
+
+func (s *StubFingerprintCookieBaker) Bake(val string) *http.Cookie {
+	if s.BakeFunc == nil {
+		panic("Bake not implemented by stub")
+	}
+	return s.BakeFunc(val)
 }
