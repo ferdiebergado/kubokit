@@ -13,6 +13,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -39,6 +40,7 @@ type App struct {
 	userHandler     *user.Handler
 	userSvc         user.UserService
 	authHandler     *auth.Handler
+	shortHasher     security.ShortHasher
 }
 
 func (a *App) registerMiddlewares() {
@@ -53,8 +55,11 @@ func (a *App) registerMiddlewares() {
 }
 
 func (a *App) setupRoutes() {
-	maxBodySize := a.config.Server.MaxBodyBytes
+	cfg := a.config
+	maxBodySize := cfg.Server.MaxBodyBytes
+	requireToken := auth.RequireToken(cfg.JWT.Cookie, a.signer, a.shortHasher)
 
+	// auth routes
 	a.router.Group("/auth", func(gr router.Router) {
 		gr.Post("/register", a.authHandler.RegisterUser,
 			middleware.DecodePayload[auth.RegisterUserRequest](maxBodySize),
@@ -63,7 +68,7 @@ func (a *App) setupRoutes() {
 			middleware.DecodePayload[auth.UserLoginRequest](maxBodySize),
 			middleware.ValidateInput[auth.UserLoginRequest](a.validator))
 		gr.Get("/verify", a.authHandler.VerifyEmail, auth.VerifyToken(a.signer))
-		gr.Post("/refresh", a.authHandler.RefreshToken, auth.RequireToken(a.signer))
+		gr.Post("/refresh", a.authHandler.RefreshToken, requireToken)
 		gr.Post("/forgot", a.authHandler.ForgotPassword,
 			middleware.DecodePayload[auth.ForgotPasswordRequest](maxBodySize),
 			middleware.ValidateInput[auth.ForgotPasswordRequest](a.validator))
@@ -73,9 +78,10 @@ func (a *App) setupRoutes() {
 			middleware.ValidateInput[auth.ResetPasswordRequest](a.validator))
 	})
 
+	// users routes
 	a.router.Group("/users", func(gr router.Router) {
 		gr.Get("/", a.userHandler.ListUsers)
-	}, auth.RequireToken(a.signer))
+	}, requireToken)
 }
 
 func (a *App) Start(ctx context.Context) error {
@@ -144,6 +150,8 @@ func New(providers *provider.Provider, middlewares []func(http.Handler) http.Han
 	}
 	authHandler := authModule.Handler()
 
+	shortHasher := security.SHA256Hasher
+
 	api := &App{
 		config:          cfg,
 		db:              providers.DB,
@@ -160,6 +168,7 @@ func New(providers *provider.Provider, middlewares []func(http.Handler) http.Han
 		middlewares:     middlewares,
 		stop:            stop,
 		shutdownTimeout: serverCfg.ShutdownTimeout.Duration,
+		shortHasher:     shortHasher,
 	}
 
 	return api, nil

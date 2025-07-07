@@ -32,15 +32,16 @@ type AuthRepository interface {
 }
 
 type Service struct {
-	repo      AuthRepository
-	userSvc   user.UserService
-	hasher    hash.Hasher
-	signer    jwt.Signer
-	mailer    email.Mailer
-	cfgJWT    *config.JWT
-	cfgEmail  *config.Email
-	appURL    string
-	txManager db.TxManager
+	repo        AuthRepository
+	userSvc     user.UserService
+	hasher      hash.Hasher
+	signer      jwt.Signer
+	mailer      email.Mailer
+	cfgJWT      *config.JWT
+	cfgEmail    *config.Email
+	appURL      string
+	txManager   db.TxManager
+	shortHasher security.ShortHasher
 }
 
 type RegisterUserParams struct {
@@ -188,7 +189,7 @@ func (s *Service) fingerprint() (fp, fpHash string, err error) {
 		return "", "", fmt.Errorf("generate random bytes: %w", err)
 	}
 
-	fpHashBytes, err := security.SHA256Hash(fpBytes)
+	fpHashBytes, err := s.shortHasher.Hash(fpBytes)
 	if err != nil {
 		return "", "", fmt.Errorf("hash fingerprint: %w", err)
 	}
@@ -311,15 +312,16 @@ func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.U
 	}
 
 	svc := &Service{
-		repo:      repo,
-		userSvc:   userSvc,
-		hasher:    provider.Hasher,
-		mailer:    provider.Mailer,
-		signer:    provider.Signer,
-		txManager: provider.TxMgr,
-		appURL:    appURL,
-		cfgJWT:    cfgJWT,
-		cfgEmail:  cfgEmail,
+		repo:        repo,
+		userSvc:     userSvc,
+		hasher:      provider.Hasher,
+		mailer:      provider.Mailer,
+		signer:      provider.Signer,
+		txManager:   provider.TxMgr,
+		appURL:      appURL,
+		cfgJWT:      cfgJWT,
+		cfgEmail:    cfgEmail,
+		shortHasher: security.SHA256Hasher,
 	}
 
 	return svc, nil

@@ -2,7 +2,6 @@ package security
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 )
@@ -55,14 +54,4 @@ func ConstantTimeCompareStr(a, b string) bool {
 		result |= int(a[i] ^ b[i])
 	}
 	return result == 0
-}
-
-func SHA256Hash(data []byte) ([]byte, error) {
-	h := sha256.New()
-	if _, err := h.Write(data); err != nil {
-		return nil, fmt.Errorf("hasher write data: %w", err)
-	}
-
-	hashBytes := h.Sum(nil)
-	return hashBytes, nil
 }

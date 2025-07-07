@@ -7,15 +7,15 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 )
 
-func TestSHA256Hash(t *testing.T) {
-	data := []byte("random_bytes")
+func TestSHA256Hasher(t *testing.T) {
+	data := []byte("signature")
 
-	hash, err := security.SHA256Hash(data)
+	hash, err := security.SHA256Hasher.Hash(data)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	otherHash, err := security.SHA256Hash(data)
+	otherHash, err := security.SHA256Hasher.Hash(data)
 	if err != nil {
 		t.Fatal(err)
 	}

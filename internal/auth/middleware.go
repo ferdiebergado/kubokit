@@ -42,7 +42,7 @@ func VerifyToken(signer jwt.Signer) func(http.Handler) http.Handler {
 	}
 }
 
-func RequireToken(signer jwt.Signer) func(http.Handler) http.Handler {
+func RequireToken(fpCookieName string, signer jwt.Signer, hasher security.ShortHasher) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			slog.Info("Verifying access token...")
@@ -53,7 +53,7 @@ func RequireToken(signer jwt.Signer) func(http.Handler) http.Handler {
 				return
 			}
 
-			fpCookie, err := r.Cookie("__Secure-fp")
+			fpCookie, err := r.Cookie(fpCookieName)
 			if err != nil || fpCookie.Value == "" {
 				web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 				return
@@ -77,7 +77,7 @@ func RequireToken(signer jwt.Signer) func(http.Handler) http.Handler {
 				return
 			}
 
-			rehashedBytes, err := security.SHA256Hash(fpBytes)
+			rehashedBytes, err := hasher.Hash(fpBytes)
 			if err != nil {
 				web.RespondInternalServerError(w, err)
 				return
