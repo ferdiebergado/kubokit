@@ -12,6 +12,14 @@ import (
 
 var _ Signer = &GolangJWTSigner{}
 
+// CustomClaims represents JWT claims with an additional fingerprint field.
+type CustomClaims struct {
+	jwt.RegisteredClaims
+
+	Fingerprint string `json:"fingerprint,omitempty"`
+}
+
+// GolangJWTSigner implements the Signer interface using the golang-jwt library.
 type GolangJWTSigner struct {
 	method jwt.SigningMethod
 	key    string
@@ -19,44 +27,55 @@ type GolangJWTSigner struct {
 	issuer string
 }
 
-func (s *GolangJWTSigner) Sign(subject string, audience []string, duration time.Duration) (string, error) {
-	id, err := security.GenerateRandomBytesStdEncoded(s.jtiLen)
+// Sign generates a signed JWT token with the given subject, fingerprint hash, audience, and duration.
+func (s *GolangJWTSigner) Sign(sub, fpHash string, audience []string, duration time.Duration) (string, error) {
+	id, err := security.GenerateRandomBytesURLEncoded(s.jtiLen)
 	if err != nil {
-		return "", fmt.Errorf("generate random bytes encoded with length %d: %w", s.jtiLen, err)
+		return "", fmt.Errorf("generate jti with length %d: %w", s.jtiLen, err)
 	}
 
-	now := time.Now()
-
-	claims := &jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(now.Add(duration)),
-		IssuedAt:  jwt.NewNumericDate(now),
-		NotBefore: jwt.NewNumericDate(now),
-		Issuer:    s.issuer,
-		Subject:   subject,
-		ID:        id,
-		Audience:  audience,
+	claims := &CustomClaims{
+		Fingerprint: fpHash,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
+			Issuer:    s.issuer,
+			Audience:  audience,
+			Subject:   sub,
+			ID:        id,
+		},
 	}
 
 	token := jwt.NewWithClaims(s.method, claims)
-	return token.SignedString([]byte(s.key))
+	signedToken, err := token.SignedString([]byte(s.key))
+	if err != nil {
+		return "", fmt.Errorf("sign token: %w", err)
+	}
+	return signedToken, nil
 }
 
-func (s *GolangJWTSigner) Verify(tokenString string) (string, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(_ *jwt.Token) (any, error) {
+// Verify parses and validates a JWT token string and returns the associated Claims if valid.
+func (s *GolangJWTSigner) Verify(tokenString string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(_ *jwt.Token) (any, error) {
 		return []byte(s.key), nil
 	}, jwt.WithValidMethods([]string{s.method.Alg()}))
 	if err != nil {
-		return "", fmt.Errorf("parse with claims: %w", err)
+		return nil, fmt.Errorf("parse with claims: %w", err)
 	}
 
-	claims, ok := token.Claims.(*jwt.RegisteredClaims)
+	customClaims, ok := token.Claims.(*CustomClaims)
 	if !ok {
-		return "", fmt.Errorf("token claims is not a RegisteredClaims: %T", token.Claims)
+		return nil, fmt.Errorf("unknown claims type: %T", token.Claims)
 	}
 
-	return claims.Subject, nil
+	claims := &Claims{
+		UserID:          customClaims.Subject,
+		FingerprintHash: customClaims.Fingerprint,
+	}
+
+	return claims, nil
 }
 
+// NewGolangJWTSigner creates a new GolangJWTSigner with the provided JWT config and signing key.
 func NewGolangJWTSigner(cfg *config.JWT, key string) (*GolangJWTSigner, error) {
 	if cfg == nil || key == "" {
 		return nil, errors.New("config or key should not be nil or empty")

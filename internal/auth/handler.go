@@ -22,10 +22,10 @@ var errInvalidParams = errors.New("invalid request params")
 type AuthService interface {
 	RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error)
 	VerifyUser(ctx context.Context, token string) error
-	LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error)
+	LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken, fingerprint string, err error)
 	SendPasswordReset(email string)
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
-	RefreshToken(token string) (accessToken string, err error)
+	RefreshToken(token string) (accessToken, fingerprint string, err error)
 }
 
 type Handler struct {
@@ -132,7 +132,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := LoginUserParams(req)
-	accessToken, refreshToken, err := h.svc.LoginUser(r.Context(), params)
+	accessToken, refreshToken, fingerprint, err := h.svc.LoginUser(r.Context(), params)
 	if err != nil {
 		if errors.Is(err, user.ErrNotFound) || errors.Is(err, ErrIncorrectPassword) || errors.Is(err, ErrUserNotVerified) {
 			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
@@ -142,6 +142,9 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		web.RespondInternalServerError(w, err)
 		return
 	}
+
+	fpCookie := NewFingerprintCookie(fingerprint, h.cfgJWT.TTL.Duration)
+	http.SetCookie(w, fpCookie)
 
 	msg := MsgLoggedIn
 	data := &UserLoginResponse{
@@ -162,7 +165,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, err := h.svc.RefreshToken(token)
+	accessToken, fp, err := h.svc.RefreshToken(token)
 	if err != nil {
 		if errors.Is(err, ErrInvalidToken) {
 			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
@@ -172,6 +175,9 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		web.RespondInternalServerError(w, err)
 		return
 	}
+
+	fpCookie := NewFingerprintCookie(fp, h.cfgJWT.TTL.Duration)
+	http.SetCookie(w, fpCookie)
 
 	msg := "Token refreshed."
 	data := &RefreshTokenResponse{

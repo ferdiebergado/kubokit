@@ -2,6 +2,7 @@ package security
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 )
@@ -34,7 +35,7 @@ func GenerateRandomBytesURLEncoded(length uint32) (string, error) {
 		return "", fmt.Errorf("generate random bytes: %w", err)
 	}
 
-	return base64.RawURLEncoding.EncodeToString(key), nil
+	return base64.URLEncoding.EncodeToString(key), nil
 }
 
 func CheckUint(i int) error {
@@ -54,4 +55,14 @@ func ConstantTimeCompareStr(a, b string) bool {
 		result |= int(a[i] ^ b[i])
 	}
 	return result == 0
+}
+
+func SHA256Hash(data []byte) ([]byte, error) {
+	h := sha256.New()
+	if _, err := h.Write(data); err != nil {
+		return nil, fmt.Errorf("hasher write data: %w", err)
+	}
+
+	hashBytes := h.Sum(nil)
+	return hashBytes, nil
 }

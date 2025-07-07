@@ -88,7 +88,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 			}
 
 			signer := jwt.StubSigner{
-				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+				SignFunc: func(subject, fp string, audience []string, duration time.Duration) (string, error) {
 					return "1", nil
 				},
 			}
@@ -140,8 +140,8 @@ func TestHandler_LoginUser(t *testing.T) {
 		name              string
 		input             auth.UserLoginRequest
 		code              int
-		loginFunc         func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken string, err error)
-		verifyFunc        func(tokenString string) (string, error)
+		loginFunc         func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken, fingerprint string, err error)
+		verifyFunc        func(tokenString string) (*jwt.Claims, error)
 		gotBody, wantBody any
 	}{
 		{
@@ -151,11 +151,11 @@ func TestHandler_LoginUser(t *testing.T) {
 				Password: testPass,
 			},
 			code: http.StatusOK,
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken string, err error) {
-				return "test_access_token", "test_refresh_token", nil
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken, fp string, err error) {
+				return "test_access_token", "test_refresh_token", "fp", nil
 			},
-			verifyFunc: func(tokenString string) (string, error) {
-				return testEmail, nil
+			verifyFunc: func(tokenString string) (*jwt.Claims, error) {
+				return &jwt.Claims{UserID: testEmail, FingerprintHash: "fp_hash"}, nil
 			},
 			gotBody: &web.OKResponse[auth.UserLoginResponse]{},
 			wantBody: &web.OKResponse[auth.UserLoginResponse]{
@@ -172,11 +172,11 @@ func TestHandler_LoginUser(t *testing.T) {
 				Email:    testEmail,
 				Password: testPass,
 			},
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken string, err error) {
-				return "", "", auth.ErrUserNotVerified
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken, fingerprint string, err error) {
+				return "", "", "", auth.ErrUserNotVerified
 			},
-			verifyFunc: func(tokenString string) (string, error) {
-				return "", nil
+			verifyFunc: func(tokenString string) (*jwt.Claims, error) {
+				return nil, nil
 			},
 			code:    http.StatusUnauthorized,
 			gotBody: &web.ErrorResponse{},
@@ -190,11 +190,11 @@ func TestHandler_LoginUser(t *testing.T) {
 				Email:    testEmail,
 				Password: testPass,
 			},
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken string, err error) {
-				return "", "", user.ErrNotFound
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken, fingerprint string, err error) {
+				return "", "", "", user.ErrNotFound
 			},
-			verifyFunc: func(tokenString string) (string, error) {
-				return "", nil
+			verifyFunc: func(tokenString string) (*jwt.Claims, error) {
+				return nil, nil
 			},
 			code:    http.StatusUnauthorized,
 			gotBody: &web.ErrorResponse{},
@@ -208,11 +208,11 @@ func TestHandler_LoginUser(t *testing.T) {
 				Email:    testEmail,
 				Password: "anotherpass",
 			},
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken string, err error) {
-				return "", "", auth.ErrIncorrectPassword
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken, fingerprint string, err error) {
+				return "", "", "", auth.ErrIncorrectPassword
 			},
-			verifyFunc: func(tokenString string) (string, error) {
-				return "", nil
+			verifyFunc: func(tokenString string) (*jwt.Claims, error) {
+				return nil, nil
 			},
 			code:    http.StatusUnauthorized,
 			gotBody: &web.ErrorResponse{},
@@ -295,8 +295,8 @@ func TestHandler_VerifyEmail(t *testing.T) {
 					},
 				},
 				Signer: &jwt.StubSigner{
-					VerifyFunc: func(tokenString string) (string, error) {
-						return "123", nil
+					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+						return &jwt.Claims{UserID: "123", FingerprintHash: "fp_hash"}, nil
 					},
 				},
 			},
@@ -322,8 +322,8 @@ func TestHandler_VerifyEmail(t *testing.T) {
 					},
 				},
 				Signer: &jwt.StubSigner{
-					VerifyFunc: func(tokenString string) (string, error) {
-						return "123", nil
+					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+						return &jwt.Claims{UserID: "123", FingerprintHash: "fp_hash"}, nil
 					},
 				},
 			},
@@ -349,8 +349,8 @@ func TestHandler_VerifyEmail(t *testing.T) {
 					},
 				},
 				Signer: &jwt.StubSigner{
-					VerifyFunc: func(tokenString string) (string, error) {
-						return "123", nil
+					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+						return &jwt.Claims{UserID: "123", FingerprintHash: "fp_hash"}, nil
 					},
 				},
 			},
@@ -410,10 +410,10 @@ func TestHandler_ResetPassword(t *testing.T) {
 					},
 				},
 				Signer: &jwt.StubSigner{
-					VerifyFunc: func(tokenString string) (string, error) {
-						return "1", nil
+					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+						return &jwt.Claims{UserID: "1", FingerprintHash: "fp_hash"}, nil
 					},
-					SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+					SignFunc: func(subject, fp string, audience []string, duration time.Duration) (string, error) {
 						return "xyz", nil
 					},
 				},
@@ -477,16 +477,16 @@ func TestHandler_RefreshToken(t *testing.T) {
 			name:         "With valid refresh token",
 			refreshToken: "refresh_token",
 			signer: &jwt.StubSigner{
-				VerifyFunc: func(tokenString string) (string, error) {
-					return "1", nil
+				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+					return &jwt.Claims{UserID: "1", FingerprintHash: "fp_hash"}, nil
 				},
-				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+				SignFunc: func(subject, fp string, audience []string, duration time.Duration) (string, error) {
 					return "access_token", nil
 				},
 			},
 			svc: &auth.StubService{
-				RefreshTokenFunc: func(token string) (accessToken string, err error) {
-					return "access_token", nil
+				RefreshTokenFunc: func(token string) (accessToken, fingerprint string, err error) {
+					return "access_token", "fp", nil
 				},
 			},
 			code:    http.StatusOK,
@@ -512,13 +512,13 @@ func TestHandler_RefreshToken(t *testing.T) {
 			name:         "Expired refresh token",
 			refreshToken: "expired_refresh_token",
 			signer: &jwt.StubSigner{
-				VerifyFunc: func(tokenString string) (string, error) {
-					return "", errors.New("token is expired")
+				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+					return nil, errors.New("token is expired")
 				},
 			},
 			svc: &auth.StubService{
-				RefreshTokenFunc: func(token string) (accessToken string, err error) {
-					return "", auth.ErrInvalidToken
+				RefreshTokenFunc: func(token string) (accessToken, fp string, err error) {
+					return "", "", auth.ErrInvalidToken
 				},
 			},
 			code:    http.StatusUnauthorized,

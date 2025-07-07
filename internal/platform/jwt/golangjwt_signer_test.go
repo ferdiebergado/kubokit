@@ -1,6 +1,7 @@
 package jwt_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ func TestGolangJWTSigner_Sign(t *testing.T) {
 	userID := "user1"
 	audience := []string{"example.com"}
 	duration := cfg.TTL.Duration
-	token, err := signer.Sign(userID, audience, duration)
+	token, err := signer.Sign(userID, "fp", audience, duration)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,19 +48,25 @@ func TestGolangJWTSigner_Verify(t *testing.T) {
 		t.Fatal(err)
 	}
 	userID := "user1"
+	fh := "fpHash"
 	audience := []string{"example.com"}
 	duration := cfg.TTL.Duration
-	token, err := signer.Sign(userID, audience, duration)
+	token, err := signer.Sign(userID, fh, audience, duration)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	gotUserID, err := signer.Verify(token)
+	gotClaims, err := signer.Verify(token)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if gotUserID != userID {
-		t.Errorf("signer.Verify(%q) = %q, want: %q", token, gotUserID, userID)
+	wantClaims := &jwt.Claims{
+		UserID:          userID,
+		FingerprintHash: fh,
+	}
+
+	if !reflect.DeepEqual(gotClaims, wantClaims) {
+		t.Errorf("signer.Verify(%q) = %+v, want: %+v", token, gotClaims, wantClaims)
 	}
 }

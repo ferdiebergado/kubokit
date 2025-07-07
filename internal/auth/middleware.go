@@ -1,11 +1,16 @@
 package auth
 
 import (
+	"crypto/subtle"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
@@ -23,13 +28,14 @@ func VerifyToken(signer jwt.Signer) func(http.Handler) http.Handler {
 				return
 			}
 
-			payload, err := signer.Verify(token)
+			// TODO: check if fingerprint validation is needed
+			claims, err := signer.Verify(token)
 			if err != nil {
 				web.RespondUnauthorized(w, ErrInvalidToken, message.InvalidUser, nil)
 				return
 			}
 
-			ctx := user.NewContextWithUser(r.Context(), payload)
+			ctx := user.NewContextWithUser(r.Context(), claims.UserID)
 			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)
 		})
@@ -39,19 +45,50 @@ func VerifyToken(signer jwt.Signer) func(http.Handler) http.Handler {
 func RequireToken(signer jwt.Signer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			tokenStr, err := extractBearerToken(r.Header.Get("Authorization"))
-			if err != nil || tokenStr == "" {
+			slog.Info("Verifying access token...")
+
+			token, err := extractBearerToken(r.Header.Get("Authorization"))
+			if err != nil || token == "" {
 				web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 				return
 			}
 
-			userID, err := signer.Verify(tokenStr)
+			fpCookie, err := r.Cookie("__Secure-fp")
+			if err != nil || fpCookie.Value == "" {
+				web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+				return
+			}
+
+			fpBytes, err := base64.URLEncoding.DecodeString(fpCookie.Value)
+			if err != nil {
+				web.RespondInternalServerError(w, err)
+				return
+			}
+
+			claims, err := signer.Verify(token)
 			if err != nil {
 				web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 				return
 			}
 
-			ctx := user.NewContextWithUser(r.Context(), userID)
+			fpHashBytes, err := hex.DecodeString(claims.FingerprintHash)
+			if err != nil {
+				web.RespondInternalServerError(w, err)
+				return
+			}
+
+			rehashedBytes, err := security.SHA256Hash(fpBytes)
+			if err != nil {
+				web.RespondInternalServerError(w, err)
+				return
+			}
+
+			if subtle.ConstantTimeCompare(fpHashBytes, rehashedBytes) == 0 {
+				web.RespondUnauthorized(w, errors.New("fingerprint hash mismatch"), message.InvalidUser, nil)
+				return
+			}
+
+			ctx := user.NewContextWithUser(r.Context(), claims.UserID)
 			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)
 		})

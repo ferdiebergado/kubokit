@@ -28,7 +28,7 @@
     "ping_timeout": "5s"
   },
   "jwt": {
-    "jti_length": 32,
+    "jti_length": 64,
     "issuer": "example.com",
     "ttl": "15m",
     "refresh_ttl": "24h"

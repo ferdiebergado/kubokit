@@ -2,11 +2,14 @@ package auth
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -88,7 +91,8 @@ func (s *Service) sendEmail(email *HTMLEmail) {
 
 	audience := s.appURL + email.URI
 	ttl := s.cfgEmail.VerifyTTL.Duration
-	token, err := s.signer.Sign(email.Payload, []string{audience}, ttl)
+
+	token, err := s.signer.Sign(email.Payload, "", []string{audience}, ttl)
 	if err != nil {
 		slog.Error("failed to generate token", "reason", err)
 		return
@@ -124,40 +128,45 @@ func (p *LoginUserParams) LogValue() slog.Value {
 	)
 }
 
-func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error) {
+func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (string, string, string, error) {
 	u, err := s.userSvc.FindUserByEmail(ctx, params.Email)
 	if err != nil {
-		return "", "", fmt.Errorf("find user by email: %w", err)
+		return "", "", "", fmt.Errorf("find user by email: %w", err)
 	}
 
 	if u.VerifiedAt == nil {
-		return "", "", ErrUserNotVerified
+		return "", "", "", ErrUserNotVerified
 	}
 
 	ok, err := s.hasher.Verify(params.Password, u.PasswordHash)
 	if err != nil {
-		return "", "", fmt.Errorf("verify password: %w", err)
+		return "", "", "", fmt.Errorf("verify password: %w", err)
 	}
 
 	if !ok {
-		return "", "", ErrIncorrectPassword
+		return "", "", "", ErrIncorrectPassword
 	}
 
 	cfgJWT := s.cfgJWT
-
 	ttl := cfgJWT.TTL.Duration
-	accessToken, err = s.signer.Sign(u.ID, []string{cfgJWT.Issuer}, ttl)
+
+	fp, fpHash, err := s.fingerprint()
 	if err != nil {
-		return "", "", fmt.Errorf("sign access token: %w", err)
+		return "", "", "", fmt.Errorf("generate fingerprint: %w", err)
+	}
+
+	accessToken, err := s.signer.Sign(u.ID, fpHash, []string{cfgJWT.Issuer}, ttl)
+	if err != nil {
+		return "", "", "", fmt.Errorf("sign access token: %w", err)
 	}
 
 	refreshTTL := s.cfgJWT.RefreshTTL.Duration
-	refreshToken, err = s.signer.Sign(u.ID, []string{cfgJWT.Issuer}, refreshTTL)
+	refreshToken, err := s.signer.Sign(u.ID, fpHash, []string{cfgJWT.Issuer}, refreshTTL)
 	if err != nil {
-		return "", "", fmt.Errorf("sign refresh token: %w", err)
+		return "", "", "", fmt.Errorf("sign refresh token: %w", err)
 	}
 
-	return accessToken, refreshToken, nil
+	return accessToken, refreshToken, fp, nil
 }
 
 func (s *Service) SendPasswordReset(email string) {
@@ -171,6 +180,23 @@ func (s *Service) SendPasswordReset(email string) {
 	}
 
 	go s.sendEmail(resetEmail)
+}
+
+func (s *Service) fingerprint() (fp, fpHash string, err error) {
+	fpBytes, err := security.GenerateRandomBytes(s.cfgJWT.JTILength)
+	if err != nil {
+		return "", "", fmt.Errorf("generate random bytes: %w", err)
+	}
+
+	fpHashBytes, err := security.SHA256Hash(fpBytes)
+	if err != nil {
+		return "", "", fmt.Errorf("hash fingerprint: %w", err)
+	}
+
+	fp = base64.URLEncoding.EncodeToString(fpBytes)
+	fpHash = hex.EncodeToString(fpHashBytes)
+
+	return fp, fpHash, nil
 }
 
 type ResetPasswordParams struct {
@@ -219,20 +245,26 @@ func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) err
 	})
 }
 
-func (s *Service) RefreshToken(token string) (string, error) {
-	userID, err := s.signer.Verify(token)
+func (s *Service) RefreshToken(token string) (string, string, error) {
+	claims, err := s.signer.Verify(token)
 	if err != nil {
-		return "", ErrInvalidToken
+		return "", "", ErrInvalidToken
 	}
 
 	cfgJWT := s.cfgJWT
 	ttl := cfgJWT.TTL.Duration
-	accessToken, err := s.signer.Sign(userID, []string{cfgJWT.Issuer}, ttl)
+
+	fp, fpHash, err := s.fingerprint()
 	if err != nil {
-		return "", fmt.Errorf("create access token: %w", err)
+		return "", "", fmt.Errorf("generate fingerprint: %w", err)
 	}
 
-	return accessToken, nil
+	accessToken, err := s.signer.Sign(claims.UserID, fpHash, []string{cfgJWT.Issuer}, ttl)
+	if err != nil {
+		return "", "", fmt.Errorf("create access token: %w", err)
+	}
+
+	return accessToken, fp, nil
 }
 
 func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.UserService) (*Service, error) {

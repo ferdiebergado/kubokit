@@ -60,7 +60,7 @@ func TestService_RegisterUser(t *testing.T) {
 				},
 			},
 			signer: &jwt.StubSigner{
-				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+				SignFunc: func(subject, fp string, audience []string, duration time.Duration) (string, error) {
 					return "1", nil
 				},
 			},
