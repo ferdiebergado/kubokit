@@ -77,13 +77,13 @@ func RequireToken(fpCookieName string, signer jwt.Signer, hasher security.ShortH
 				return
 			}
 
-			rehashedBytes, err := hasher.Hash(fpBytes)
+			rehashedFpBytes, err := hasher.Hash(fpBytes)
 			if err != nil {
 				web.RespondInternalServerError(w, err)
 				return
 			}
 
-			if subtle.ConstantTimeCompare(fpHashBytes, rehashedBytes) == 0 {
+			if subtle.ConstantTimeCompare(fpHashBytes, rehashedFpBytes) == 0 {
 				web.RespondUnauthorized(w, errors.New("fingerprint hash mismatch"), message.InvalidUser, nil)
 				return
 			}
