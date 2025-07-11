@@ -14,30 +14,20 @@ import (
 )
 
 func TestMiddleware_RequireToken(t *testing.T) {
-	const defaultCookieName = "__Secure-fp"
-
 	type testCase struct {
-		name, token string
-		fingerprint []byte
-		cookie      *http.Cookie
-		signer      jwt.Signer
-		hasher      security.ShortHasher
-		code        int
+		name, token, fpHeader string
+		fingerprint           []byte
+		signer                jwt.Signer
+		hasher                security.ShortHasher
+		code                  int
 	}
 
 	testCases := []testCase{
 		{
-			name:        "With valid token and fingerprint cookie",
+			name:        "With valid token and fingerprint",
 			token:       "access_token",
 			fingerprint: []byte("test_fp"),
-			cookie: &http.Cookie{
-				Name:     defaultCookieName,
-				MaxAge:   time.Now().Add(15 * time.Minute).Second(),
-				HttpOnly: true,
-				Secure:   true,
-				Path:     "/",
-				Value:    base64.URLEncoding.EncodeToString([]byte("test_fp")),
-			},
+			fpHeader:    base64.URLEncoding.EncodeToString([]byte("test_fp")),
 			signer: &jwt.StubSigner{
 				SignFunc: func(subject, fingerprint string, audience []string, duration time.Duration) (string, error) {
 					return "access_token", nil
@@ -64,10 +54,10 @@ func TestMiddleware_RequireToken(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", http.NoBody)
 			req.Header.Set("Authorization", "Bearer "+tc.token)
-			req.AddCookie(tc.cookie)
+			req.Header.Set(auth.HeaderFingerprint, tc.fpHeader)
 			rec := httptest.NewRecorder()
 
-			mw := auth.RequireToken(defaultCookieName, tc.signer, tc.hasher)
+			mw := auth.RequireToken(tc.signer, tc.hasher)
 			mw(handler).ServeHTTP(rec, req)
 
 			gotCode, wantCode := rec.Code, http.StatusOK

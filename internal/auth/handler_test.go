@@ -168,6 +168,9 @@ func TestHandler_LoginUser(t *testing.T) {
 				Data: auth.UserLoginResponse{
 					AccessToken:  "test_access_token",
 					RefreshToken: "test_refresh_token",
+					Fingerprint:  "fp",
+					ExpiresIn:    int(defaultDuration),
+					TokenType:    "Bearer",
 				},
 			},
 		},

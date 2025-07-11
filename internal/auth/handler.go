@@ -120,9 +120,18 @@ func (r *UserLoginRequest) LogValue() slog.Value {
 	)
 }
 
+type UserData struct {
+	ID    string `json:"id,omitempty"`
+	Email string `json:"email,omitempty"`
+}
+
 type UserLoginResponse struct {
-	AccessToken  string `json:"access_token,omitempty"`
-	RefreshToken string `json:"refresh_token,omitempty"`
+	AccessToken  string    `json:"access_token,omitempty"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
+	Fingerprint  string    `json:"fingerprint,omitempty"`
+	ExpiresIn    int       `json:"expires_in,omitempty"`
+	TokenType    string    `json:"token_type,omitempty"`
+	User         *UserData `json:"user,omitempty"`
 }
 
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
@@ -144,13 +153,13 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fpCookie := h.fpCookieBaker.Bake(fingerprint)
-	http.SetCookie(w, fpCookie)
-
 	msg := MsgLoggedIn
 	data := &UserLoginResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		Fingerprint:  fingerprint,
+		ExpiresIn:    int(h.cfgJWT.TTL.Duration),
+		TokenType:    "Bearer",
 	}
 	web.RespondOK(w, &msg, data)
 }

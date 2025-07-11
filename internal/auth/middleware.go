@@ -16,6 +16,8 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
+const HeaderFingerprint = "X-Client-Fingerprint"
+
 var ErrInvalidToken = errors.New("invalid token")
 
 // VerifyToken verifies if the token in the url query string is valid.
@@ -42,7 +44,7 @@ func VerifyToken(signer jwt.Signer) func(http.Handler) http.Handler {
 	}
 }
 
-func RequireToken(fpCookieName string, signer jwt.Signer, hasher security.ShortHasher) func(http.Handler) http.Handler {
+func RequireToken(signer jwt.Signer, hasher security.ShortHasher) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			slog.Info("Verifying access token...")
@@ -53,13 +55,13 @@ func RequireToken(fpCookieName string, signer jwt.Signer, hasher security.ShortH
 				return
 			}
 
-			fpCookie, err := r.Cookie(fpCookieName)
-			if err != nil || fpCookie.Value == "" {
+			fp := r.Header.Get(HeaderFingerprint)
+			if fp == "" {
 				web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 				return
 			}
 
-			fpBytes, err := base64.URLEncoding.DecodeString(fpCookie.Value)
+			fpBytes, err := base64.URLEncoding.DecodeString(fp)
 			if err != nil {
 				web.RespondInternalServerError(w, err)
 				return
