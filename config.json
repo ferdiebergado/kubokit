@@ -31,8 +31,7 @@
     "jti_length": 64,
     "issuer": "example.com",
     "ttl": "15m",
-    "refresh_ttl": "24h",
-    "cookie": "__Secure-fp"
+    "refresh_ttl": "24h"
   },
   "smtp": {
     "host": "localhost",

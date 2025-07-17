@@ -97,12 +97,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 				Cfg:    cfg,
 				Signer: &signer,
 			}
-			baker := &auth.StubFingerprintCookieBaker{
-				BakeFunc: func(val string) *http.Cookie {
-					return &http.Cookie{}
-				},
-			}
-			authHandler, err := auth.NewHandler(svc, provider, baker)
+			authHandler, err := auth.NewHandler(svc, provider)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -252,12 +247,8 @@ func TestHandler_LoginUser(t *testing.T) {
 				Cfg:    cfg,
 				Signer: signer,
 			}
-			baker := &auth.StubFingerprintCookieBaker{
-				BakeFunc: func(val string) *http.Cookie {
-					return &http.Cookie{}
-				},
-			}
-			authHandler, err := auth.NewHandler(svc, provider, baker)
+
+			authHandler, err := auth.NewHandler(svc, provider)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -381,13 +372,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			baker := &auth.StubFingerprintCookieBaker{
-				BakeFunc: func(val string) *http.Cookie {
-					return &http.Cookie{}
-				},
-			}
-
-			authHandler, err := auth.NewHandler(tc.svc, tc.provider, baker)
+			authHandler, err := auth.NewHandler(tc.svc, tc.provider)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -455,13 +440,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			baker := &auth.StubFingerprintCookieBaker{
-				BakeFunc: func(val string) *http.Cookie {
-					return &http.Cookie{}
-				},
-			}
-
-			authHandler, err := auth.NewHandler(tc.svc, tc.providers, baker)
+			authHandler, err := auth.NewHandler(tc.svc, tc.providers)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -520,6 +499,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 				Message: "Token refreshed.",
 				Data: auth.RefreshTokenResponse{
 					AccessToken: "access_token",
+					Fingerprint: "fp",
 				},
 			},
 		},
@@ -562,13 +542,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 				Signer: tc.signer,
 			}
 
-			baker := &auth.StubFingerprintCookieBaker{
-				BakeFunc: func(val string) *http.Cookie {
-					return &http.Cookie{}
-				},
-			}
-
-			authHandler, err := auth.NewHandler(tc.svc, provider, baker)
+			authHandler, err := auth.NewHandler(tc.svc, provider)
 			if err != nil {
 				t.Fatal(err)
 			}

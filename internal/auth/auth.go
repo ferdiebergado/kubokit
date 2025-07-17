@@ -32,9 +32,7 @@ func NewModule(providers *provider.Provider, userSvc user.UserService) (*Module,
 		return nil, fmt.Errorf("new service: %w", err)
 	}
 
-	jwtCfg := providers.Cfg.JWT
-	fpCookieBaker := NewFingerprintCookieBaker(jwtCfg.Cookie, jwtCfg.TTL.Duration)
-	handler, err := NewHandler(svc, providers, fpCookieBaker)
+	handler, err := NewHandler(svc, providers)
 	if err != nil {
 		return nil, fmt.Errorf("new auth handler: %w", err)
 	}
