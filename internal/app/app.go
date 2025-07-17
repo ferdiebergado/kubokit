@@ -57,7 +57,7 @@ func (a *App) registerMiddlewares() {
 func (a *App) setupRoutes() {
 	cfg := a.config
 	maxBodySize := cfg.Server.MaxBodyBytes
-	requireToken := auth.RequireToken(cfg.JWT.Cookie, a.signer, a.shortHasher)
+	requireToken := auth.RequireToken(a.signer, a.shortHasher)
 
 	// auth routes
 	a.router.Group("/auth", func(gr router.Router) {
