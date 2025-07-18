@@ -15,26 +15,12 @@ import (
 func TestDecodePayload(t *testing.T) {
 	t.Parallel()
 
-	const header = "X-Called-Header"
+	const header = "X-Handler-Called"
+
 	type person struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
 	}
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		params, err := web.ParamsFromContext[person](r.Context())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		w.Header().Set(header, "true")
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(&params); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	})
 
 	tests := []struct {
 		name     string
@@ -55,6 +41,21 @@ func TestDecodePayload(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				params, err := web.ParamsFromContext[person](r.Context())
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+
+				w.Header().Set(header, "true")
+				w.WriteHeader(http.StatusOK)
+				if err := json.NewEncoder(w).Encode(&params); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+			})
 
 			body := bytes.NewBuffer(tt.payload)
 			req := httptest.NewRequest(http.MethodPost, "/", body)

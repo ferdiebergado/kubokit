@@ -12,14 +12,15 @@ func TestMiddleware_CORS(t *testing.T) {
 	t.Parallel()
 
 	const (
-		origin      = "*"
-		sameOrigin  = "http://localhost:3000"
-		otherOrigin = "http://example.com"
+		headerCalled = "X-Handler-Called"
+		origin       = "*"
+		sameOrigin   = "http://localhost:3000"
+		otherOrigin  = "http://example.com"
 	)
 
 	tests := []struct {
-		name, method, origin string
-		code                 int
+		name, method, origin, headerCalled string
+		code                               int
 	}{
 		{
 			name:   "Preflight request from same origin",
@@ -28,10 +29,11 @@ func TestMiddleware_CORS(t *testing.T) {
 			code:   http.StatusNoContent,
 		},
 		{
-			name:   "GET request from same origin",
-			method: http.MethodGet,
-			origin: sameOrigin,
-			code:   http.StatusOK,
+			name:         "GET request from same origin",
+			method:       http.MethodGet,
+			origin:       sameOrigin,
+			code:         http.StatusOK,
+			headerCalled: "true",
 		},
 		{
 			name:   "Preflight request from other origin",
@@ -40,10 +42,11 @@ func TestMiddleware_CORS(t *testing.T) {
 			code:   http.StatusNoContent,
 		},
 		{
-			name:   "POST request from other origin",
-			method: http.MethodPost,
-			origin: otherOrigin,
-			code:   http.StatusOK,
+			name:         "POST request from other origin",
+			method:       http.MethodPost,
+			origin:       otherOrigin,
+			code:         http.StatusOK,
+			headerCalled: "true",
 		},
 	}
 	for _, tc := range tests {
@@ -51,6 +54,7 @@ func TestMiddleware_CORS(t *testing.T) {
 			t.Parallel()
 
 			handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set(headerCalled, "true")
 				w.WriteHeader(http.StatusOK)
 			})
 
@@ -69,6 +73,7 @@ func TestMiddleware_CORS(t *testing.T) {
 				middleware.HeaderAllowOrigin:  origin,
 				middleware.HeaderAllowMethods: middleware.AllowedMethods,
 				middleware.HeaderAllowHeaders: middleware.AllowedHeaders,
+				headerCalled:                  tc.headerCalled,
 			}
 
 			for header, val := range headers {

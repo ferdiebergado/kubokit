@@ -14,12 +14,14 @@ import (
 )
 
 func TestMiddleware_RequireToken(t *testing.T) {
+	const headerCalled = "X-Handler-Called"
+
 	type testCase struct {
-		name, accessToken, fpHeader string
-		fingerprint                 []byte
-		signer                      jwt.Signer
-		hasher                      security.ShortHasher
-		code                        int
+		name, accessToken, fpHeader, headerCalled string
+		fingerprint                               []byte
+		signer                                    jwt.Signer
+		hasher                                    security.ShortHasher
+		code                                      int
 	}
 
 	testCases := []testCase{
@@ -42,7 +44,8 @@ func TestMiddleware_RequireToken(t *testing.T) {
 			hasher: security.HasherFunc(func(b []byte) ([]byte, error) {
 				return []byte("test_fp_hash"), nil
 			}),
-			code: http.StatusOK,
+			code:         http.StatusOK,
+			headerCalled: "true",
 		},
 		{
 			name:        "With valid token but without fingerprint",
@@ -66,6 +69,7 @@ func TestMiddleware_RequireToken(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set(headerCalled, "true")
 				w.WriteHeader(http.StatusOK)
 			})
 
@@ -80,6 +84,11 @@ func TestMiddleware_RequireToken(t *testing.T) {
 			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
 				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
+			}
+
+			gotHeaderCalled, wantHeaderCalled := rec.Header().Get(headerCalled), tc.headerCalled
+			if gotHeaderCalled != wantHeaderCalled {
+				t.Errorf("rec.Header().Get(%q) = %q, want: %q", headerCalled, gotHeaderCalled, wantHeaderCalled)
 			}
 		})
 	}
