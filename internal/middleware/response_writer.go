@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -56,16 +57,14 @@ func (w *SafeResponseWriter) Write(b []byte) (int, error) {
 		w.headerWritten = true
 	}
 
-	if w.status >= http.StatusInternalServerError {
-		slog.Warn("write was ignored due to server error")
-		return 0, nil
-	}
-
 	w.mu.Unlock()
 
 	n, err := w.ResponseWriter.Write(b)
+	if err != nil {
+		return 0, fmt.Errorf("write response: %w", err)
+	}
 	w.bytesSent.Add(int64(n))
-	return n, err
+	return n, nil
 }
 
 func (w *SafeResponseWriter) Status() int {
