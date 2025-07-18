@@ -127,7 +127,7 @@ func New(providers *provider.Provider, middlewares []func(http.Handler) http.Han
 
 	cfg := providers.Cfg
 	serverCfg := cfg.Server
-	handler := middleware.CORS(providers.Router)
+	handler := middleware.CORS(cfg.CORS)(providers.Router)
 	serverCtx, stop := context.WithCancel(context.Background())
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", serverCfg.Port),

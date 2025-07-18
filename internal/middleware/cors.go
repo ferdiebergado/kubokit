@@ -2,6 +2,10 @@ package middleware
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/ferdiebergado/kubokit/internal/config"
 )
 
 const (
@@ -9,22 +13,30 @@ const (
 	HeaderAllowMethods = "Access-Control-Allow-Methods"
 	HeaderAllowHeaders = "Access-Control-Allow-Headers"
 	HeaderAllowCreds   = "Access-Control-Allow-Credentials"
-
-	AllowedMethods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-	AllowedHeaders = "Content-Type, Authorization, X-Client-Fingerprint"
 )
 
-func CORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set(HeaderAllowOrigin, "*")
-		w.Header().Set(HeaderAllowMethods, AllowedMethods)
-		w.Header().Set(HeaderAllowHeaders, AllowedHeaders)
+func CORS(cfg *config.CORS) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			const sep = ","
 
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
+			headers := map[string]string{
+				HeaderAllowOrigin:  strings.Join(cfg.AllowedOrigins, sep),
+				HeaderAllowMethods: strings.Join(cfg.AllowedMethods, sep),
+				HeaderAllowHeaders: strings.Join(cfg.AllowedHeaders, sep),
+				HeaderAllowCreds:   strconv.FormatBool(cfg.IncludeCreds),
+			}
 
-		next.ServeHTTP(w, r)
-	})
+			for k, v := range headers {
+				w.Header().Set(k, v)
+			}
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

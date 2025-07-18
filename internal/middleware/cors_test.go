@@ -3,8 +3,11 @@ package middleware_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
 )
 
@@ -13,7 +16,6 @@ func TestMiddleware_CORS(t *testing.T) {
 
 	const (
 		headerCalled = "X-Handler-Called"
-		origin       = "*"
 		sameOrigin   = "http://localhost:3000"
 		otherOrigin  = "http://example.com"
 	)
@@ -61,8 +63,16 @@ func TestMiddleware_CORS(t *testing.T) {
 			req := httptest.NewRequest(tc.method, "/", http.NoBody)
 			req.Header.Set("Origin", tc.origin)
 			rec := httptest.NewRecorder()
-			mw := middleware.CORS(handler)
-			mw.ServeHTTP(rec, req)
+
+			corsConfig := &config.CORS{
+				AllowedOrigins: []string{"*"},
+				AllowedMethods: []string{"GET", "POST"},
+				AllowedHeaders: []string{"Content-Type", "Authorization"},
+				IncludeCreds:   true,
+			}
+
+			mw := middleware.CORS(corsConfig)
+			mw(handler).ServeHTTP(rec, req)
 
 			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
@@ -70,9 +80,10 @@ func TestMiddleware_CORS(t *testing.T) {
 			}
 
 			headers := map[string]string{
-				middleware.HeaderAllowOrigin:  origin,
-				middleware.HeaderAllowMethods: middleware.AllowedMethods,
-				middleware.HeaderAllowHeaders: middleware.AllowedHeaders,
+				middleware.HeaderAllowOrigin:  strings.Join(corsConfig.AllowedOrigins, ","),
+				middleware.HeaderAllowMethods: strings.Join(corsConfig.AllowedMethods, ","),
+				middleware.HeaderAllowHeaders: strings.Join(corsConfig.AllowedHeaders, ","),
+				middleware.HeaderAllowCreds:   strconv.FormatBool(corsConfig.IncludeCreds),
 				headerCalled:                  tc.headerCalled,
 			}
 
