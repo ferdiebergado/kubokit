@@ -1,5 +1,6 @@
 package auth
 
 const (
-	MsgLoggedIn = "Logged in."
+	MsgLoggedIn  = "Logged in."
+	MsgRefreshed = "Token refreshed."
 )
