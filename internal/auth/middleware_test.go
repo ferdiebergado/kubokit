@@ -15,17 +15,17 @@ import (
 
 func TestMiddleware_RequireToken(t *testing.T) {
 	type testCase struct {
-		name, token, fpHeader string
-		fingerprint           []byte
-		signer                jwt.Signer
-		hasher                security.ShortHasher
-		code                  int
+		name, accessToken, fpHeader string
+		fingerprint                 []byte
+		signer                      jwt.Signer
+		hasher                      security.ShortHasher
+		code                        int
 	}
 
 	testCases := []testCase{
 		{
 			name:        "With valid token and fingerprint",
-			token:       "access_token",
+			accessToken: "access_token",
 			fingerprint: []byte("test_fp"),
 			fpHeader:    base64.URLEncoding.EncodeToString([]byte("test_fp")),
 			signer: &jwt.StubSigner{
@@ -35,14 +35,31 @@ func TestMiddleware_RequireToken(t *testing.T) {
 				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
 					return &jwt.Claims{
 						UserID:          "1",
-						FingerprintHash: hex.EncodeToString([]byte("test_fp")),
+						FingerprintHash: hex.EncodeToString([]byte("test_fp_hash")),
 					}, nil
 				},
 			},
 			hasher: security.HasherFunc(func(b []byte) ([]byte, error) {
-				return []byte("test_fp"), nil
+				return []byte("test_fp_hash"), nil
 			}),
 			code: http.StatusOK,
+		},
+		{
+			name:        "With valid token but without fingerprint",
+			accessToken: "access_token",
+			signer: &jwt.StubSigner{
+				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+					return &jwt.Claims{
+						UserID:          "1",
+						FingerprintHash: hex.EncodeToString([]byte("test_fp_hash")),
+					}, nil
+				},
+			},
+			code: http.StatusUnauthorized,
+		},
+		{
+			name: "Without token and fingerprint",
+			code: http.StatusUnauthorized,
 		},
 	}
 
@@ -53,14 +70,14 @@ func TestMiddleware_RequireToken(t *testing.T) {
 			})
 
 			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", http.NoBody)
-			req.Header.Set("Authorization", "Bearer "+tc.token)
+			req.Header.Set("Authorization", "Bearer "+tc.accessToken)
 			req.Header.Set(auth.HeaderFingerprint, tc.fpHeader)
 			rec := httptest.NewRecorder()
 
 			mw := auth.RequireToken(tc.signer, tc.hasher)
 			mw(handler).ServeHTTP(rec, req)
 
-			gotCode, wantCode := rec.Code, http.StatusOK
+			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
 				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
 			}
