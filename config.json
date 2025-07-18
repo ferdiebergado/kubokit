@@ -2,8 +2,9 @@
   "app": {
     "env": "development",
     "key": "secure_random_key",
-    "url": "http://localhost:8080",
-    "log_level": "info"
+    "url": "http://127.0.0.1:8000",
+    "log_level": "info",
+    "client_url": "http://127.0.0.1:5173"
   },
   "server": {
     "port": 8080,
@@ -51,5 +52,20 @@
     "threads": 2,
     "salt_length": 16,
     "key_length": 32
+  },
+  "cors": {
+    "allowed_origins": ["*"],
+    "allowed_methods": ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    "allowed_headers": [
+      "Content-Type",
+      "Authorization",
+      "X-Client-Fingerprint"
+    ],
+    "include_creds": true
+  },
+  "cookie": {
+    "refresh": "__Secure-ref",
+    "access_fingerprint": "__Secure-fp",
+    "refresh_fingerprint": "__Secure-rfp"
   }
 }

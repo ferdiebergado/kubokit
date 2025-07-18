@@ -14,10 +14,11 @@ import (
 const maskChar = "*"
 
 type App struct {
-	Env      string `json:"env,omitempty" env:"ENV"`
-	Key      string `json:"key,omitempty" env:"KEY"`
-	URL      string `json:"url,omitempty" env:"URL"`
-	LogLevel string `json:"log_level,omitempty" env:"LOG_LEVEL"`
+	Env       string `json:"env,omitempty" env:"ENV"`
+	Key       string `json:"key,omitempty" env:"KEY"`
+	URL       string `json:"url,omitempty" env:"URL"`
+	LogLevel  string `json:"log_level,omitempty" env:"LOG_LEVEL"`
+	ClientURL string `json:"client_url,omitempty"`
 }
 
 func (a *App) LogValue() slog.Value {
@@ -109,6 +110,19 @@ type Argon2 struct {
 	KeyLength  uint32 `json:"key_length,omitempty"`
 }
 
+type CORS struct {
+	AllowedOrigins []string `json:"allowed_origins,omitempty"`
+	AllowedMethods []string `json:"allowed_methods,omitempty"`
+	AllowedHeaders []string `json:"allowed_headers,omitempty"`
+	IncludeCreds   bool     `json:"include_creds,omitempty"`
+}
+
+type Cookie struct {
+	Refresh            string `json:"refresh,omitempty"`
+	AccessFingerprint  string `json:"access_fingerprint,omitempty"`
+	RefreshFingerprint string `json:"refresh_fingerprint,omitempty"`
+}
+
 type Config struct {
 	*App    `json:"app,omitempty"`
 	*Server `json:"server,omitempty"`
@@ -117,6 +131,8 @@ type Config struct {
 	*SMTP   `json:"smtp,omitempty"`
 	*Email  `json:"email,omitempty"`
 	*Argon2 `json:"argon2,omitempty"`
+	*CORS   `json:"cors,omitempty"`
+	*Cookie `json:"cookie,omitempty"`
 }
 
 func (c *Config) LogValue() slog.Value {
@@ -128,6 +144,8 @@ func (c *Config) LogValue() slog.Value {
 		slog.Any("smtp", c.SMTP),
 		slog.Any("email", c.Email),
 		slog.Any("argon2", c.Argon2),
+		slog.Any("cors", c.CORS),
+		slog.Any("cookie", c.Cookie),
 	)
 }
 

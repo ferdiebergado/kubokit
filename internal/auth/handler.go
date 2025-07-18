@@ -39,9 +39,10 @@ type AuthService interface {
 }
 
 type Handler struct {
-	svc    AuthService
-	signer jwt.Signer
-	cfgJWT *config.JWT
+	svc                                                     AuthService
+	signer                                                  jwt.Signer
+	cfgJWT                                                  *config.JWT
+	refreshCookieBaker, fpCookieBaker, refreshFpCookieBaker web.Baker
 }
 
 type RegisterUserRequest struct {
@@ -164,15 +165,27 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := MsgLoggedIn
-	data := &UserLoginResponse{
-		AccessToken:        secret.AccessToken,
-		RefreshToken:       secret.RefreshToken,
-		AccessFingerprint:  secret.AccessFingerprint,
-		RefreshFingerprint: secret.RefreshFingerprint,
-		ExpiresIn:          int(h.cfgJWT.TTL.Duration),
-		TokenType:          TokenType,
+	res := &UserLoginResponse{
+		ExpiresIn: int(h.cfgJWT.TTL.Duration),
+		TokenType: TokenType,
 	}
-	web.RespondOK(w, &msg, data)
+
+	if web.IsBrowser(r) {
+		http.SetCookie(w, h.refreshCookieBaker.Bake(secret.RefreshToken))
+		http.SetCookie(w, h.fpCookieBaker.Bake(secret.AccessFingerprint))
+		http.SetCookie(w, h.refreshFpCookieBaker.Bake(secret.RefreshFingerprint))
+
+		res.AccessToken = secret.AccessToken
+		web.RespondOK(w, &msg, res)
+		return
+	}
+
+	res.AccessToken = secret.AccessToken
+	res.RefreshToken = secret.RefreshToken
+	res.AccessFingerprint = secret.AccessFingerprint
+	res.RefreshFingerprint = secret.RefreshFingerprint
+
+	web.RespondOK(w, &msg, res)
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
@@ -193,16 +206,28 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := "Token refreshed."
-	data := &UserLoginResponse{
-		AccessToken:        secret.AccessToken,
-		RefreshToken:       secret.RefreshToken,
-		AccessFingerprint:  secret.AccessFingerprint,
-		RefreshFingerprint: secret.RefreshFingerprint,
-		ExpiresIn:          int(h.cfgJWT.TTL.Duration),
-		TokenType:          TokenType,
+	msg := MsgRefreshed
+	res := &UserLoginResponse{
+		ExpiresIn: int(h.cfgJWT.TTL.Duration),
+		TokenType: TokenType,
 	}
-	web.RespondOK(w, &msg, data)
+
+	if web.IsBrowser(r) {
+		http.SetCookie(w, h.refreshCookieBaker.Bake(secret.RefreshToken))
+		http.SetCookie(w, h.fpCookieBaker.Bake(secret.AccessFingerprint))
+		http.SetCookie(w, h.refreshFpCookieBaker.Bake(secret.RefreshFingerprint))
+
+		res.AccessToken = secret.AccessToken
+		web.RespondOK(w, &msg, res)
+		return
+	}
+
+	res.AccessToken = secret.AccessToken
+	res.RefreshToken = secret.RefreshToken
+	res.AccessFingerprint = secret.AccessFingerprint
+	res.RefreshFingerprint = secret.RefreshFingerprint
+
+	web.RespondOK(w, &msg, res)
 }
 
 type ForgotPasswordRequest struct {
@@ -270,8 +295,8 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	web.RespondOK(w, &msg, struct{}{})
 }
 
-func NewHandler(svc AuthService, provider *provider.Provider) (*Handler, error) {
-	cfg := provider.Cfg
+func NewHandler(svc AuthService, providers *provider.Provider) (*Handler, error) {
+	cfg := providers.Cfg
 	if cfg == nil {
 		return nil, errors.New("config should not be nil")
 	}
@@ -281,14 +306,17 @@ func NewHandler(svc AuthService, provider *provider.Provider) (*Handler, error) 
 		return nil, errors.New("JWT config should not be nil")
 	}
 
-	if provider.Signer == nil {
+	if providers.Signer == nil {
 		return nil, errors.New("signer should not be nil")
 	}
 
 	handler := &Handler{
-		svc:    svc,
-		cfgJWT: cfgJWT,
-		signer: provider.Signer,
+		svc:                  svc,
+		cfgJWT:               cfgJWT,
+		signer:               providers.Signer,
+		refreshCookieBaker:   providers.RefreshCookieBaker,
+		fpCookieBaker:        providers.FpCookieBaker,
+		refreshFpCookieBaker: providers.RefreshFpCookieBaker,
 	}
 
 	return handler, nil

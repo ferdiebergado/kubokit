@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -15,14 +17,15 @@ import (
 )
 
 type Provider struct {
-	Cfg       *config.Config
-	DB        *sql.DB
-	Signer    jwt.Signer
-	Mailer    email.Mailer
-	Validator validation.Validator
-	Hasher    hash.Hasher
-	Router    router.Router
-	TxMgr     db.TxManager
+	Cfg                                                     *config.Config
+	DB                                                      *sql.DB
+	Signer                                                  jwt.Signer
+	Mailer                                                  email.Mailer
+	Validator                                               validation.Validator
+	Hasher                                                  hash.Hasher
+	Router                                                  router.Router
+	TxMgr                                                   db.TxManager
+	RefreshCookieBaker, FpCookieBaker, RefreshFpCookieBaker web.Baker
 }
 
 func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
@@ -47,16 +50,24 @@ func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
 	router := router.NewGoexpressRouter()
 	validator := validation.NewGoPlaygroundValidator()
 	txMgr := db.NewSQLTxManager(dbConn)
+	cookieCfg := cfg.Cookie
+	refreshDuration := cfg.JWT.RefreshTTL.Duration
+	refreshCookieBaker := security.NewHardenedCookieBaker(cookieCfg.Refresh, refreshDuration)
+	fpCookieBaker := security.NewHardenedCookieBaker(cookieCfg.AccessFingerprint, cfg.JWT.TTL.Duration)
+	refreshFpCookieBaker := security.NewHardenedCookieBaker(cookieCfg.RefreshFingerprint, refreshDuration)
 
 	provider := &Provider{
-		Cfg:       cfg,
-		DB:        dbConn,
-		Signer:    signer,
-		Hasher:    hasher,
-		Mailer:    mailer,
-		Router:    router,
-		Validator: validator,
-		TxMgr:     txMgr,
+		Cfg:                  cfg,
+		DB:                   dbConn,
+		Signer:               signer,
+		Hasher:               hasher,
+		Mailer:               mailer,
+		Router:               router,
+		Validator:            validator,
+		TxMgr:                txMgr,
+		RefreshCookieBaker:   refreshCookieBaker,
+		FpCookieBaker:        fpCookieBaker,
+		RefreshFpCookieBaker: refreshFpCookieBaker,
 	}
 
 	return provider, nil
