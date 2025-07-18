@@ -140,7 +140,7 @@ func TestHandler_LoginUser(t *testing.T) {
 		name              string
 		input             auth.UserLoginRequest
 		code              int
-		loginFunc         func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken, fingerprint string, err error)
+		loginFunc         func(ctx context.Context, params auth.LoginUserParams) (*auth.ClientSecret, error)
 		verifyFunc        func(tokenString string) (*jwt.Claims, error)
 		gotBody, wantBody any
 	}{
@@ -151,8 +151,15 @@ func TestHandler_LoginUser(t *testing.T) {
 				Password: testPass,
 			},
 			code: http.StatusOK,
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken, fp string, err error) {
-				return "test_access_token", "test_refresh_token", "fp", nil
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.ClientSecret, error) {
+				secret := &auth.ClientSecret{
+					AccessToken:        "test_access_token",
+					RefreshToken:       "test_refresh_token",
+					AccessFingerprint:  "access_fp",
+					RefreshFingerprint: "refresh_fp",
+				}
+
+				return secret, nil
 			},
 			verifyFunc: func(tokenString string) (*jwt.Claims, error) {
 				return &jwt.Claims{UserID: testEmail, FingerprintHash: "fp_hash"}, nil
@@ -161,11 +168,12 @@ func TestHandler_LoginUser(t *testing.T) {
 			wantBody: &web.OKResponse[auth.UserLoginResponse]{
 				Message: auth.MsgLoggedIn,
 				Data: auth.UserLoginResponse{
-					AccessToken:  "test_access_token",
-					RefreshToken: "test_refresh_token",
-					Fingerprint:  "fp",
-					ExpiresIn:    int(defaultDuration),
-					TokenType:    "Bearer",
+					AccessToken:        "test_access_token",
+					RefreshToken:       "test_refresh_token",
+					AccessFingerprint:  "access_fp",
+					RefreshFingerprint: "refresh_fp",
+					ExpiresIn:          int(defaultDuration),
+					TokenType:          "Bearer",
 				},
 			},
 		},
@@ -175,8 +183,8 @@ func TestHandler_LoginUser(t *testing.T) {
 				Email:    testEmail,
 				Password: testPass,
 			},
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken, fingerprint string, err error) {
-				return "", "", "", auth.ErrUserNotVerified
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.ClientSecret, error) {
+				return nil, auth.ErrUserNotVerified
 			},
 			verifyFunc: func(tokenString string) (*jwt.Claims, error) {
 				return nil, nil
@@ -193,8 +201,8 @@ func TestHandler_LoginUser(t *testing.T) {
 				Email:    testEmail,
 				Password: testPass,
 			},
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken, fingerprint string, err error) {
-				return "", "", "", user.ErrNotFound
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.ClientSecret, error) {
+				return nil, user.ErrNotFound
 			},
 			verifyFunc: func(tokenString string) (*jwt.Claims, error) {
 				return nil, nil
@@ -211,8 +219,8 @@ func TestHandler_LoginUser(t *testing.T) {
 				Email:    testEmail,
 				Password: "anotherpass",
 			},
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (accessToken, refreshToken, fingerprint string, err error) {
-				return "", "", "", auth.ErrIncorrectPassword
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.ClientSecret, error) {
+				return nil, auth.ErrIncorrectPassword
 			},
 			verifyFunc: func(tokenString string) (*jwt.Claims, error) {
 				return nil, nil
@@ -489,17 +497,27 @@ func TestHandler_RefreshToken(t *testing.T) {
 				},
 			},
 			svc: &auth.StubService{
-				RefreshTokenFunc: func(token string) (accessToken, fingerprint string, err error) {
-					return "access_token", "fp", nil
+				RefreshTokenFunc: func(token string) (*auth.ClientSecret, error) {
+					secret := &auth.ClientSecret{
+						AccessToken:        "new_access_token",
+						RefreshToken:       "new_refresh_token",
+						AccessFingerprint:  "new_access_fp",
+						RefreshFingerprint: "new_refresh_fp",
+					}
+					return secret, nil
 				},
 			},
 			code:    http.StatusOK,
-			gotBody: &web.OKResponse[auth.RefreshTokenResponse]{},
-			wantBody: &web.OKResponse[auth.RefreshTokenResponse]{
+			gotBody: &web.OKResponse[auth.UserLoginResponse]{},
+			wantBody: &web.OKResponse[auth.UserLoginResponse]{
 				Message: "Token refreshed.",
-				Data: auth.RefreshTokenResponse{
-					AccessToken: "access_token",
-					Fingerprint: "fp",
+				Data: auth.UserLoginResponse{
+					AccessToken:        "new_access_token",
+					RefreshToken:       "new_refresh_token",
+					AccessFingerprint:  "new_access_fp",
+					RefreshFingerprint: "new_refresh_fp",
+					TokenType:          "Bearer",
+					ExpiresIn:          int(defaultDuration),
 				},
 			},
 		},
@@ -522,8 +540,8 @@ func TestHandler_RefreshToken(t *testing.T) {
 				},
 			},
 			svc: &auth.StubService{
-				RefreshTokenFunc: func(token string) (accessToken, fp string, err error) {
-					return "", "", auth.ErrInvalidToken
+				RefreshTokenFunc: func(token string) (*auth.ClientSecret, error) {
+					return nil, auth.ErrInvalidToken
 				},
 			},
 			code:    http.StatusUnauthorized,

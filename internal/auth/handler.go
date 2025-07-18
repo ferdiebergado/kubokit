@@ -15,17 +15,27 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-const maskChar = "*"
+const (
+	maskChar  = "*"
+	TokenType = "Bearer"
+)
 
 var errInvalidParams = errors.New("invalid request params")
+
+type ClientSecret struct {
+	AccessToken        string `json:"access_token,omitempty"`
+	AccessFingerprint  string `json:"access_fingerprint,omitempty"`
+	RefreshToken       string `json:"refresh_token,omitempty"`
+	RefreshFingerprint string `json:"refresh_fingerprint,omitempty"`
+}
 
 type AuthService interface {
 	RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error)
 	VerifyUser(ctx context.Context, token string) error
-	LoginUser(ctx context.Context, params LoginUserParams) (accessToken, refreshToken, fingerprint string, err error)
+	LoginUser(ctx context.Context, params LoginUserParams) (*ClientSecret, error)
 	SendPasswordReset(email string)
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
-	RefreshToken(token string) (accessToken, fingerprint string, err error)
+	RefreshToken(token string) (*ClientSecret, error)
 }
 
 type Handler struct {
@@ -125,12 +135,13 @@ type UserData struct {
 }
 
 type UserLoginResponse struct {
-	AccessToken  string    `json:"access_token,omitempty"`
-	RefreshToken string    `json:"refresh_token,omitempty"`
-	Fingerprint  string    `json:"fingerprint,omitempty"`
-	ExpiresIn    int       `json:"expires_in,omitempty"`
-	TokenType    string    `json:"token_type,omitempty"`
-	User         *UserData `json:"user,omitempty"`
+	AccessToken        string    `json:"access_token,omitempty"`
+	RefreshToken       string    `json:"refresh_token,omitempty"`
+	AccessFingerprint  string    `json:"access_fingerprint,omitempty"`
+	RefreshFingerprint string    `json:"refresh_fingerprint,omitempty"`
+	TokenType          string    `json:"token_type,omitempty"`
+	ExpiresIn          int       `json:"expires_in,omitempty"`
+	User               *UserData `json:"user,omitempty"`
 }
 
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
@@ -141,7 +152,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := LoginUserParams(req)
-	accessToken, refreshToken, fingerprint, err := h.svc.LoginUser(r.Context(), params)
+	secret, err := h.svc.LoginUser(r.Context(), params)
 	if err != nil {
 		if errors.Is(err, user.ErrNotFound) || errors.Is(err, ErrIncorrectPassword) || errors.Is(err, ErrUserNotVerified) {
 			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
@@ -154,18 +165,14 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	msg := MsgLoggedIn
 	data := &UserLoginResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		Fingerprint:  fingerprint,
-		ExpiresIn:    int(h.cfgJWT.TTL.Duration),
-		TokenType:    "Bearer",
+		AccessToken:        secret.AccessToken,
+		RefreshToken:       secret.RefreshToken,
+		AccessFingerprint:  secret.AccessFingerprint,
+		RefreshFingerprint: secret.RefreshFingerprint,
+		ExpiresIn:          int(h.cfgJWT.TTL.Duration),
+		TokenType:          TokenType,
 	}
 	web.RespondOK(w, &msg, data)
-}
-
-type RefreshTokenResponse struct {
-	AccessToken string `json:"access_token,omitempty"`
-	Fingerprint string `json:"fingerprint,omitempty"`
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
@@ -175,8 +182,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: use svc.loginuser
-	accessToken, fp, err := h.svc.RefreshToken(token)
+	secret, err := h.svc.RefreshToken(token)
 	if err != nil {
 		if errors.Is(err, ErrInvalidToken) {
 			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
@@ -189,8 +195,12 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	msg := "Token refreshed."
 	data := &UserLoginResponse{
-		AccessToken: accessToken,
-		Fingerprint: fp,
+		AccessToken:        secret.AccessToken,
+		RefreshToken:       secret.RefreshToken,
+		AccessFingerprint:  secret.AccessFingerprint,
+		RefreshFingerprint: secret.RefreshFingerprint,
+		ExpiresIn:          int(h.cfgJWT.TTL.Duration),
+		TokenType:          TokenType,
 	}
 	web.RespondOK(w, &msg, data)
 }

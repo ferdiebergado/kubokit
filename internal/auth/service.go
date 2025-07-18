@@ -129,45 +129,62 @@ func (p *LoginUserParams) LogValue() slog.Value {
 	)
 }
 
-func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (string, string, string, error) {
+func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (*ClientSecret, error) {
 	u, err := s.userSvc.FindUserByEmail(ctx, params.Email)
 	if err != nil {
-		return "", "", "", fmt.Errorf("find user by email: %w", err)
+		return nil, fmt.Errorf("find user by email: %w", err)
 	}
 
 	if u.VerifiedAt == nil {
-		return "", "", "", ErrUserNotVerified
+		return nil, ErrUserNotVerified
 	}
 
 	ok, err := s.hasher.Verify(params.Password, u.PasswordHash)
 	if err != nil {
-		return "", "", "", fmt.Errorf("verify password: %w", err)
+		return nil, fmt.Errorf("verify password: %w", err)
 	}
 
 	if !ok {
-		return "", "", "", ErrIncorrectPassword
+		return nil, ErrIncorrectPassword
 	}
 
-	cfgJWT := s.cfgJWT
-	ttl := cfgJWT.TTL.Duration
-
-	fp, fpHash, err := s.fingerprint()
+	secret, err := s.generateSecret(s.cfgJWT, u.ID)
 	if err != nil {
-		return "", "", "", fmt.Errorf("generate fingerprint: %w", err)
+		return nil, err
 	}
 
-	accessToken, err := s.signer.Sign(u.ID, fpHash, []string{cfgJWT.Issuer}, ttl)
+	return secret, nil
+}
+
+func (s *Service) generateSecret(jwtConfig *config.JWT, userID string) (*ClientSecret, error) {
+	accessFp, accessFpHash, err := s.fingerprint()
 	if err != nil {
-		return "", "", "", fmt.Errorf("sign access token: %w", err)
+		return nil, fmt.Errorf("generate access fingerprint: %w", err)
 	}
 
-	refreshTTL := s.cfgJWT.RefreshTTL.Duration
-	refreshToken, err := s.signer.Sign(u.ID, fpHash, []string{cfgJWT.Issuer}, refreshTTL)
+	accessToken, err := s.signer.Sign(userID, accessFpHash, []string{jwtConfig.Issuer}, jwtConfig.TTL.Duration)
 	if err != nil {
-		return "", "", "", fmt.Errorf("sign refresh token: %w", err)
+		return nil, fmt.Errorf("sign access token: %w", err)
 	}
 
-	return accessToken, refreshToken, fp, nil
+	refreshFp, refreshFpHash, err := s.fingerprint()
+	if err != nil {
+		return nil, fmt.Errorf("generate refresh fingerprint: %w", err)
+	}
+
+	refreshToken, err := s.signer.Sign(userID, refreshFpHash, []string{jwtConfig.Issuer}, jwtConfig.RefreshTTL.Duration)
+	if err != nil {
+		return nil, fmt.Errorf("sign refresh token: %w", err)
+	}
+
+	secrets := &ClientSecret{
+		AccessToken:        accessToken,
+		AccessFingerprint:  accessFp,
+		RefreshToken:       refreshToken,
+		RefreshFingerprint: refreshFp,
+	}
+
+	return secrets, nil
 }
 
 func (s *Service) SendPasswordReset(email string) {
@@ -246,26 +263,18 @@ func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) err
 	})
 }
 
-func (s *Service) RefreshToken(token string) (string, string, error) {
+func (s *Service) RefreshToken(token string) (*ClientSecret, error) {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
-		return "", "", ErrInvalidToken
+		return nil, ErrInvalidToken
 	}
 
-	cfgJWT := s.cfgJWT
-	ttl := cfgJWT.TTL.Duration
-
-	fp, fpHash, err := s.fingerprint()
+	secret, err := s.generateSecret(s.cfgJWT, claims.UserID)
 	if err != nil {
-		return "", "", fmt.Errorf("generate fingerprint: %w", err)
+		return nil, err
 	}
 
-	accessToken, err := s.signer.Sign(claims.UserID, fpHash, []string{cfgJWT.Issuer}, ttl)
-	if err != nil {
-		return "", "", fmt.Errorf("create access token: %w", err)
-	}
-
-	return accessToken, fp, nil
+	return secret, nil
 }
 
 func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.UserService) (*Service, error) {

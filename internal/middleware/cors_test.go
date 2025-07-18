@@ -69,7 +69,6 @@ func TestMiddleware_CORS(t *testing.T) {
 				middleware.HeaderAllowOrigin:  origin,
 				middleware.HeaderAllowMethods: middleware.AllowedMethods,
 				middleware.HeaderAllowHeaders: middleware.AllowedHeaders,
-				middleware.HeaderAllowCreds:   middleware.AllowedCreds,
 			}
 
 			for header, val := range headers {

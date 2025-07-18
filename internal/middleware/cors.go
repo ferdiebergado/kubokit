@@ -11,8 +11,7 @@ const (
 	HeaderAllowCreds   = "Access-Control-Allow-Credentials"
 
 	AllowedMethods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-	AllowedHeaders = "Content-Type, Authorization"
-	AllowedCreds   = "true"
+	AllowedHeaders = "Content-Type, Authorization, X-Client-Fingerprint"
 )
 
 func CORS(next http.Handler) http.Handler {
@@ -20,7 +19,6 @@ func CORS(next http.Handler) http.Handler {
 		w.Header().Set(HeaderAllowOrigin, "*")
 		w.Header().Set(HeaderAllowMethods, AllowedMethods)
 		w.Header().Set(HeaderAllowHeaders, AllowedHeaders)
-		w.Header().Set(HeaderAllowCreds, AllowedCreds)
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
