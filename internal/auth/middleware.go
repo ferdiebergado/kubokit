@@ -51,13 +51,13 @@ func RequireToken(signer jwt.Signer, hasher security.ShortHasher) func(http.Hand
 
 			token, err := extractBearerToken(r.Header.Get("Authorization"))
 			if err != nil || token == "" {
-				web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+				web.RespondUnauthorized(w, errors.New("no authorization header"), message.InvalidUser, nil)
 				return
 			}
 
 			fp := r.Header.Get(HeaderFingerprint)
 			if fp == "" {
-				web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+				web.RespondUnauthorized(w, errors.New("no fingerprint header"), message.InvalidUser, nil)
 				return
 			}
 
