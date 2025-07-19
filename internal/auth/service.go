@@ -206,7 +206,7 @@ func (s *Service) fingerprint() (fp, fpHash string, err error) {
 		return "", "", fmt.Errorf("generate random bytes: %w", err)
 	}
 
-	fpHashBytes, err := s.shortHasher.Hash(fpBytes)
+	fpHashBytes, err := s.shortHasher.Hash(string(fpBytes))
 	if err != nil {
 		return "", "", fmt.Errorf("hash fingerprint: %w", err)
 	}
@@ -330,7 +330,7 @@ func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.U
 		appURL:      appURL,
 		cfgJWT:      cfgJWT,
 		cfgEmail:    cfgEmail,
-		shortHasher: security.SHA256Hasher,
+		shortHasher: provider.ShortHasher,
 	}
 
 	return svc, nil

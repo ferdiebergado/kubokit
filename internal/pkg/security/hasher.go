@@ -1,24 +1,19 @@
 package security
 
-import (
-	"crypto/sha256"
-	"fmt"
-)
-
 type ShortHasher interface {
-	Hash([]byte) ([]byte, error)
+	Hash(string) ([]byte, error)
 }
 
-type HasherFunc func([]byte) ([]byte, error)
-
-func (f HasherFunc) Hash(data []byte) ([]byte, error) {
-	return f(data)
+type SHA256Hasher struct {
+	securityKey string
 }
 
-var SHA256Hasher = HasherFunc(func(b []byte) ([]byte, error) {
-	h := sha256.New()
-	if _, err := h.Write(b); err != nil {
-		return nil, fmt.Errorf("hasher write data: %w", err)
+func (h *SHA256Hasher) Hash(s string) ([]byte, error) {
+	return SHA256Hash(s, h.securityKey)
+}
+
+func NewSHA256Hasher(key string) *SHA256Hasher {
+	return &SHA256Hasher{
+		securityKey: key,
 	}
-	return h.Sum(nil), nil
-})
+}

@@ -79,7 +79,7 @@ func RequireToken(signer jwt.Signer, hasher security.ShortHasher) func(http.Hand
 				return
 			}
 
-			rehashedFpBytes, err := hasher.Hash(fpBytes)
+			rehashedFpBytes, err := hasher.Hash(string(fpBytes))
 			if err != nil {
 				web.RespondInternalServerError(w, err)
 				return

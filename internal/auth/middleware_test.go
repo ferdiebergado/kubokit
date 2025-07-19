@@ -41,9 +41,11 @@ func TestMiddleware_RequireToken(t *testing.T) {
 					}, nil
 				},
 			},
-			hasher: security.HasherFunc(func(b []byte) ([]byte, error) {
-				return []byte("test_fp_hash"), nil
-			}),
+			hasher: &security.StubSHA256Hasher{
+				HashFunc: func(_ string) ([]byte, error) {
+					return []byte("test_fp_hash"), nil
+				},
+			},
 			code:         http.StatusOK,
 			headerCalled: "true",
 		},
