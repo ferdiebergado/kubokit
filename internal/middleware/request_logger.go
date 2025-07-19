@@ -25,6 +25,7 @@ func LogRequest(next http.Handler) http.Handler {
 		duration := time.Since(start)
 		slog.Info("incoming request",
 			"user_agent", r.UserAgent(),
+			"origin", r.Header.Get("Origin"),
 			"ip", getIPAddress(r),
 			"method", r.Method,
 			"url", r.URL.String(),
