@@ -54,7 +54,7 @@
     "key_length": 32
   },
   "cors": {
-    "allowed_origins": ["*"],
+    "allowed_origin": "http://localhost:4173",
     "allowed_methods": ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     "allowed_headers": [
       "Content-Type",

@@ -111,7 +111,7 @@ type Argon2 struct {
 }
 
 type CORS struct {
-	AllowedOrigins []string `json:"allowed_origins,omitempty"`
+	AllowedOrigin  string   `json:"allowed_origin,omitempty" env:"CLIENT_URL"`
 	AllowedMethods []string `json:"allowed_methods,omitempty"`
 	AllowedHeaders []string `json:"allowed_headers,omitempty"`
 	IncludeCreds   bool     `json:"include_creds,omitempty"`

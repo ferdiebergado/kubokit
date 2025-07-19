@@ -21,7 +21,7 @@ func CORS(cfg *config.CORS) func(http.Handler) http.Handler {
 			const sep = ","
 
 			headers := map[string]string{
-				HeaderAllowOrigin:  strings.Join(cfg.AllowedOrigins, sep),
+				HeaderAllowOrigin:  cfg.AllowedOrigin,
 				HeaderAllowMethods: strings.Join(cfg.AllowedMethods, sep),
 				HeaderAllowHeaders: strings.Join(cfg.AllowedHeaders, sep),
 				HeaderAllowCreds:   strconv.FormatBool(cfg.IncludeCreds),

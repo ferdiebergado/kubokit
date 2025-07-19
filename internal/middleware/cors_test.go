@@ -65,7 +65,7 @@ func TestMiddleware_CORS(t *testing.T) {
 			rec := httptest.NewRecorder()
 
 			corsConfig := &config.CORS{
-				AllowedOrigins: []string{"*"},
+				AllowedOrigin:  "http://localhost:5173",
 				AllowedMethods: []string{"GET", "POST"},
 				AllowedHeaders: []string{"Content-Type", "Authorization"},
 				IncludeCreds:   true,
@@ -80,7 +80,7 @@ func TestMiddleware_CORS(t *testing.T) {
 			}
 
 			headers := map[string]string{
-				middleware.HeaderAllowOrigin:  strings.Join(corsConfig.AllowedOrigins, ","),
+				middleware.HeaderAllowOrigin:  corsConfig.AllowedOrigin,
 				middleware.HeaderAllowMethods: strings.Join(corsConfig.AllowedMethods, ","),
 				middleware.HeaderAllowHeaders: strings.Join(corsConfig.AllowedHeaders, ","),
 				middleware.HeaderAllowCreds:   strconv.FormatBool(corsConfig.IncludeCreds),
