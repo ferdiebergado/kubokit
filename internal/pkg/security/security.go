@@ -1,7 +1,9 @@
 package security
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 )
@@ -54,4 +56,12 @@ func ConstantTimeCompareStr(a, b string) bool {
 		result |= int(a[i] ^ b[i])
 	}
 	return result == 0
+}
+
+func SHA256Hash(plain, key string) ([]byte, error) {
+	h := hmac.New(sha256.New, []byte(key))
+	if _, err := h.Write([]byte(plain)); err != nil {
+		return nil, fmt.Errorf("sha256 write data: %w", err)
+	}
+	return h.Sum(nil), nil
 }
