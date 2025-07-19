@@ -269,11 +269,11 @@ func TestHandler_LoginUser(t *testing.T) {
 			}
 
 			provider := &provider.Provider{
-				Cfg:                  cfg,
-				Signer:               signer,
-				RefreshCookieBaker:   refreshCookieBaker,
-				RefreshFpCookieBaker: refreshFpCookieBaker,
-				FpCookieBaker:        fpCookieBaker,
+				Cfg:              cfg,
+				Signer:           signer,
+				RefreshBaker:     refreshCookieBaker,
+				RefreshFpBaker:   refreshFpCookieBaker,
+				FingerprintBaker: fpCookieBaker,
 			}
 
 			authHandler, err := auth.NewHandler(svc, provider)
@@ -607,11 +607,11 @@ func TestHandler_RefreshToken(t *testing.T) {
 			}
 
 			provider := &provider.Provider{
-				Cfg:                  cfg,
-				Signer:               tc.signer,
-				RefreshCookieBaker:   refreshCookieBaker,
-				FpCookieBaker:        fpCookieBaker,
-				RefreshFpCookieBaker: refreshFpCookieBaker,
+				Cfg:              cfg,
+				Signer:           tc.signer,
+				RefreshBaker:     refreshCookieBaker,
+				FingerprintBaker: fpCookieBaker,
+				RefreshFpBaker:   refreshFpCookieBaker,
 			}
 
 			authHandler, err := auth.NewHandler(tc.svc, provider)
