@@ -17,15 +17,16 @@ import (
 )
 
 type Provider struct {
-	Cfg                                                     *config.Config
-	DB                                                      *sql.DB
-	Signer                                                  jwt.Signer
-	Mailer                                                  email.Mailer
-	Validator                                               validation.Validator
-	Hasher                                                  hash.Hasher
-	Router                                                  router.Router
-	TxMgr                                                   db.TxManager
-	RefreshCookieBaker, FpCookieBaker, RefreshFpCookieBaker web.Baker
+	Cfg                                                       *config.Config
+	DB                                                        *sql.DB
+	Signer                                                    jwt.Signer
+	Mailer                                                    email.Mailer
+	Validator                                                 validation.Validator
+	Hasher                                                    hash.Hasher
+	Router                                                    router.Router
+	TxMgr                                                     db.TxManager
+	RefreshBaker, FingerprintBaker, RefreshFpBaker, CSRFBaker web.Baker
+	ShortHasher                                               security.ShortHasher
 }
 
 func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
@@ -38,10 +39,12 @@ func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("new jwt signer: %w", err)
 	}
+
 	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
 	if err != nil {
 		return nil, fmt.Errorf("new mailer: %w", err)
 	}
+
 	hasher, err := hash.NewArgon2Hasher(cfg.Argon2, securityKey)
 	if err != nil {
 		return nil, fmt.Errorf("new hasher: %w", err)
@@ -52,22 +55,27 @@ func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
 	txMgr := db.NewSQLTxManager(dbConn)
 	cookieCfg := cfg.Cookie
 	refreshDuration := cfg.JWT.RefreshTTL.Duration
+	accessDuration := cfg.JWT.TTL.Duration
 	refreshCookieBaker := security.NewHardenedCookieBaker(cookieCfg.Refresh, refreshDuration)
-	fpCookieBaker := security.NewHardenedCookieBaker(cookieCfg.AccessFingerprint, cfg.JWT.TTL.Duration)
+	fpCookieBaker := security.NewHardenedCookieBaker(cookieCfg.AccessFingerprint, accessDuration)
 	refreshFpCookieBaker := security.NewHardenedCookieBaker(cookieCfg.RefreshFingerprint, refreshDuration)
+	csrfCookieBaker := security.NewHardenedCookieBaker(cfg.CSRF.CookieName, refreshDuration)
+	shortHasher := security.NewSHA256Hasher(cfg.App.Key)
 
 	provider := &Provider{
-		Cfg:                  cfg,
-		DB:                   dbConn,
-		Signer:               signer,
-		Hasher:               hasher,
-		Mailer:               mailer,
-		Router:               router,
-		Validator:            validator,
-		TxMgr:                txMgr,
-		RefreshCookieBaker:   refreshCookieBaker,
-		FpCookieBaker:        fpCookieBaker,
-		RefreshFpCookieBaker: refreshFpCookieBaker,
+		Cfg:              cfg,
+		DB:               dbConn,
+		Signer:           signer,
+		Hasher:           hasher,
+		Mailer:           mailer,
+		Router:           router,
+		Validator:        validator,
+		TxMgr:            txMgr,
+		RefreshBaker:     refreshCookieBaker,
+		FingerprintBaker: fpCookieBaker,
+		RefreshFpBaker:   refreshFpCookieBaker,
+		CSRFBaker:        csrfCookieBaker,
+		ShortHasher:      shortHasher,
 	}
 
 	return provider, nil

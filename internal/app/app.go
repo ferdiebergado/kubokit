@@ -14,6 +14,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -41,6 +42,7 @@ type App struct {
 	userSvc         user.UserService
 	authHandler     *auth.Handler
 	shortHasher     security.ShortHasher
+	csrfBaker       web.Baker
 }
 
 func (a *App) registerMiddlewares() {
@@ -58,6 +60,7 @@ func (a *App) setupRoutes() {
 	cfg := a.config
 	maxBodySize := cfg.Server.MaxBodyBytes
 	requireToken := auth.RequireToken(a.signer, a.shortHasher)
+	csrfGuard := middleware.CSRFGuard(cfg.CSRF, a.shortHasher, a.csrfBaker)
 
 	// auth routes
 	a.router.Group("/auth", func(gr router.Router) {
@@ -68,7 +71,8 @@ func (a *App) setupRoutes() {
 			middleware.DecodePayload[auth.UserLoginRequest](maxBodySize),
 			middleware.ValidateInput[auth.UserLoginRequest](a.validator))
 		gr.Get("/verify", a.authHandler.VerifyEmail, auth.VerifyToken(a.signer))
-		gr.Post("/refresh", a.authHandler.RefreshToken, requireToken)
+		gr.Post("/refresh", a.authHandler.RefreshToken, csrfGuard, requireToken)
+
 		gr.Post("/forgot", a.authHandler.ForgotPassword,
 			middleware.DecodePayload[auth.ForgotPasswordRequest](maxBodySize),
 			middleware.ValidateInput[auth.ForgotPasswordRequest](a.validator))
@@ -146,11 +150,10 @@ func New(providers *provider.Provider, middlewares []func(http.Handler) http.Han
 
 	authModule, err := auth.NewModule(providers, userSvc)
 	if err != nil {
+		stop()
 		return nil, fmt.Errorf("new auth module: %w", err)
 	}
 	authHandler := authModule.Handler()
-
-	shortHasher := security.SHA256Hasher
 
 	api := &App{
 		config:          cfg,
@@ -168,7 +171,8 @@ func New(providers *provider.Provider, middlewares []func(http.Handler) http.Han
 		middlewares:     middlewares,
 		stop:            stop,
 		shutdownTimeout: serverCfg.ShutdownTimeout.Duration,
-		shortHasher:     shortHasher,
+		shortHasher:     providers.ShortHasher,
+		csrfBaker:       providers.CSRFBaker,
 	}
 
 	return api, nil

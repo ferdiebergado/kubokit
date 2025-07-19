@@ -123,6 +123,13 @@ type Cookie struct {
 	RefreshFingerprint string `json:"refresh_fingerprint,omitempty"`
 }
 
+type CSRF struct {
+	CookieName string         `json:"cookie_name,omitempty"`
+	TokenLen   uint32         `json:"token_len,omitempty"`
+	MaxAge     timex.Duration `json:"max_age,omitempty"`
+	HeaderName string         `json:"header_name,omitempty"`
+}
+
 type Config struct {
 	*App    `json:"app,omitempty"`
 	*Server `json:"server,omitempty"`
@@ -133,6 +140,7 @@ type Config struct {
 	*Argon2 `json:"argon2,omitempty"`
 	*CORS   `json:"cors,omitempty"`
 	*Cookie `json:"cookie,omitempty"`
+	*CSRF   `json:"csrf,omitempty"`
 }
 
 func (c *Config) LogValue() slog.Value {
@@ -146,6 +154,7 @@ func (c *Config) LogValue() slog.Value {
 		slog.Any("argon2", c.Argon2),
 		slog.Any("cors", c.CORS),
 		slog.Any("cookie", c.Cookie),
+		slog.Any("csrf", c.CSRF),
 	)
 }
 

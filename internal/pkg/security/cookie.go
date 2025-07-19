@@ -5,12 +5,12 @@ import (
 	"time"
 )
 
-func HardenedCookie(name, val string, maxAge time.Duration) *http.Cookie {
+func HardenedCookie(name, val string, duration time.Duration) *http.Cookie {
 	return &http.Cookie{
 		Name:     name,
 		Value:    val,
 		Path:     "/",
-		MaxAge:   time.Now().Add(maxAge).Second(),
+		MaxAge:   time.Now().Add(duration).Second(),
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
