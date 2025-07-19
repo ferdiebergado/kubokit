@@ -23,10 +23,10 @@ const (
 var errInvalidParams = errors.New("invalid request params")
 
 type ClientSecret struct {
-	AccessToken        string `json:"access_token,omitempty"`
-	AccessFingerprint  string `json:"access_fingerprint,omitempty"`
-	RefreshToken       string `json:"refresh_token,omitempty"`
-	RefreshFingerprint string `json:"refresh_fingerprint,omitempty"`
+	AccessToken        string
+	AccessFingerprint  string
+	RefreshToken       string
+	RefreshFingerprint string
 }
 
 type AuthService interface {
@@ -39,10 +39,10 @@ type AuthService interface {
 }
 
 type Handler struct {
-	svc                                                     AuthService
-	signer                                                  jwt.Signer
-	cfgJWT                                                  *config.JWT
-	refreshCookieBaker, fpCookieBaker, refreshFpCookieBaker web.Baker
+	svc                                   AuthService
+	signer                                jwt.Signer
+	cfgJWT                                *config.JWT
+	refreshBaker, fpBaker, refreshFpBaker web.Baker
 }
 
 type RegisterUserRequest struct {
@@ -171,9 +171,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if web.IsBrowser(r) {
-		http.SetCookie(w, h.refreshCookieBaker.Bake(secret.RefreshToken))
-		http.SetCookie(w, h.fpCookieBaker.Bake(secret.AccessFingerprint))
-		http.SetCookie(w, h.refreshFpCookieBaker.Bake(secret.RefreshFingerprint))
+		h.addCookies(w, secret)
 
 		res.AccessToken = secret.AccessToken
 		web.RespondOK(w, &msg, res)
@@ -186,6 +184,12 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	res.RefreshFingerprint = secret.RefreshFingerprint
 
 	web.RespondOK(w, &msg, res)
+}
+
+func (h *Handler) addCookies(w http.ResponseWriter, secret *ClientSecret) {
+	http.SetCookie(w, h.refreshBaker.Bake(secret.RefreshToken))
+	http.SetCookie(w, h.fpBaker.Bake(secret.AccessFingerprint))
+	http.SetCookie(w, h.refreshFpBaker.Bake(secret.RefreshFingerprint))
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
@@ -213,9 +217,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if web.IsBrowser(r) {
-		http.SetCookie(w, h.refreshCookieBaker.Bake(secret.RefreshToken))
-		http.SetCookie(w, h.fpCookieBaker.Bake(secret.AccessFingerprint))
-		http.SetCookie(w, h.refreshFpCookieBaker.Bake(secret.RefreshFingerprint))
+		h.addCookies(w, secret)
 
 		res.AccessToken = secret.AccessToken
 		web.RespondOK(w, &msg, res)
@@ -311,12 +313,12 @@ func NewHandler(svc AuthService, providers *provider.Provider) (*Handler, error)
 	}
 
 	handler := &Handler{
-		svc:                  svc,
-		cfgJWT:               cfgJWT,
-		signer:               providers.Signer,
-		refreshCookieBaker:   providers.RefreshCookieBaker,
-		fpCookieBaker:        providers.FpCookieBaker,
-		refreshFpCookieBaker: providers.RefreshFpCookieBaker,
+		svc:            svc,
+		cfgJWT:         cfgJWT,
+		signer:         providers.Signer,
+		refreshBaker:   providers.RefreshBaker,
+		fpBaker:        providers.FingerprintBaker,
+		refreshFpBaker: providers.RefreshFpBaker,
 	}
 
 	return handler, nil
