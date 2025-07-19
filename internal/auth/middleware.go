@@ -9,14 +9,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
-
-const HeaderFingerprint = "X-Client-Fingerprint"
 
 var ErrInvalidToken = errors.New("invalid token")
 
@@ -44,7 +43,7 @@ func VerifyToken(signer jwt.Signer) func(http.Handler) http.Handler {
 	}
 }
 
-func RequireToken(signer jwt.Signer, hasher security.ShortHasher) func(http.Handler) http.Handler {
+func RequireToken(cfg *config.Cookie, signer jwt.Signer, hasher security.ShortHasher) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			slog.Info("Verifying access token...")
@@ -55,12 +54,13 @@ func RequireToken(signer jwt.Signer, hasher security.ShortHasher) func(http.Hand
 				return
 			}
 
-			fp := r.Header.Get(HeaderFingerprint)
-			if fp == "" {
-				web.RespondUnauthorized(w, errors.New("no fingerprint header"), message.InvalidUser, nil)
+			fpCookie, err := r.Cookie(cfg.AccessFingerprint)
+			if err != nil || fpCookie.Value == "" {
+				web.RespondUnauthorized(w, errors.New("no fingerprint cookie"), message.InvalidUser, nil)
 				return
 			}
 
+			fp := fpCookie.Value
 			fpBytes, err := base64.URLEncoding.DecodeString(fp)
 			if err != nil {
 				web.RespondInternalServerError(w, err)

@@ -170,19 +170,9 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		TokenType: TokenType,
 	}
 
-	if web.IsBrowser(r) {
-		h.addCookies(w, secret)
-
-		res.AccessToken = secret.AccessToken
-		web.RespondOK(w, &msg, res)
-		return
-	}
+	h.addCookies(w, secret)
 
 	res.AccessToken = secret.AccessToken
-	res.RefreshToken = secret.RefreshToken
-	res.AccessFingerprint = secret.AccessFingerprint
-	res.RefreshFingerprint = secret.RefreshFingerprint
-
 	web.RespondOK(w, &msg, res)
 }
 
@@ -216,19 +206,9 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		TokenType: TokenType,
 	}
 
-	if web.IsBrowser(r) {
-		h.addCookies(w, secret)
-
-		res.AccessToken = secret.AccessToken
-		web.RespondOK(w, &msg, res)
-		return
-	}
+	h.addCookies(w, secret)
 
 	res.AccessToken = secret.AccessToken
-	res.RefreshToken = secret.RefreshToken
-	res.AccessFingerprint = secret.AccessFingerprint
-	res.RefreshFingerprint = secret.RefreshFingerprint
-
 	web.RespondOK(w, &msg, res)
 }
 

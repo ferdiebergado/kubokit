@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/auth"
+	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 )
@@ -17,11 +18,12 @@ func TestMiddleware_RequireToken(t *testing.T) {
 	const headerCalled = "X-Handler-Called"
 
 	type testCase struct {
-		name, accessToken, fpHeader, headerCalled string
-		fingerprint                               []byte
-		signer                                    jwt.Signer
-		hasher                                    security.ShortHasher
-		code                                      int
+		name, accessToken, headerCalled string
+		fingerprint                     []byte
+		signer                          jwt.Signer
+		hasher                          security.ShortHasher
+		code                            int
+		fpCookie                        *http.Cookie
 	}
 
 	testCases := []testCase{
@@ -29,7 +31,7 @@ func TestMiddleware_RequireToken(t *testing.T) {
 			name:        "With valid token and fingerprint",
 			accessToken: "access_token",
 			fingerprint: []byte("test_fp"),
-			fpHeader:    base64.URLEncoding.EncodeToString([]byte("test_fp")),
+			fpCookie:    security.HardenedCookie("access_fp", base64.URLEncoding.EncodeToString([]byte("test_fp")), defaultDuration),
 			signer: &jwt.StubSigner{
 				SignFunc: func(subject, fingerprint string, audience []string, duration time.Duration) (string, error) {
 					return "access_token", nil
@@ -77,10 +79,17 @@ func TestMiddleware_RequireToken(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", http.NoBody)
 			req.Header.Set("Authorization", "Bearer "+tc.accessToken)
-			req.Header.Set(auth.HeaderFingerprint, tc.fpHeader)
+			if tc.fpCookie != nil {
+				req.AddCookie(tc.fpCookie)
+			}
 			rec := httptest.NewRecorder()
 
-			mw := auth.RequireToken(tc.signer, tc.hasher)
+			cookieCfg := &config.Cookie{
+				Refresh:            "refresh_token",
+				AccessFingerprint:  "access_fp",
+				RefreshFingerprint: "refresh_fp",
+			}
+			mw := auth.RequireToken(cookieCfg, tc.signer, tc.hasher)
 			mw(handler).ServeHTTP(rec, req)
 
 			gotCode, wantCode := rec.Code, tc.code

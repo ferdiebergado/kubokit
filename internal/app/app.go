@@ -59,7 +59,7 @@ func (a *App) registerMiddlewares() {
 func (a *App) setupRoutes() {
 	cfg := a.config
 	maxBodySize := cfg.Server.MaxBodyBytes
-	requireToken := auth.RequireToken(a.signer, a.shortHasher)
+	requireToken := auth.RequireToken(cfg.Cookie, a.signer, a.shortHasher)
 	csrfGuard := middleware.CSRFGuard(cfg.CSRF, a.shortHasher, a.csrfBaker)
 
 	// auth routes
