@@ -12,11 +12,9 @@ import (
 
 var _ Signer = &GolangJWTSigner{}
 
-// CustomClaims represents JWT claims with an additional fingerprint field.
+// CustomClaims represents JWT with custom claims.
 type CustomClaims struct {
 	jwt.RegisteredClaims
-
-	Fingerprint string `json:"fingerprint,omitempty"`
 }
 
 // GolangJWTSigner implements the Signer interface using the golang-jwt library.
@@ -27,15 +25,14 @@ type GolangJWTSigner struct {
 	issuer string
 }
 
-// Sign generates a signed JWT token with the given subject, fingerprint hash, audience, and duration.
-func (s *GolangJWTSigner) Sign(sub, fpHash string, audience []string, duration time.Duration) (string, error) {
+// Sign generates a signed JWT token with the given subject, audience, and duration.
+func (s *GolangJWTSigner) Sign(sub string, audience []string, duration time.Duration) (string, error) {
 	id, err := security.GenerateRandomBytesURLEncoded(s.jtiLen)
 	if err != nil {
 		return "", fmt.Errorf("generate jti with length %d: %w", s.jtiLen, err)
 	}
 
 	claims := &CustomClaims{
-		Fingerprint: fpHash,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
 			Issuer:    s.issuer,
@@ -68,8 +65,7 @@ func (s *GolangJWTSigner) Verify(tokenString string) (*Claims, error) {
 	}
 
 	claims := &Claims{
-		UserID:          customClaims.Subject,
-		FingerprintHash: customClaims.Fingerprint,
+		UserID: customClaims.Subject,
 	}
 
 	return claims, nil

@@ -6,11 +6,11 @@ import (
 
 // Claims represents the JWT claims that are processed for authentication.
 type Claims struct {
-	UserID, FingerprintHash string
+	UserID string
 }
 
 // Signer defines methods for signing and verifying JWT tokens.
 type Signer interface {
-	Sign(subject, fingerprintHash string, audience []string, duration time.Duration) (token string, err error)
+	Sign(subject string, audience []string, duration time.Duration) (token string, err error)
 	Verify(tokenString string) (*Claims, error)
 }

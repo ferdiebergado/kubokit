@@ -58,10 +58,9 @@
     "allowed_methods": ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     "allowed_headers": [
       "Content-Type",
-      "Authorization",
-      "X-Client-Fingerprint"
+      "Authorization"
     ],
-    "include_creds": true
+    "include_creds": false
   },
   "cookie": {
     "refresh": "__Secure-ref",

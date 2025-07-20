@@ -23,10 +23,8 @@ const (
 var errInvalidParams = errors.New("invalid request params")
 
 type ClientSecret struct {
-	AccessToken        string
-	AccessFingerprint  string
-	RefreshToken       string
-	RefreshFingerprint string
+	AccessToken  string
+	RefreshToken string
 }
 
 type AuthService interface {
@@ -39,10 +37,9 @@ type AuthService interface {
 }
 
 type Handler struct {
-	svc                                   AuthService
-	signer                                jwt.Signer
-	cfgJWT                                *config.JWT
-	refreshBaker, fpBaker, refreshFpBaker web.Baker
+	svc    AuthService
+	signer jwt.Signer
+	cfgJWT *config.JWT
 }
 
 type RegisterUserRequest struct {
@@ -136,13 +133,11 @@ type UserData struct {
 }
 
 type UserLoginResponse struct {
-	AccessToken        string    `json:"access_token,omitempty"`
-	RefreshToken       string    `json:"refresh_token,omitempty"`
-	AccessFingerprint  string    `json:"access_fingerprint,omitempty"`
-	RefreshFingerprint string    `json:"refresh_fingerprint,omitempty"`
-	TokenType          string    `json:"token_type,omitempty"`
-	ExpiresIn          int       `json:"expires_in,omitempty"`
-	User               *UserData `json:"user,omitempty"`
+	AccessToken  string    `json:"access_token,omitempty"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
+	TokenType    string    `json:"token_type,omitempty"`
+	ExpiresIn    int       `json:"expires_in,omitempty"`
+	User         *UserData `json:"user,omitempty"`
 }
 
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
@@ -166,20 +161,13 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	msg := MsgLoggedIn
 	res := &UserLoginResponse{
-		ExpiresIn: int(h.cfgJWT.TTL.Duration),
-		TokenType: TokenType,
+		AccessToken:  secret.AccessToken,
+		RefreshToken: secret.RefreshToken,
+		ExpiresIn:    int(h.cfgJWT.TTL.Duration),
+		TokenType:    TokenType,
 	}
 
-	h.addCookies(w, secret)
-
-	res.AccessToken = secret.AccessToken
 	web.RespondOK(w, &msg, res)
-}
-
-func (h *Handler) addCookies(w http.ResponseWriter, secret *ClientSecret) {
-	http.SetCookie(w, h.refreshBaker.Bake(secret.RefreshToken))
-	http.SetCookie(w, h.fpBaker.Bake(secret.AccessFingerprint))
-	http.SetCookie(w, h.refreshFpBaker.Bake(secret.RefreshFingerprint))
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
@@ -202,13 +190,12 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	msg := MsgRefreshed
 	res := &UserLoginResponse{
-		ExpiresIn: int(h.cfgJWT.TTL.Duration),
-		TokenType: TokenType,
+		AccessToken:  secret.AccessToken,
+		RefreshToken: secret.RefreshToken,
+		ExpiresIn:    int(h.cfgJWT.TTL.Duration),
+		TokenType:    TokenType,
 	}
 
-	h.addCookies(w, secret)
-
-	res.AccessToken = secret.AccessToken
 	web.RespondOK(w, &msg, res)
 }
 
@@ -293,12 +280,9 @@ func NewHandler(svc AuthService, providers *provider.Provider) (*Handler, error)
 	}
 
 	handler := &Handler{
-		svc:            svc,
-		cfgJWT:         cfgJWT,
-		signer:         providers.Signer,
-		refreshBaker:   providers.RefreshBaker,
-		fpBaker:        providers.FingerprintBaker,
-		refreshFpBaker: providers.RefreshFpBaker,
+		svc:    svc,
+		cfgJWT: cfgJWT,
+		signer: providers.Signer,
 	}
 
 	return handler, nil

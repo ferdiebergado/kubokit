@@ -7,7 +7,6 @@ import (
 
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
-	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -17,16 +16,15 @@ import (
 )
 
 type Provider struct {
-	Cfg                                                       *config.Config
-	DB                                                        *sql.DB
-	Signer                                                    jwt.Signer
-	Mailer                                                    email.Mailer
-	Validator                                                 validation.Validator
-	Hasher                                                    hash.Hasher
-	Router                                                    router.Router
-	TxMgr                                                     db.TxManager
-	RefreshBaker, FingerprintBaker, RefreshFpBaker, CSRFBaker web.Baker
-	ShortHasher                                               security.ShortHasher
+	Cfg         *config.Config
+	DB          *sql.DB
+	Signer      jwt.Signer
+	Mailer      email.Mailer
+	Validator   validation.Validator
+	Hasher      hash.Hasher
+	Router      router.Router
+	TxMgr       db.TxManager
+	ShortHasher security.ShortHasher
 }
 
 func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
@@ -53,29 +51,18 @@ func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
 	router := router.NewGoexpressRouter()
 	validator := validation.NewGoPlaygroundValidator()
 	txMgr := db.NewSQLTxManager(dbConn)
-	cookieCfg := cfg.Cookie
-	refreshDuration := cfg.JWT.RefreshTTL.Duration
-	accessDuration := cfg.JWT.TTL.Duration
-	refreshCookieBaker := security.NewHardenedCookieBaker(cookieCfg.Refresh, refreshDuration)
-	fpCookieBaker := security.NewHardenedCookieBaker(cookieCfg.AccessFingerprint, accessDuration)
-	refreshFpCookieBaker := security.NewHardenedCookieBaker(cookieCfg.RefreshFingerprint, refreshDuration)
-	csrfCookieBaker := security.NewHardenedCookieBaker(cfg.CSRF.CookieName, refreshDuration)
 	shortHasher := security.NewSHA256Hasher(cfg.App.Key)
 
 	provider := &Provider{
-		Cfg:              cfg,
-		DB:               dbConn,
-		Signer:           signer,
-		Hasher:           hasher,
-		Mailer:           mailer,
-		Router:           router,
-		Validator:        validator,
-		TxMgr:            txMgr,
-		RefreshBaker:     refreshCookieBaker,
-		FingerprintBaker: fpCookieBaker,
-		RefreshFpBaker:   refreshFpCookieBaker,
-		CSRFBaker:        csrfCookieBaker,
-		ShortHasher:      shortHasher,
+		Cfg:         cfg,
+		DB:          dbConn,
+		Signer:      signer,
+		Hasher:      hasher,
+		Mailer:      mailer,
+		Router:      router,
+		Validator:   validator,
+		TxMgr:       txMgr,
+		ShortHasher: shortHasher,
 	}
 
 	return provider, nil

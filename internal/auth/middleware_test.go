@@ -1,16 +1,12 @@
 package auth_test
 
 import (
-	"encoding/base64"
-	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/auth"
-	"github.com/ferdiebergado/kubokit/internal/config"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 )
 
@@ -19,53 +15,30 @@ func TestMiddleware_RequireToken(t *testing.T) {
 
 	type testCase struct {
 		name, accessToken, headerCalled string
-		fingerprint                     []byte
 		signer                          jwt.Signer
-		hasher                          security.ShortHasher
 		code                            int
-		fpCookie                        *http.Cookie
 	}
 
 	testCases := []testCase{
 		{
-			name:        "With valid token and fingerprint",
+			name:        "With valid token",
 			accessToken: "access_token",
-			fingerprint: []byte("test_fp"),
-			fpCookie:    security.HardenedCookie("access_fp", base64.URLEncoding.EncodeToString([]byte("test_fp")), defaultDuration),
 			signer: &jwt.StubSigner{
-				SignFunc: func(subject, fingerprint string, audience []string, duration time.Duration) (string, error) {
+				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
 					return "access_token", nil
 				},
 				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
 					return &jwt.Claims{
-						UserID:          "1",
-						FingerprintHash: hex.EncodeToString([]byte("test_fp_hash")),
+						UserID: "1",
 					}, nil
-				},
-			},
-			hasher: &security.StubSHA256Hasher{
-				HashFunc: func(_ string) ([]byte, error) {
-					return []byte("test_fp_hash"), nil
 				},
 			},
 			code:         http.StatusOK,
 			headerCalled: "true",
 		},
+
 		{
-			name:        "With valid token but without fingerprint",
-			accessToken: "access_token",
-			signer: &jwt.StubSigner{
-				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-					return &jwt.Claims{
-						UserID:          "1",
-						FingerprintHash: hex.EncodeToString([]byte("test_fp_hash")),
-					}, nil
-				},
-			},
-			code: http.StatusUnauthorized,
-		},
-		{
-			name: "Without token and fingerprint",
+			name: "Without token",
 			code: http.StatusUnauthorized,
 		},
 	}
@@ -79,17 +52,8 @@ func TestMiddleware_RequireToken(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", http.NoBody)
 			req.Header.Set("Authorization", "Bearer "+tc.accessToken)
-			if tc.fpCookie != nil {
-				req.AddCookie(tc.fpCookie)
-			}
 			rec := httptest.NewRecorder()
-
-			cookieCfg := &config.Cookie{
-				Refresh:            "refresh_token",
-				AccessFingerprint:  "access_fp",
-				RefreshFingerprint: "refresh_fp",
-			}
-			mw := auth.RequireToken(cookieCfg, tc.signer, tc.hasher)
+			mw := auth.RequireToken(tc.signer)
 			mw(handler).ServeHTTP(rec, req)
 
 			gotCode, wantCode := rec.Code, tc.code

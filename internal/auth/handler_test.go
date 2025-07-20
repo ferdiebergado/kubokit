@@ -14,7 +14,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/model"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
@@ -92,7 +91,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 			}
 
 			signer := jwt.StubSigner{
-				SignFunc: func(subject, fp string, audience []string, duration time.Duration) (string, error) {
+				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
 					return "1", nil
 				},
 			}
@@ -157,24 +156,23 @@ func TestHandler_LoginUser(t *testing.T) {
 			code: http.StatusOK,
 			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.ClientSecret, error) {
 				secret := &auth.ClientSecret{
-					AccessToken:        "test_access_token",
-					RefreshToken:       "test_refresh_token",
-					AccessFingerprint:  "access_fp",
-					RefreshFingerprint: "refresh_fp",
+					AccessToken:  "test_access_token",
+					RefreshToken: "test_refresh_token",
 				}
 
 				return secret, nil
 			},
 			verifyFunc: func(tokenString string) (*jwt.Claims, error) {
-				return &jwt.Claims{UserID: testEmail, FingerprintHash: "fp_hash"}, nil
+				return &jwt.Claims{UserID: testEmail}, nil
 			},
 			gotBody: &web.OKResponse[auth.UserLoginResponse]{},
 			wantBody: &web.OKResponse[auth.UserLoginResponse]{
 				Message: auth.MsgLoggedIn,
 				Data: auth.UserLoginResponse{
-					AccessToken: "test_access_token",
-					ExpiresIn:   int(defaultDuration),
-					TokenType:   "Bearer",
+					AccessToken:  "test_access_token",
+					RefreshToken: "test_refresh_token",
+					ExpiresIn:    int(defaultDuration),
+					TokenType:    "Bearer",
 				},
 			},
 		},
@@ -243,37 +241,11 @@ func TestHandler_LoginUser(t *testing.T) {
 					TTL:        timex.Duration{Duration: defaultDuration},
 					RefreshTTL: timex.Duration{Duration: defaultDuration},
 				},
-				Cookie: &config.Cookie{
-					Refresh:            "__Secure-ref",
-					AccessFingerprint:  "__Secure-fp",
-					RefreshFingerprint: "__Secure-rfp",
-				},
-			}
-
-			refreshCookieBaker := &security.StubHardenedCookieBaker{
-				BakeFunc: func(s string) *http.Cookie {
-					return security.HardenedCookie("__Secure-ref", "refresh_token", defaultDuration)
-				},
-			}
-
-			refreshFpCookieBaker := &security.StubHardenedCookieBaker{
-				BakeFunc: func(s string) *http.Cookie {
-					return security.HardenedCookie("__Secure-rfp", "refresh_fp", defaultDuration)
-				},
-			}
-
-			fpCookieBaker := &security.StubHardenedCookieBaker{
-				BakeFunc: func(s string) *http.Cookie {
-					return security.HardenedCookie("__Secure-fp", "access_fp", defaultDuration)
-				},
 			}
 
 			provider := &provider.Provider{
-				Cfg:              cfg,
-				Signer:           signer,
-				RefreshBaker:     refreshCookieBaker,
-				RefreshFpBaker:   refreshFpCookieBaker,
-				FingerprintBaker: fpCookieBaker,
+				Cfg:    cfg,
+				Signer: signer,
 			}
 
 			authHandler, err := auth.NewHandler(svc, provider)
@@ -332,7 +304,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 				},
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-						return &jwt.Claims{UserID: "123", FingerprintHash: "fp_hash"}, nil
+						return &jwt.Claims{UserID: "123"}, nil
 					},
 				},
 			},
@@ -362,7 +334,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 				},
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-						return &jwt.Claims{UserID: "123", FingerprintHash: "fp_hash"}, nil
+						return &jwt.Claims{UserID: "123"}, nil
 					},
 				},
 			},
@@ -392,7 +364,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 				},
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-						return &jwt.Claims{UserID: "123", FingerprintHash: "fp_hash"}, nil
+						return &jwt.Claims{UserID: "123"}, nil
 					},
 				},
 			},
@@ -456,9 +428,9 @@ func TestHandler_ResetPassword(t *testing.T) {
 				},
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-						return &jwt.Claims{UserID: "1", FingerprintHash: "fp_hash"}, nil
+						return &jwt.Claims{UserID: "1"}, nil
 					},
-					SignFunc: func(subject, fp string, audience []string, duration time.Duration) (string, error) {
+					SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
 						return "xyz", nil
 					},
 				},
@@ -526,19 +498,17 @@ func TestHandler_RefreshToken(t *testing.T) {
 			refreshToken: "refresh_token",
 			signer: &jwt.StubSigner{
 				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-					return &jwt.Claims{UserID: "1", FingerprintHash: "fp_hash"}, nil
+					return &jwt.Claims{UserID: "1"}, nil
 				},
-				SignFunc: func(subject, fp string, audience []string, duration time.Duration) (string, error) {
+				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
 					return "access_token", nil
 				},
 			},
 			svc: &auth.StubService{
 				RefreshTokenFunc: func(token string) (*auth.ClientSecret, error) {
 					secret := &auth.ClientSecret{
-						AccessToken:        "new_access_token",
-						RefreshToken:       "new_refresh_token",
-						AccessFingerprint:  "new_access_fp",
-						RefreshFingerprint: "new_refresh_fp",
+						AccessToken:  "new_access_token",
+						RefreshToken: "new_refresh_token",
 					}
 					return secret, nil
 				},
@@ -548,9 +518,10 @@ func TestHandler_RefreshToken(t *testing.T) {
 			wantBody: &web.OKResponse[auth.UserLoginResponse]{
 				Message: "Token refreshed.",
 				Data: auth.UserLoginResponse{
-					AccessToken: "new_access_token",
-					TokenType:   "Bearer",
-					ExpiresIn:   int(defaultDuration),
+					AccessToken:  "new_access_token",
+					RefreshToken: "new_refresh_token",
+					TokenType:    "Bearer",
+					ExpiresIn:    int(defaultDuration),
 				},
 			},
 		},
@@ -588,30 +559,9 @@ func TestHandler_RefreshToken(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			refreshCookieBaker := &security.StubHardenedCookieBaker{
-				BakeFunc: func(s string) *http.Cookie {
-					return security.HardenedCookie("__Secure-ref", "refresh_token", defaultDuration)
-				},
-			}
-
-			refreshFpCookieBaker := &security.StubHardenedCookieBaker{
-				BakeFunc: func(s string) *http.Cookie {
-					return security.HardenedCookie("__Secure-rfp", "refresh_fp", defaultDuration)
-				},
-			}
-
-			fpCookieBaker := &security.StubHardenedCookieBaker{
-				BakeFunc: func(s string) *http.Cookie {
-					return security.HardenedCookie("__Secure-fp", "access_fp", defaultDuration)
-				},
-			}
-
 			provider := &provider.Provider{
-				Cfg:              cfg,
-				Signer:           tc.signer,
-				RefreshBaker:     refreshCookieBaker,
-				FingerprintBaker: fpCookieBaker,
-				RefreshFpBaker:   refreshFpCookieBaker,
+				Cfg:    cfg,
+				Signer: tc.signer,
 			}
 
 			authHandler, err := auth.NewHandler(tc.svc, provider)
@@ -620,7 +570,6 @@ func TestHandler_RefreshToken(t *testing.T) {
 			}
 
 			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", http.NoBody)
-			req.Header.Set("User-Agent", "Chrome")
 			if tc.refreshToken != "" {
 				req.Header.Set("Authorization", "Bearer "+tc.refreshToken)
 			}

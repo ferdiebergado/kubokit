@@ -8,15 +8,15 @@ import (
 var _ Signer = &StubSigner{}
 
 type StubSigner struct {
-	SignFunc   func(subject, fingerprint string, audience []string, duration time.Duration) (string, error)
+	SignFunc   func(subject string, audience []string, duration time.Duration) (string, error)
 	VerifyFunc func(tokenString string) (*Claims, error)
 }
 
-func (s *StubSigner) Sign(subject, fingerprint string, audience []string, duration time.Duration) (string, error) {
+func (s *StubSigner) Sign(subject string, audience []string, duration time.Duration) (string, error) {
 	if s.SignFunc == nil {
 		return "", errors.New("Sign not implemented by stub")
 	}
-	return s.SignFunc(subject, fingerprint, audience, duration)
+	return s.SignFunc(subject, audience, duration)
 }
 
 func (s *StubSigner) Verify(tokenString string) (*Claims, error) {

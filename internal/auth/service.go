@@ -2,14 +2,11 @@ package auth
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -32,16 +29,15 @@ type AuthRepository interface {
 }
 
 type Service struct {
-	repo        AuthRepository
-	userSvc     user.UserService
-	hasher      hash.Hasher
-	signer      jwt.Signer
-	mailer      email.Mailer
-	cfgJWT      *config.JWT
-	cfgEmail    *config.Email
-	appURL      string
-	txManager   db.TxManager
-	shortHasher security.ShortHasher
+	repo      AuthRepository
+	userSvc   user.UserService
+	hasher    hash.Hasher
+	signer    jwt.Signer
+	mailer    email.Mailer
+	cfgJWT    *config.JWT
+	cfgEmail  *config.Email
+	appURL    string
+	txManager db.TxManager
 }
 
 type RegisterUserParams struct {
@@ -93,7 +89,7 @@ func (s *Service) sendEmail(email *HTMLEmail) {
 	audience := s.appURL + email.URI
 	ttl := s.cfgEmail.VerifyTTL.Duration
 
-	token, err := s.signer.Sign(email.Payload, "", []string{audience}, ttl)
+	token, err := s.signer.Sign(email.Payload, []string{audience}, ttl)
 	if err != nil {
 		slog.Error("failed to generate token", "reason", err)
 		return
@@ -157,31 +153,19 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (*Clien
 }
 
 func (s *Service) generateSecret(jwtConfig *config.JWT, userID string) (*ClientSecret, error) {
-	accessFp, accessFpHash, err := s.fingerprint()
-	if err != nil {
-		return nil, fmt.Errorf("generate access fingerprint: %w", err)
-	}
-
-	accessToken, err := s.signer.Sign(userID, accessFpHash, []string{jwtConfig.Issuer}, jwtConfig.TTL.Duration)
+	accessToken, err := s.signer.Sign(userID, []string{jwtConfig.Issuer}, jwtConfig.TTL.Duration)
 	if err != nil {
 		return nil, fmt.Errorf("sign access token: %w", err)
 	}
 
-	refreshFp, refreshFpHash, err := s.fingerprint()
-	if err != nil {
-		return nil, fmt.Errorf("generate refresh fingerprint: %w", err)
-	}
-
-	refreshToken, err := s.signer.Sign(userID, refreshFpHash, []string{jwtConfig.Issuer}, jwtConfig.RefreshTTL.Duration)
+	refreshToken, err := s.signer.Sign(userID, []string{jwtConfig.Issuer}, jwtConfig.RefreshTTL.Duration)
 	if err != nil {
 		return nil, fmt.Errorf("sign refresh token: %w", err)
 	}
 
 	secrets := &ClientSecret{
-		AccessToken:        accessToken,
-		AccessFingerprint:  accessFp,
-		RefreshToken:       refreshToken,
-		RefreshFingerprint: refreshFp,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}
 
 	return secrets, nil
@@ -198,23 +182,6 @@ func (s *Service) SendPasswordReset(email string) {
 	}
 
 	go s.sendEmail(resetEmail)
-}
-
-func (s *Service) fingerprint() (fp, fpHash string, err error) {
-	fpBytes, err := security.GenerateRandomBytes(s.cfgJWT.JTILength)
-	if err != nil {
-		return "", "", fmt.Errorf("generate random bytes: %w", err)
-	}
-
-	fpHashBytes, err := s.shortHasher.Hash(string(fpBytes))
-	if err != nil {
-		return "", "", fmt.Errorf("hash fingerprint: %w", err)
-	}
-
-	fp = base64.URLEncoding.EncodeToString(fpBytes)
-	fpHash = hex.EncodeToString(fpHashBytes)
-
-	return fp, fpHash, nil
 }
 
 type ResetPasswordParams struct {
@@ -321,16 +288,15 @@ func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.U
 	}
 
 	svc := &Service{
-		repo:        repo,
-		userSvc:     userSvc,
-		hasher:      provider.Hasher,
-		mailer:      provider.Mailer,
-		signer:      provider.Signer,
-		txManager:   provider.TxMgr,
-		appURL:      appURL,
-		cfgJWT:      cfgJWT,
-		cfgEmail:    cfgEmail,
-		shortHasher: provider.ShortHasher,
+		repo:      repo,
+		userSvc:   userSvc,
+		hasher:    provider.Hasher,
+		mailer:    provider.Mailer,
+		signer:    provider.Signer,
+		txManager: provider.TxMgr,
+		appURL:    appURL,
+		cfgJWT:    cfgJWT,
+		cfgEmail:  cfgEmail,
 	}
 
 	return svc, nil
