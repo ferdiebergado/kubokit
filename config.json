@@ -54,23 +54,11 @@
     "key_length": 32
   },
   "cors": {
-    "allowed_origin": "http://localhost:4173",
+    "allowed_origin": "*",
     "allowed_methods": ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     "allowed_headers": [
       "Content-Type",
       "Authorization"
-    ],
-    "include_creds": false
-  },
-  "cookie": {
-    "refresh": "__Secure-ref",
-    "access_fingerprint": "__Secure-fp",
-    "refresh_fingerprint": "__Secure-rfp"
-  },
-  "csrf": {
-    "cookie_name": "__Secure-csrf",
-    "header_name": "X-CSRF-Token",
-    "token_len": 32,
-    "max_age": "24h"
+    ]
   }
 }

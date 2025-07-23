@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
@@ -12,7 +11,6 @@ const (
 	HeaderAllowOrigin  = "Access-Control-Allow-Origin"
 	HeaderAllowMethods = "Access-Control-Allow-Methods"
 	HeaderAllowHeaders = "Access-Control-Allow-Headers"
-	HeaderAllowCreds   = "Access-Control-Allow-Credentials"
 )
 
 func CORS(cfg *config.CORS) func(http.Handler) http.Handler {
@@ -24,7 +22,6 @@ func CORS(cfg *config.CORS) func(http.Handler) http.Handler {
 				HeaderAllowOrigin:  cfg.AllowedOrigin,
 				HeaderAllowMethods: strings.Join(cfg.AllowedMethods, sep),
 				HeaderAllowHeaders: strings.Join(cfg.AllowedHeaders, sep),
-				HeaderAllowCreds:   strconv.FormatBool(cfg.IncludeCreds),
 			}
 
 			for k, v := range headers {

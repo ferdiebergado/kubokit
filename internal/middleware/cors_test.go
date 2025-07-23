@@ -3,7 +3,6 @@ package middleware_test
 import (
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -68,7 +67,6 @@ func TestMiddleware_CORS(t *testing.T) {
 				AllowedOrigin:  "http://localhost:5173",
 				AllowedMethods: []string{"GET", "POST"},
 				AllowedHeaders: []string{"Content-Type", "Authorization"},
-				IncludeCreds:   true,
 			}
 
 			mw := middleware.CORS(corsConfig)
@@ -83,7 +81,6 @@ func TestMiddleware_CORS(t *testing.T) {
 				middleware.HeaderAllowOrigin:  corsConfig.AllowedOrigin,
 				middleware.HeaderAllowMethods: strings.Join(corsConfig.AllowedMethods, ","),
 				middleware.HeaderAllowHeaders: strings.Join(corsConfig.AllowedHeaders, ","),
-				middleware.HeaderAllowCreds:   strconv.FormatBool(corsConfig.IncludeCreds),
 				headerCalled:                  tc.headerCalled,
 			}
 
