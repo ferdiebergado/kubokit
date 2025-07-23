@@ -143,7 +143,7 @@ func TestHandler_LoginUser(t *testing.T) {
 		name              string
 		input             auth.UserLoginRequest
 		code              int
-		loginFunc         func(ctx context.Context, params auth.LoginUserParams) (*auth.ClientSecret, error)
+		loginFunc         func(ctx context.Context, params auth.LoginUserParams) (*auth.AuthData, error)
 		verifyFunc        func(tokenString string) (*jwt.Claims, error)
 		gotBody, wantBody any
 	}{
@@ -154,10 +154,12 @@ func TestHandler_LoginUser(t *testing.T) {
 				Password: testPass,
 			},
 			code: http.StatusOK,
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.ClientSecret, error) {
-				secret := &auth.ClientSecret{
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.AuthData, error) {
+				secret := &auth.AuthData{
 					AccessToken:  "test_access_token",
 					RefreshToken: "test_refresh_token",
+					TokenType:    "Bearer",
+					ExpiresIn:    defaultDuration.Milliseconds(),
 				}
 
 				return secret, nil
@@ -171,7 +173,7 @@ func TestHandler_LoginUser(t *testing.T) {
 				Data: auth.UserLoginResponse{
 					AccessToken:  "test_access_token",
 					RefreshToken: "test_refresh_token",
-					ExpiresIn:    int(defaultDuration),
+					ExpiresIn:    defaultDuration.Milliseconds(),
 					TokenType:    "Bearer",
 				},
 			},
@@ -182,7 +184,7 @@ func TestHandler_LoginUser(t *testing.T) {
 				Email:    testEmail,
 				Password: testPass,
 			},
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.ClientSecret, error) {
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.AuthData, error) {
 				return nil, auth.ErrUserNotVerified
 			},
 			code:    http.StatusUnauthorized,
@@ -197,7 +199,7 @@ func TestHandler_LoginUser(t *testing.T) {
 				Email:    testEmail,
 				Password: testPass,
 			},
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.ClientSecret, error) {
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.AuthData, error) {
 				return nil, user.ErrNotFound
 			},
 			code:    http.StatusUnauthorized,
@@ -212,7 +214,7 @@ func TestHandler_LoginUser(t *testing.T) {
 				Email:    testEmail,
 				Password: "anotherpass",
 			},
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.ClientSecret, error) {
+			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.AuthData, error) {
 				return nil, auth.ErrIncorrectPassword
 			},
 			code:    http.StatusUnauthorized,
@@ -505,10 +507,12 @@ func TestHandler_RefreshToken(t *testing.T) {
 				},
 			},
 			svc: &auth.StubService{
-				RefreshTokenFunc: func(token string) (*auth.ClientSecret, error) {
-					secret := &auth.ClientSecret{
+				RefreshTokenFunc: func(token string) (*auth.AuthData, error) {
+					secret := &auth.AuthData{
 						AccessToken:  "new_access_token",
 						RefreshToken: "new_refresh_token",
+						TokenType:    "Bearer",
+						ExpiresIn:    defaultDuration.Milliseconds(),
 					}
 					return secret, nil
 				},
@@ -521,7 +525,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 					AccessToken:  "new_access_token",
 					RefreshToken: "new_refresh_token",
 					TokenType:    "Bearer",
-					ExpiresIn:    int(defaultDuration),
+					ExpiresIn:    defaultDuration.Milliseconds(),
 				},
 			},
 		},
@@ -544,7 +548,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 				},
 			},
 			svc: &auth.StubService{
-				RefreshTokenFunc: func(token string) (*auth.ClientSecret, error) {
+				RefreshTokenFunc: func(token string) (*auth.AuthData, error) {
 					return nil, auth.ErrInvalidToken
 				},
 			},

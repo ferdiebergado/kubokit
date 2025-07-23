@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
@@ -125,7 +126,7 @@ func (p *LoginUserParams) LogValue() slog.Value {
 	)
 }
 
-func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (*ClientSecret, error) {
+func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (*AuthData, error) {
 	u, err := s.userSvc.FindUserByEmail(ctx, params.Email)
 	if err != nil {
 		return nil, fmt.Errorf("find user by email: %w", err)
@@ -147,8 +148,9 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (*Clien
 	return s.generateSecret(s.cfgJWT, u.ID)
 }
 
-func (s *Service) generateSecret(jwtConfig *config.JWT, userID string) (*ClientSecret, error) {
-	accessToken, err := s.signer.Sign(userID, []string{jwtConfig.Issuer}, jwtConfig.TTL.Duration)
+func (s *Service) generateSecret(jwtConfig *config.JWT, userID string) (*AuthData, error) {
+	ttl := time.Now().Add(jwtConfig.TTL.Duration).UnixNano()
+	accessToken, err := s.signer.Sign(userID, []string{jwtConfig.Issuer}, time.Duration(ttl))
 	if err != nil {
 		return nil, fmt.Errorf("sign access token: %w", err)
 	}
@@ -158,12 +160,16 @@ func (s *Service) generateSecret(jwtConfig *config.JWT, userID string) (*ClientS
 		return nil, fmt.Errorf("sign refresh token: %w", err)
 	}
 
-	secrets := &ClientSecret{
+	expiresIn := ttl / int64(time.Millisecond)
+
+	data := &AuthData{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		ExpiresIn:    expiresIn,
+		TokenType:    TokenType,
 	}
 
-	return secrets, nil
+	return data, nil
 }
 
 func (s *Service) SendPasswordReset(email string) {
@@ -225,7 +231,7 @@ func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) err
 	})
 }
 
-func (s *Service) RefreshToken(token string) (*ClientSecret, error) {
+func (s *Service) RefreshToken(token string) (*AuthData, error) {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
 		return nil, ErrInvalidToken

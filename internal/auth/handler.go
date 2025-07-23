@@ -22,18 +22,20 @@ const (
 
 var errInvalidParams = errors.New("invalid request params")
 
-type ClientSecret struct {
+type AuthData struct {
 	AccessToken  string
 	RefreshToken string
+	ExpiresIn    int64
+	TokenType    string
 }
 
 type AuthService interface {
 	RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error)
 	VerifyUser(ctx context.Context, token string) error
-	LoginUser(ctx context.Context, params LoginUserParams) (*ClientSecret, error)
+	LoginUser(ctx context.Context, params LoginUserParams) (*AuthData, error)
 	SendPasswordReset(email string)
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
-	RefreshToken(token string) (*ClientSecret, error)
+	RefreshToken(token string) (*AuthData, error)
 }
 
 type Handler struct {
@@ -133,11 +135,10 @@ type UserData struct {
 }
 
 type UserLoginResponse struct {
-	AccessToken  string    `json:"access_token,omitempty"`
-	RefreshToken string    `json:"refresh_token,omitempty"`
-	TokenType    string    `json:"token_type,omitempty"`
-	ExpiresIn    int       `json:"expires_in,omitempty"`
-	User         *UserData `json:"user,omitempty"`
+	AccessToken  string `json:"access_token,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	TokenType    string `json:"token_type,omitempty"`
+	ExpiresIn    int64  `json:"expires_in,omitempty"`
 }
 
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +149,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := LoginUserParams(req)
-	secret, err := h.svc.LoginUser(r.Context(), params)
+	data, err := h.svc.LoginUser(r.Context(), params)
 	if err != nil {
 		if errors.Is(err, user.ErrNotFound) || errors.Is(err, ErrIncorrectPassword) || errors.Is(err, ErrUserNotVerified) {
 			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
@@ -161,10 +162,10 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	msg := MsgLoggedIn
 	res := &UserLoginResponse{
-		AccessToken:  secret.AccessToken,
-		RefreshToken: secret.RefreshToken,
-		ExpiresIn:    int(h.cfgJWT.TTL.Duration),
-		TokenType:    TokenType,
+		AccessToken:  data.AccessToken,
+		RefreshToken: data.RefreshToken,
+		ExpiresIn:    data.ExpiresIn,
+		TokenType:    data.TokenType,
 	}
 
 	web.RespondOK(w, &msg, res)
@@ -177,7 +178,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	secret, err := h.svc.RefreshToken(token)
+	data, err := h.svc.RefreshToken(token)
 	if err != nil {
 		if errors.Is(err, ErrInvalidToken) {
 			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
@@ -190,10 +191,10 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	msg := MsgRefreshed
 	res := &UserLoginResponse{
-		AccessToken:  secret.AccessToken,
-		RefreshToken: secret.RefreshToken,
-		ExpiresIn:    int(h.cfgJWT.TTL.Duration),
-		TokenType:    TokenType,
+		AccessToken:  data.AccessToken,
+		RefreshToken: data.RefreshToken,
+		ExpiresIn:    data.ExpiresIn,
+		TokenType:    data.TokenType,
 	}
 
 	web.RespondOK(w, &msg, res)
