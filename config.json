@@ -31,7 +31,7 @@
   "jwt": {
     "jti_length": 64,
     "issuer": "example.com",
-    "ttl": "15m",
+    "ttl": "30m",
     "refresh_ttl": "24h"
   },
   "smtp": {
