@@ -144,12 +144,7 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (*Clien
 		return nil, ErrIncorrectPassword
 	}
 
-	secret, err := s.generateSecret(s.cfgJWT, u.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	return secret, nil
+	return s.generateSecret(s.cfgJWT, u.ID)
 }
 
 func (s *Service) generateSecret(jwtConfig *config.JWT, userID string) (*ClientSecret, error) {
@@ -236,12 +231,7 @@ func (s *Service) RefreshToken(token string) (*ClientSecret, error) {
 		return nil, ErrInvalidToken
 	}
 
-	secret, err := s.generateSecret(s.cfgJWT, claims.UserID)
-	if err != nil {
-		return nil, err
-	}
-
-	return secret, nil
+	return s.generateSecret(s.cfgJWT, claims.UserID)
 }
 
 func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.UserService) (*Service, error) {
