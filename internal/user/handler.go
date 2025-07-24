@@ -13,6 +13,7 @@ type UserService interface {
 	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	FindUserByEmail(ctx context.Context, email string) (*User, error)
+	FindUser(ctx context.Context, userID string) (*User, error)
 }
 
 type Handler struct {

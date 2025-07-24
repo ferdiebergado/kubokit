@@ -14,12 +14,17 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	FindUserByEmail(ctx context.Context, email string) (*User, error)
+	FindUser(ctx context.Context, userID string) (*User, error)
 }
 
 // Service is the implementation of the User Service interface.
 type Service struct {
 	repo   UserRepository
 	hasher hash.Hasher
+}
+
+func (s *Service) FindUser(ctx context.Context, userID string) (*User, error) {
+	return s.repo.FindUser(ctx, userID)
 }
 
 func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {

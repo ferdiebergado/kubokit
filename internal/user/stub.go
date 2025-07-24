@@ -5,10 +5,13 @@ import (
 	"errors"
 )
 
+var _ UserService = &StubService{}
+
 type StubService struct {
 	CreateUserFunc      func(ctx context.Context, params CreateUserParams) (User, error)
 	FindUserByEmailFunc func(ctx context.Context, email string) (*User, error)
 	ListUsersFunc       func(ctx context.Context) ([]User, error)
+	FindUserFunc        func(ctx context.Context, userID string) (*User, error)
 }
 
 func (s *StubService) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
@@ -33,10 +36,18 @@ func (s *StubService) FindUserByEmail(ctx context.Context, email string) (*User,
 	return s.FindUserByEmailFunc(ctx, email)
 }
 
+func (s *StubService) FindUser(ctx context.Context, userID string) (*User, error) {
+	if s.FindUserFunc == nil {
+		return nil, errors.New("FindUserByEmail not implemented in stub")
+	}
+	return s.FindUserFunc(ctx, userID)
+}
+
 type StubRepo struct {
 	ListUsersFunc       func(ctx context.Context) ([]User, error)
 	CreateUserFunc      func(ctx context.Context, params CreateUserParams) (User, error)
 	FindUserByEmailFunc func(ctx context.Context, email string) (*User, error)
+	FindUserFunc        func(ctx context.Context, userID string) (*User, error)
 }
 
 func (r *StubRepo) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
@@ -58,4 +69,11 @@ func (r *StubRepo) FindUserByEmail(ctx context.Context, email string) (*User, er
 		return nil, errors.New("FindUserByEmail not implemented by stub")
 	}
 	return r.FindUserByEmailFunc(ctx, email)
+}
+
+func (r *StubRepo) FindUser(ctx context.Context, userID string) (*User, error) {
+	if r.FindUserFunc == nil {
+		return nil, errors.New("FindUser not implemented by stub")
+	}
+	return r.FindUserFunc(ctx, userID)
 }

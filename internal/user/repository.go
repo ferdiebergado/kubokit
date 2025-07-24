@@ -100,7 +100,7 @@ func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-func (r *Repository) FindUser(ctx context.Context, userID string) (User, error) {
+func (r *Repository) FindUser(ctx context.Context, userID string) (*User, error) {
 	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users WHERE id = $1"
 
 	// Get the current executor (either *sql.DB or *sql.Tx from context)
@@ -111,9 +111,9 @@ func (r *Repository) FindUser(ctx context.Context, userID string) (User, error) 
 	row := executor.QueryRowContext(ctx, query, userID)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
-		return u, fmt.Errorf("query to find user with id %s: %w", userID, err)
+		return nil, fmt.Errorf("query to find user with id %s: %w", userID, err)
 	}
-	return u, nil
+	return &u, nil
 }
 
 func (r *Repository) DeleteUser(ctx context.Context, userID string) error {
