@@ -190,7 +190,7 @@ func TestHandler_LoginUser(t *testing.T) {
 			code:    http.StatusUnauthorized,
 			gotBody: &web.ErrorResponse{},
 			wantBody: &web.ErrorResponse{
-				Message: message.InvalidUser,
+				Message: auth.MsgNotVerified,
 			},
 		},
 		{
@@ -391,7 +391,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 
 			req := httptest.NewRequestWithContext(tc.ctx, http.MethodGet, "/auth/verify?token="+tc.token, http.NoBody)
 			rec := httptest.NewRecorder()
-			authHandler.VerifyEmail(rec, req)
+			authHandler.VerifyUser(rec, req)
 
 			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {

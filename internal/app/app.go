@@ -67,7 +67,9 @@ func (a *App) setupRoutes() {
 		gr.Post("/login", a.authHandler.LoginUser,
 			middleware.DecodePayload[auth.UserLoginRequest](maxBodySize),
 			middleware.ValidateInput[auth.UserLoginRequest](a.validator))
-		gr.Get("/verify", a.authHandler.VerifyEmail, auth.VerifyToken(a.signer))
+		gr.Post("/verify", a.authHandler.VerifyUser,
+			middleware.DecodePayload[auth.VerifyUserRequest](maxBodySize),
+			middleware.ValidateInput[auth.VerifyUserRequest](a.validator))
 		gr.Post("/refresh", a.authHandler.RefreshToken, requireToken)
 
 		gr.Post("/forgot", a.authHandler.ForgotPassword,

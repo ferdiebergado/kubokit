@@ -37,7 +37,7 @@ type Service struct {
 	mailer    email.Mailer
 	cfgJWT    *config.JWT
 	cfgEmail  *config.Email
-	appURL    string
+	clientURL string
 	txManager db.TxManager
 }
 
@@ -51,7 +51,7 @@ func (p *RegisterUserParams) LogValue() slog.Value {
 }
 
 type HTMLEmail struct {
-	Email, Subject, Title, Template, Payload, URI string
+	Address, Subject, Title, Template, Payload, LinkPath string
 }
 
 func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error) {
@@ -71,28 +71,29 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 		return u, fmt.Errorf("create user: %w", err)
 	}
 
-	verifyEmail := &HTMLEmail{
-		Email:    newUser.Email,
+	verificationEmail := &HTMLEmail{
+		Address:  email,
 		Subject:  "Verify your email",
 		Title:    "Email verification",
 		Template: "verification",
 		Payload:  newUser.ID,
-		URI:      "/auth/verify",
+		LinkPath: "/auth/verify",
 	}
-	go s.sendEmail(verifyEmail)
+
+	go s.sendEmail(verificationEmail)
 
 	return newUser, nil
 }
 
 func (s *Service) sendEmail(email *HTMLEmail) {
-	slog.Info("Sending email...")
+	audience := s.clientURL + "/auth/verify"
 
-	audience := s.appURL + email.URI
 	ttl := s.cfgEmail.VerifyTTL.Duration
 
 	token, err := s.signer.Sign(email.Payload, []string{audience}, ttl)
+
 	if err != nil {
-		slog.Error("failed to generate token", "reason", err)
+		slog.Error("failed to generate verification token", "reason", err)
 		return
 	}
 
@@ -101,14 +102,20 @@ func (s *Service) sendEmail(email *HTMLEmail) {
 		"Header": email.Subject,
 		"Link":   audience + "?token=" + token,
 	}
-	if err := s.mailer.SendHTML([]string{email.Email}, email.Subject, email.Template, data); err != nil {
+	slog.Info("Sending email...")
+	if err := s.mailer.SendHTML([]string{email.Address}, email.Subject, email.Template, data); err != nil {
 		slog.Error("failed to send email", "reason", err)
 		return
 	}
 }
 
-func (s *Service) VerifyUser(ctx context.Context, userID string) error {
-	if err := s.repo.VerifyUser(ctx, userID); err != nil {
+func (s *Service) VerifyUser(ctx context.Context, token string) error {
+	claims, err := s.signer.Verify(token)
+	if err != nil {
+		return fmt.Errorf("check verification token: %w", err)
+	}
+
+	if err := s.repo.VerifyUser(ctx, claims.UserID); err != nil {
 		return fmt.Errorf("verify user: %w", err)
 	}
 	return nil
@@ -145,10 +152,15 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (*AuthD
 		return nil, ErrIncorrectPassword
 	}
 
-	return s.generateSecret(s.cfgJWT, u.ID)
+	authData, err := s.generateToken(s.cfgJWT, u.ID, params.Email)
+	if err != nil {
+		return nil, fmt.Errorf("generate tokens: %w", err)
+	}
+
+	return authData, nil
 }
 
-func (s *Service) generateSecret(jwtConfig *config.JWT, userID string) (*AuthData, error) {
+func (s *Service) generateToken(jwtConfig *config.JWT, userID, email string) (*AuthData, error) {
 	ttl := time.Now().Add(jwtConfig.TTL.Duration).UnixNano()
 	accessToken, err := s.signer.Sign(userID, []string{jwtConfig.Issuer}, time.Duration(ttl))
 	if err != nil {
@@ -162,11 +174,17 @@ func (s *Service) generateSecret(jwtConfig *config.JWT, userID string) (*AuthDat
 
 	expiresIn := ttl / int64(time.Millisecond)
 
+	userData := &UserData{
+		ID:    userID,
+		Email: email,
+	}
+
 	data := &AuthData{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    expiresIn,
 		TokenType:    TokenType,
+		User:         userData,
 	}
 
 	return data, nil
@@ -174,11 +192,11 @@ func (s *Service) generateSecret(jwtConfig *config.JWT, userID string) (*AuthDat
 
 func (s *Service) SendPasswordReset(email string) {
 	resetEmail := &HTMLEmail{
-		Email:    email,
+		Address:  email,
 		Subject:  "Reset Your Password",
 		Title:    "Password Reset",
 		Payload:  email,
-		URI:      "/auth/reset",
+		LinkPath: "/auth/reset",
 		Template: "reset_password",
 	}
 
@@ -237,7 +255,13 @@ func (s *Service) RefreshToken(token string) (*AuthData, error) {
 		return nil, ErrInvalidToken
 	}
 
-	return s.generateSecret(s.cfgJWT, claims.UserID)
+	userID := claims.UserID
+	u, err := s.userSvc.FindUser(context.Background(), userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.generateToken(s.cfgJWT, userID, u.Email)
 }
 
 func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.UserService) (*Service, error) {
@@ -270,7 +294,7 @@ func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.U
 		return nil, errors.New("app config should not be nil")
 	}
 
-	appURL := cfg.App.URL
+	clientURL := cfg.App.ClientURL
 
 	cfgJWT := cfg.JWT
 
@@ -290,7 +314,7 @@ func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.U
 		mailer:    provider.Mailer,
 		signer:    provider.Signer,
 		txManager: provider.TxMgr,
-		appURL:    appURL,
+		clientURL: clientURL,
 		cfgJWT:    cfgJWT,
 		cfgEmail:  cfgEmail,
 	}

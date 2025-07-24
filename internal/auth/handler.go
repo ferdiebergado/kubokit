@@ -27,6 +27,7 @@ type AuthData struct {
 	RefreshToken string
 	ExpiresIn    int64
 	TokenType    string
+	User         *UserData
 }
 
 type AuthService interface {
@@ -97,14 +98,18 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	web.RespondCreated(w, &msg, data)
 }
 
-func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
-	userID, err := user.FromContext(r.Context())
+type VerifyUserRequest struct {
+	Token string `json:"token,omitempty" validate:"required"`
+}
+
+func (h *Handler) VerifyUser(w http.ResponseWriter, r *http.Request) {
+	req, err := web.ParamsFromContext[VerifyUserRequest](r.Context())
 	if err != nil {
-		web.RespondBadRequest(w, err, message.InvalidInput, nil)
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	if err := h.svc.VerifyUser(r.Context(), userID); err != nil {
+	if err := h.svc.VerifyUser(r.Context(), req.Token); err != nil {
 		if errors.Is(err, user.ErrNotFound) {
 			web.RespondNotFound(w, err, err.Error(), nil)
 			return
@@ -135,10 +140,11 @@ type UserData struct {
 }
 
 type UserLoginResponse struct {
-	AccessToken  string `json:"access_token,omitempty"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	TokenType    string `json:"token_type,omitempty"`
-	ExpiresIn    int64  `json:"expires_in,omitempty"`
+	AccessToken  string    `json:"access_token,omitempty"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
+	TokenType    string    `json:"token_type,omitempty"`
+	ExpiresIn    int64     `json:"expires_in,omitempty"`
+	User         *UserData `json:"user,omitempty"`
 }
 
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
@@ -151,7 +157,16 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	params := LoginUserParams(req)
 	data, err := h.svc.LoginUser(r.Context(), params)
 	if err != nil {
-		if errors.Is(err, user.ErrNotFound) || errors.Is(err, ErrIncorrectPassword) || errors.Is(err, ErrUserNotVerified) {
+		if errors.Is(err, ErrUserNotVerified) {
+			msg := MsgNotVerified
+			details := map[string]string{
+				"error_code": "ACCOUNT_NOT_VERIFIED",
+			}
+			web.RespondUnauthorized(w, err, msg, details)
+			return
+		}
+
+		if errors.Is(err, user.ErrNotFound) || errors.Is(err, ErrIncorrectPassword) {
 			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 			return
 		}
