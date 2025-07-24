@@ -18,7 +18,7 @@ type App struct {
 	Key       string `json:"key,omitempty" env:"KEY"`
 	URL       string `json:"url,omitempty" env:"URL"`
 	LogLevel  string `json:"log_level,omitempty" env:"LOG_LEVEL"`
-	ClientURL string `json:"client_url,omitempty"`
+	ClientURL string `json:"client_url,omitempty" env:"CLIENT_URL"`
 }
 
 func (a *App) LogValue() slog.Value {
