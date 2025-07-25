@@ -16,6 +16,8 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
+const verificationPath = "/auth/verify"
+
 var _ AuthService = &Service{}
 
 var (
@@ -51,7 +53,7 @@ func (p *RegisterUserParams) LogValue() slog.Value {
 }
 
 type HTMLEmail struct {
-	Address, Subject, Title, Template, Payload, LinkPath string
+	Address, Subject, Title, Template, Link string
 }
 
 func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error) {
@@ -71,37 +73,56 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 		return u, fmt.Errorf("create user: %w", err)
 	}
 
+	if err := s.sendVerificationEmail(newUser.Email, newUser.ID); err != nil {
+		return u, err
+	}
+
+	return newUser, nil
+}
+
+func (s *Service) sendVerificationEmail(email, userID string) error {
+	audience := s.clientURL + verificationPath
+
+	// TODO: add purpose claim
+	ttl := s.cfgEmail.VerifyTTL.Duration
+	token, err := s.signer.Sign(userID, []string{audience}, ttl)
+	if err != nil {
+		return fmt.Errorf("sign verification token: %w", err)
+	}
+
 	verificationEmail := &HTMLEmail{
 		Address:  email,
 		Subject:  "Verify your email",
 		Title:    "Email verification",
 		Template: "verification",
-		Payload:  newUser.ID,
-		LinkPath: "/auth/verify",
+		Link:     audience + "?token=" + token,
 	}
 
 	go s.sendEmail(verificationEmail)
 
-	return newUser, nil
+	return nil
+}
+
+func (s *Service) ResendVerificationEmail(ctx context.Context, email string) error {
+	u, err := s.userSvc.FindUserByEmail(ctx, email)
+	if err != nil {
+		return fmt.Errorf("find unverified user: %w", err)
+	}
+
+	if err := s.sendVerificationEmail(u.Email, u.ID); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *Service) sendEmail(email *HTMLEmail) {
-	audience := s.clientURL + "/auth/verify"
-
-	ttl := s.cfgEmail.VerifyTTL.Duration
-
-	token, err := s.signer.Sign(email.Payload, []string{audience}, ttl)
-
-	if err != nil {
-		slog.Error("failed to generate verification token", "reason", err)
-		return
-	}
-
 	data := map[string]string{
 		"Title":  email.Title,
 		"Header": email.Subject,
-		"Link":   audience + "?token=" + token,
+		"Link":   email.Link,
 	}
+
 	slog.Info("Sending email...")
 	if err := s.mailer.SendHTML([]string{email.Address}, email.Subject, email.Template, data); err != nil {
 		slog.Error("failed to send email", "reason", err)
@@ -195,8 +216,7 @@ func (s *Service) SendPasswordReset(email string) {
 		Address:  email,
 		Subject:  "Reset Your Password",
 		Title:    "Password Reset",
-		Payload:  email,
-		LinkPath: "/auth/reset",
+		Link:     "/auth/reset",
 		Template: "reset_password",
 	}
 
