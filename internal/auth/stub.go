@@ -7,13 +7,24 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
+var _ AuthService = &StubService{}
+
 type StubService struct {
-	RegisterUserFunc      func(ctx context.Context, params RegisterUserParams) (user.User, error)
-	VerifyUserfunc        func(ctx context.Context, token string) error
-	LoginUserFunc         func(ctx context.Context, params LoginUserParams) (*AuthData, error)
-	SendPasswordResetFunc func(email string)
-	ResetPasswordFunc     func(ctx context.Context, params ResetPasswordParams) error
-	RefreshTokenFunc      func(token string) (*AuthData, error)
+	RegisterUserFunc            func(ctx context.Context, params RegisterUserParams) (user.User, error)
+	VerifyUserfunc              func(ctx context.Context, token string) error
+	LoginUserFunc               func(ctx context.Context, params LoginUserParams) (*AuthData, error)
+	SendPasswordResetFunc       func(email string)
+	ResetPasswordFunc           func(ctx context.Context, params ResetPasswordParams) error
+	RefreshTokenFunc            func(token string) (*AuthData, error)
+	ResendVerificationEmailFunc func(ctx context.Context, email string) error
+}
+
+// ResendVerificationEmail implements AuthService.
+func (s *StubService) ResendVerificationEmail(ctx context.Context, email string) error {
+	if s.ResendVerificationEmailFunc == nil {
+		return errors.New("ResendVerificationEmail not implemented by stub")
+	}
+	return s.ResendVerificationEmailFunc(ctx, email)
 }
 
 func (s StubService) RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error) {

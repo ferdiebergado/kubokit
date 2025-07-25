@@ -34,6 +34,7 @@ type AuthData struct {
 type AuthService interface {
 	RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error)
 	VerifyUser(ctx context.Context, token string) error
+	ResendVerificationEmail(ctx context.Context, email string) error
 	LoginUser(ctx context.Context, params LoginUserParams) (*AuthData, error)
 	SendPasswordReset(email string)
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
@@ -89,7 +90,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := "Thank you for registering. A verification link was sent to your email."
+	msg := MsgRegisterSuccess
 	data := &RegisterUserResponse{
 		ID:        user.ID,
 		Email:     user.Email,
@@ -120,7 +121,32 @@ func (h *Handler) VerifyUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := "Verification success."
+	msg := MsgVerifySuccess
+	web.RespondOK(w, &msg, struct{}{})
+}
+
+type ResendVerifyEmailRequest struct {
+	Email string `json:"email,omitempty"`
+}
+
+func (h *Handler) ResendVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	req, err := web.ParamsFromContext[ResendVerifyEmailRequest](r.Context())
+	if err != nil {
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		return
+	}
+
+	if err := h.svc.ResendVerificationEmail(r.Context(), req.Email); err != nil {
+		if errors.Is(err, db.ErrQueryFailed) {
+			web.RespondInternalServerError(w, err)
+			return
+		}
+
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		return
+	}
+
+	msg := MsgReVerifySuccess
 	web.RespondOK(w, &msg, struct{}{})
 }
 

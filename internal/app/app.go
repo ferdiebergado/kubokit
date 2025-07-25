@@ -64,17 +64,25 @@ func (a *App) setupRoutes() {
 		gr.Post("/register", a.authHandler.RegisterUser,
 			middleware.DecodePayload[auth.RegisterUserRequest](maxBodySize),
 			middleware.ValidateInput[auth.RegisterUserRequest](a.validator))
+
 		gr.Post("/login", a.authHandler.LoginUser,
 			middleware.DecodePayload[auth.UserLoginRequest](maxBodySize),
 			middleware.ValidateInput[auth.UserLoginRequest](a.validator))
+
 		gr.Post("/verify", a.authHandler.VerifyUser,
 			middleware.DecodePayload[auth.VerifyUserRequest](maxBodySize),
 			middleware.ValidateInput[auth.VerifyUserRequest](a.validator))
+
+		gr.Post("/resend-verify-email", a.authHandler.ResendVerifyEmail,
+			middleware.DecodePayload[auth.ResendVerifyEmailRequest](maxBodySize),
+			middleware.ValidateInput[auth.ResendVerifyEmailRequest](a.validator))
+
 		gr.Post("/refresh", a.authHandler.RefreshToken, requireToken)
 
 		gr.Post("/forgot", a.authHandler.ForgotPassword,
 			middleware.DecodePayload[auth.ForgotPasswordRequest](maxBodySize),
 			middleware.ValidateInput[auth.ForgotPasswordRequest](a.validator))
+
 		gr.Post("/reset", a.authHandler.ResetPassword,
 			auth.VerifyToken(a.signer),
 			middleware.DecodePayload[auth.ResetPasswordRequest](maxBodySize),
