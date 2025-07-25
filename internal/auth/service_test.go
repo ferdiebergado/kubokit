@@ -160,3 +160,94 @@ func TestService_RegisterUser(t *testing.T) {
 		})
 	}
 }
+
+func TestVerifyUser(t *testing.T) {
+	t.Parallel()
+
+	var errTokenExpired = errors.New("token expired")
+
+	type TestCase struct {
+		name             string
+		repoVerifyFunc   func(ctx context.Context, userID string) error
+		signerVerifyFunc func(tokenString string) (*jwt.Claims, error)
+		token            string
+		err              error
+	}
+
+	tests := []TestCase{
+		{
+			name: "Token is valid",
+			repoVerifyFunc: func(ctx context.Context, userID string) error {
+				return nil
+			},
+			signerVerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+				return &jwt.Claims{UserID: "1"}, nil
+			},
+			token: "verification_token",
+		},
+		{
+			name: "Token has expired",
+			repoVerifyFunc: func(ctx context.Context, userID string) error {
+				return nil
+			},
+			signerVerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+				return nil, errTokenExpired
+			},
+			token: "verification_token",
+			err:   errTokenExpired,
+		},
+		{
+			name: "Query error",
+			repoVerifyFunc: func(ctx context.Context, userID string) error {
+				return db.ErrQueryFailed
+			},
+			signerVerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+				return &jwt.Claims{UserID: "1"}, nil
+			},
+			token: "verification_token",
+			err:   db.ErrQueryFailed,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			providers := &provider.Provider{
+				Signer: &jwt.StubSigner{
+					VerifyFunc: tc.signerVerifyFunc,
+				},
+				Hasher: &hash.StubHasher{},
+				Mailer: &email.StubMailer{},
+				TxMgr:  &db.StubTxManager{},
+				Cfg: &config.Config{
+					App:   &config.App{},
+					JWT:   &config.JWT{},
+					Email: &config.Email{},
+				},
+			}
+
+			repo := &auth.StubRepo{
+				VerifyUserFunc: tc.repoVerifyFunc,
+			}
+
+			usrSvc := &user.StubService{}
+
+			svc, err := auth.NewService(repo, providers, usrSvc)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ctx := context.Background()
+			if err := svc.VerifyUser(ctx, tc.token); err != nil {
+				if tc.err == nil {
+					t.Fatal(err)
+				}
+
+				if !errors.Is(err, tc.err) {
+					t.Errorf("svc.VerifyUser(ctx, %q) = %v, want: %v", tc.token, err, tc.err)
+				}
+			}
+		})
+	}
+}
