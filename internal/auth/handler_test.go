@@ -16,6 +16,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
+	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
@@ -277,7 +278,7 @@ func TestHandler_LoginUser(t *testing.T) {
 	}
 }
 
-func TestHandler_VerifyEmail(t *testing.T) {
+func TestHandler_VerifyUser(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -287,7 +288,7 @@ func TestHandler_VerifyEmail(t *testing.T) {
 		svc      auth.AuthService
 		code     int
 		token    string
-		ctx      context.Context
+		request  *auth.VerifyUserRequest
 	}{
 		{
 			name:   "Email verified successfully",
@@ -315,9 +316,9 @@ func TestHandler_VerifyEmail(t *testing.T) {
 					return nil
 				},
 			},
-			code:  http.StatusOK,
-			token: "test_token",
-			ctx:   user.NewContextWithUser(context.Background(), "123"),
+			code:    http.StatusOK,
+			token:   "test_token",
+			request: &auth.VerifyUserRequest{Token: "test_token"},
 		},
 		{
 			name:   "User does not exists",
@@ -345,9 +346,9 @@ func TestHandler_VerifyEmail(t *testing.T) {
 					return user.ErrNotFound
 				},
 			},
-			code:  http.StatusNotFound,
-			token: "test_token",
-			ctx:   user.NewContextWithUser(context.Background(), "123"),
+			code:    http.StatusUnauthorized,
+			token:   "test_token",
+			request: &auth.VerifyUserRequest{Token: "test_token"},
 		},
 		{
 			name:   "Verification failed due to database error",
@@ -372,13 +373,14 @@ func TestHandler_VerifyEmail(t *testing.T) {
 			},
 			svc: &auth.StubService{
 				VerifyUserfunc: func(ctx context.Context, token string) error {
-					return errors.New("query failed")
+					return db.ErrQueryFailed
 				},
 			},
-			code:  http.StatusInternalServerError,
-			token: "test_token",
-			ctx:   user.NewContextWithUser(context.Background(), "123"),
+			code:    http.StatusInternalServerError,
+			token:   "test_token",
+			request: &auth.VerifyUserRequest{Token: "test_token"},
 		},
+		// TODO: test cases for expired token, invalid token
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -389,7 +391,12 @@ func TestHandler_VerifyEmail(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			req := httptest.NewRequestWithContext(tc.ctx, http.MethodGet, "/auth/verify?token="+tc.token, http.NoBody)
+			ctx := context.Background()
+			if tc.request != nil {
+				ctx = web.NewContextWithParams(ctx, *tc.request)
+			}
+
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/verify", http.NoBody)
 			rec := httptest.NewRecorder()
 			authHandler.VerifyUser(rec, req)
 

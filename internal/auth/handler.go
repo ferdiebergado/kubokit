@@ -10,6 +10,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
+	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
@@ -110,11 +111,12 @@ func (h *Handler) VerifyUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.VerifyUser(r.Context(), req.Token); err != nil {
-		if errors.Is(err, user.ErrNotFound) {
-			web.RespondNotFound(w, err, err.Error(), nil)
+		if errors.Is(err, db.ErrQueryFailed) {
+			web.RespondInternalServerError(w, err)
 			return
 		}
-		web.RespondInternalServerError(w, err)
+
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 

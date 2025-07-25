@@ -6,6 +6,8 @@ import (
 	"errors"
 )
 
+var ErrQueryFailed = errors.New("query failed")
+
 type Executor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
