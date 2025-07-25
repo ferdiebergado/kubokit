@@ -192,6 +192,7 @@ func TestHandler_LoginUser(t *testing.T) {
 			gotBody: &web.ErrorResponse{},
 			wantBody: &web.ErrorResponse{
 				Message: auth.MsgNotVerified,
+				Details: map[string]string{"error_code": "ACCOUNT_NOT_VERIFIED"},
 			},
 		},
 		{
