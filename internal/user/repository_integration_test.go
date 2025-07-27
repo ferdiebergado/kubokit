@@ -110,13 +110,44 @@ func TestIntegrationRepository_FindUser(t *testing.T) {
 		Email:      "alice@example.com",
 		VerifiedAt: &verifiedAt,
 	}
-	u, err := repo.FindUser(txCtx, userID)
+	gotUser, err := repo.FindUser(txCtx, userID)
 	if err != nil {
 		t.Fatalf("failed to find user: %v", err)
 	}
 
-	if !reflect.DeepEqual(u, wantUser) {
-		t.Errorf("repo.FindUser(txCtx, %q) = %+v, want: %+v", userID, u, wantUser)
+	gotID := gotUser.ID
+	wantID := wantUser.ID
+
+	if gotID != wantID {
+		t.Errorf("gotUser.ID = %q, want: %q", gotID, wantID)
+	}
+
+	gotEmail := gotUser.Email
+	wantEmail := wantUser.Email
+
+	if gotEmail != wantEmail {
+		t.Errorf("gotUser.Email = %q, want: %q", gotEmail, wantEmail)
+	}
+
+	gotVerifiedAt := gotUser.VerifiedAt
+	wantVerifiedAt := wantUser.VerifiedAt
+
+	if !gotVerifiedAt.Equal(*wantVerifiedAt) {
+		t.Errorf("gotUser.CreatedAt = %v, want: %v", gotVerifiedAt, wantVerifiedAt)
+	}
+
+	gotCreatedAt := gotUser.CreatedAt
+	wantCreatedAt := wantUser.CreatedAt
+
+	if !gotCreatedAt.Equal(wantCreatedAt) {
+		t.Errorf("gotUser.CreatedAt = %v, want: %v", gotCreatedAt, wantCreatedAt)
+	}
+
+	gotUpdatedAt := gotUser.UpdatedAt
+	wantUpdatedAt := wantUser.UpdatedAt
+
+	if !gotUpdatedAt.Equal(wantUpdatedAt) {
+		t.Errorf("gotUser.CreatedAt = %v, want: %v", gotUpdatedAt, wantUpdatedAt)
 	}
 }
 
