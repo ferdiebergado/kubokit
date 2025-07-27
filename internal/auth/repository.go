@@ -16,7 +16,7 @@ type Repository struct {
 }
 
 func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
-	const query = "UPDATE users SET verified_at = NOW() WHERE id = $1 AND verified_at IS NOT NULL"
+	const query = "UPDATE users SET verified_at = NOW() WHERE id = $1 AND verified_at IS NULL"
 
 	executor := r.db
 	if tx := db.TxFromContext(ctx); tx != nil {
@@ -34,7 +34,7 @@ func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
 	}
 
 	if numRows == 0 {
-		return fmt.Errorf("user with ID %s not found: %w", userID, user.ErrNotFound)
+		return fmt.Errorf("user with ID %s not found or user is already verified: %w", userID, user.ErrNotFound)
 	}
 
 	return nil
