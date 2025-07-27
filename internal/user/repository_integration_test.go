@@ -303,3 +303,70 @@ func TestIntegrationRepository_DeleteUser(t *testing.T) {
 		})
 	}
 }
+
+func TestIntegrationRepository_UpdateUser(t *testing.T) {
+	t.Parallel()
+
+	conn, tx := db.Setup(t)
+
+	_, err := tx.Exec(querySeedUsers)
+	if err != nil {
+		t.Fatalf("failed to seed users: %v", err)
+	}
+
+	ctx := context.Background()
+	txCtx := db.NewContextWithTx(ctx, tx)
+
+	repo := user.NewRepository(conn)
+	const userID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+	currentTimestamp := time.Now().Truncate(time.Microsecond)
+	updates := &user.User{
+		VerifiedAt: &currentTimestamp,
+	}
+	if err := repo.UpdateUser(txCtx, updates, userID); err != nil {
+		t.Fatalf("failed to update user: %v", err)
+	}
+
+	const query = "SELECT id, verified_at, password_hash, updated_at, created_at, email FROM users WHERE id = $1"
+	row := tx.QueryRow(query, userID)
+	var updatedUser user.User
+	if err := row.Scan(&updatedUser.ID, &updatedUser.VerifiedAt, &updatedUser.PasswordHash, &updatedUser.UpdatedAt, &updatedUser.CreatedAt, &updatedUser.Email); err != nil {
+		t.Fatal(err)
+	}
+	gotVerifiedAt := updatedUser.VerifiedAt
+	if !gotVerifiedAt.Equal(currentTimestamp) {
+		t.Errorf("updatedUser.VerifiedAt = %v, want: %v", gotVerifiedAt, currentTimestamp)
+	}
+
+	gotUpdatedAt := updatedUser.UpdatedAt.Truncate(time.Second)
+	wantUpdatedAt := currentTimestamp.Truncate(time.Second)
+	if !gotUpdatedAt.Equal(wantUpdatedAt) {
+		t.Errorf("updatedUser.UpdatedAt = %v, want: %v", gotUpdatedAt, wantUpdatedAt)
+	}
+
+	gotHash := updatedUser.PasswordHash
+	wantHash := "$2a$10$e0MYzXyjpJS7Pd0RVvHwHeFx4fQnhdQnZZF9uG6x1Z1ZzR12uLh9e"
+
+	if gotHash == "" {
+		t.Errorf("updatedUser.PasswordHash = %q, want: %q", gotHash, wantHash)
+	}
+
+	gotID := updatedUser.ID
+	wantID := userID
+	if gotID != wantID {
+		t.Errorf("updatedUser.ID = %q, want: %q", gotID, wantID)
+	}
+
+	gotCreatedAt := updatedUser.CreatedAt
+	wantCreatedAt := time.Date(2025, time.May, 9, 18, 0, 0, 0, time.Local)
+	if !gotCreatedAt.Equal(wantCreatedAt) {
+		t.Errorf("updatedUser.CreatedAt = %v, want: %v", gotCreatedAt, wantCreatedAt)
+	}
+
+	gotEmail := updatedUser.Email
+	wantEmail := "alice@example.com"
+
+	if gotEmail != wantEmail {
+		t.Errorf("updatedUser.Email = %q, want: %q", gotEmail, wantEmail)
+	}
+}
