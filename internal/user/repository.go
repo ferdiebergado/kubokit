@@ -27,10 +27,9 @@ func (r *Repository) CreateUser(ctx context.Context, params CreateUserParams) (U
 	VALUES ($1, $2)
 	RETURNING id, email, created_at, updated_at
 	`
-	// Get the current executor (either *sql.DB or *sql.Tx from context)
-	executor := r.db // Default to *sql.DB
+	executor := r.db
 	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx // Use the transaction if present in context
+		executor = tx
 	}
 	row := executor.QueryRowContext(ctx, query, params.Email, params.Password)
 	var u User
@@ -49,10 +48,9 @@ func (r *Repository) FindUserByEmail(ctx context.Context, email string) (*User, 
 	FROM users
 	WHERE email = $1
 	`
-	// Get the current executor (either *sql.DB or *sql.Tx from context)
-	executor := r.db // Default to *sql.DB
+	executor := r.db
 	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx // Use the transaction if present in context
+		executor = tx
 	}
 	row := executor.QueryRowContext(ctx, query, email)
 	var u User
@@ -68,10 +66,9 @@ func (r *Repository) FindUserByEmail(ctx context.Context, email string) (*User, 
 func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users"
 
-	// Get the current executor (either *sql.DB or *sql.Tx from context)
-	executor := r.db // Default to *sql.DB
+	executor := r.db
 	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx // Use the transaction if present in context
+		executor = tx
 	}
 	rows, err := executor.QueryContext(ctx, query)
 	if err != nil {
@@ -103,10 +100,9 @@ func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 func (r *Repository) FindUser(ctx context.Context, userID string) (*User, error) {
 	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users WHERE id = $1"
 
-	// Get the current executor (either *sql.DB or *sql.Tx from context)
-	executor := r.db // Default to *sql.DB
+	executor := r.db
 	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx // Use the transaction if present in context
+		executor = tx
 	}
 	row := executor.QueryRowContext(ctx, query, userID)
 	var u User
@@ -119,14 +115,43 @@ func (r *Repository) FindUser(ctx context.Context, userID string) (*User, error)
 func (r *Repository) DeleteUser(ctx context.Context, userID string) error {
 	const query = "DELETE FROM users WHERE id = $1"
 
-	// Get the current executor (either *sql.DB or *sql.Tx from context)
-	executor := r.db // Default to *sql.DB
+	executor := r.db
 	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx // Use the transaction if present in context
+		executor = tx
 	}
 	res, err := executor.ExecContext(ctx, query, userID)
 	if err != nil {
 		return fmt.Errorf("query to delete user: %w", err)
+	}
+
+	numRows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("get rows affected: %w", err)
+	}
+
+	if numRows == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+func (r *Repository) UpdateUser(ctx context.Context, updates *User, userID string) error {
+	// TODO: update metadata
+	const query = `
+	UPDATE users
+	SET
+		password_hash = COALESCE(NULLIF($1, ''), password_hash),
+		verified_at = COALESCE($2, verified_at)
+	WHERE id = $3`
+
+	executor := r.db
+	if tx := db.TxFromContext(ctx); tx != nil {
+		executor = tx
+	}
+	res, err := executor.ExecContext(ctx, query, updates.PasswordHash, updates.VerifiedAt, userID)
+	if err != nil {
+		return fmt.Errorf("query to update user: %w", err)
 	}
 
 	numRows, err := res.RowsAffected()
