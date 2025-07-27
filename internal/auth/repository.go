@@ -16,7 +16,7 @@ type Repository struct {
 }
 
 func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
-	const query = "UPDATE users SET verified_at = NOW() WHERE id = $1"
+	const query = "UPDATE users SET verified_at = NOW() WHERE id = $1 AND verified_at IS NOT NULL"
 
 	executor := r.db
 	if tx := db.TxFromContext(ctx); tx != nil {

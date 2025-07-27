@@ -21,7 +21,7 @@ VALUES (
     '3d594650-3436-11e5-bf21-0800200c9a66',
     'bob@example.com',
     '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa',
-    NULL,
+    '2025-05-09T10:09:00Z',
     '{"role":"user","signup_source":"organic"}',
     '2025-05-09T10:05:00Z',
     '2025-05-09T10:05:00Z',
@@ -51,15 +51,16 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 			ctx := context.Background()
 			txCtx := db.NewContextWithTx(ctx, tx)
 			repo := auth.NewRepository(conn)
-			if err := repo.VerifyUser(txCtx, tc.userID); !errors.Is(err, tc.err) {
+			err := repo.VerifyUser(txCtx, tc.userID)
+			if !errors.Is(err, tc.err) {
 				t.Errorf("repo.VerifyUser(txCtx, %q) = %v, want: %v", tc.userID, err, tc.err)
 			}
 
 			if tc.err == nil {
 				const query = "SELECT verified_at, updated_at FROM users WHERE id = $1"
+				row := tx.QueryRowContext(ctx, query, tc.userID)
 				var verifiedAt *time.Time
 				var updatedAt time.Time
-				row := tx.QueryRowContext(ctx, query, tc.userID)
 				if err := row.Scan(&verifiedAt, &updatedAt); err != nil {
 					t.Fatalf("failed to fetch verified user: %v", err)
 				}
