@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS touch_users_table ON users;

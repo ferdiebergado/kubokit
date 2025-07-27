@@ -1,0 +1,4 @@
+CREATE TRIGGER touch_users_table
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION touch();

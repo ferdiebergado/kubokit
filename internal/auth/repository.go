@@ -16,7 +16,7 @@ type Repository struct {
 }
 
 func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
-	const query = "UPDATE users SET verified_at = NOW(), updated_at = NOW() WHERE id = $1"
+	const query = "UPDATE users SET verified_at = NOW() WHERE id = $1"
 
 	executor := r.db
 	if tx := db.TxFromContext(ctx); tx != nil {
@@ -41,7 +41,7 @@ func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
 }
 
 func (r *Repository) ChangeUserPassword(ctx context.Context, email, passwordHash string) error {
-	const query = "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE email = $2"
+	const query = "UPDATE users SET password_hash = $1 WHERE email = $2"
 
 	executor := r.db
 	if tx := db.TxFromContext(ctx); tx != nil {
