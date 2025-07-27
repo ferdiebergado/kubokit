@@ -57,13 +57,13 @@ func TestIntegrationRepository_ListUsers(t *testing.T) {
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to seed users: %v", err)
 	}
 
 	row := tx.QueryRow("SELECT COUNT(id) FROM users")
 	var numUsers int
 	if err = row.Scan(&numUsers); err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to count the users: %v", err)
 	}
 
 	if numUsers == 0 {
@@ -127,7 +127,7 @@ func TestIntegrationRepository_FindUserByEmail(t *testing.T) {
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to seed users: %v", err)
 	}
 
 	ctx := context.Background()
@@ -163,7 +163,7 @@ func TestIntegrationRepository_CreateUser(t *testing.T) {
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to seed users: %v", err)
 	}
 
 	tests := []struct {
@@ -228,7 +228,7 @@ func TestIntegrationRepository_DeleteUser(t *testing.T) {
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to seed users: %v", err)
 	}
 
 	tests := []struct {
