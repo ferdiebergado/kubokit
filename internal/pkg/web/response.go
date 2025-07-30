@@ -39,7 +39,7 @@ func RespondCreated[T any](w http.ResponseWriter, clientMsg *string, data T) {
 // ErrorResponse represents the structure of a JSON-encoded error response.
 type ErrorResponse struct {
 	Message string            `json:"message"`
-	Details map[string]string `json:"errors,omitempty"`
+	Details map[string]string `json:"error,omitempty"`
 }
 
 // RespondError sends an error JSON response with the given status code and error details.
