@@ -16,7 +16,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-const verificationPath = "/auth/verify"
+const verificationPath = "/account/verify"
 
 var _ AuthService = &Service{}
 
