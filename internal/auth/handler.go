@@ -209,6 +209,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		RefreshToken: data.RefreshToken,
 		ExpiresIn:    data.ExpiresIn,
 		TokenType:    data.TokenType,
+		User:         data.User,
 	}
 
 	web.RespondOK(w, &msg, res)
