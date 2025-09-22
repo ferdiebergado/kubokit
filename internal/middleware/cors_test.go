@@ -64,9 +64,10 @@ func TestMiddleware_CORS(t *testing.T) {
 			rec := httptest.NewRecorder()
 
 			corsConfig := &config.CORS{
-				AllowedOrigin:  "http://localhost:5173",
-				AllowedMethods: []string{"GET", "POST"},
-				AllowedHeaders: []string{"Content-Type", "Authorization"},
+				AllowedOrigin:    "http://localhost:5173",
+				AllowedMethods:   []string{"GET", "POST"},
+				AllowedHeaders:   []string{"Content-Type", "Authorization"},
+				AllowCredentials: "true",
 			}
 
 			mw := middleware.CORS(corsConfig)
@@ -78,10 +79,11 @@ func TestMiddleware_CORS(t *testing.T) {
 			}
 
 			headers := map[string]string{
-				middleware.HeaderAllowOrigin:  corsConfig.AllowedOrigin,
-				middleware.HeaderAllowMethods: strings.Join(corsConfig.AllowedMethods, ","),
-				middleware.HeaderAllowHeaders: strings.Join(corsConfig.AllowedHeaders, ","),
-				headerCalled:                  tc.headerCalled,
+				middleware.HeaderAllowOrigin:      corsConfig.AllowedOrigin,
+				middleware.HeaderAllowMethods:     strings.Join(corsConfig.AllowedMethods, ","),
+				middleware.HeaderAllowHeaders:     strings.Join(corsConfig.AllowedHeaders, ","),
+				middleware.HeaderAllowCredentials: corsConfig.AllowCredentials,
+				headerCalled:                      tc.headerCalled,
 			}
 
 			for header, val := range headers {

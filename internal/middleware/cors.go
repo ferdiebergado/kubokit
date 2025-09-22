@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	HeaderAllowOrigin  = "Access-Control-Allow-Origin"
-	HeaderAllowMethods = "Access-Control-Allow-Methods"
-	HeaderAllowHeaders = "Access-Control-Allow-Headers"
+	HeaderAllowOrigin      = "Access-Control-Allow-Origin"
+	HeaderAllowMethods     = "Access-Control-Allow-Methods"
+	HeaderAllowHeaders     = "Access-Control-Allow-Headers"
+	HeaderAllowCredentials = "Access-Control-Allow-Credentials"
 )
 
 func CORS(cfg *config.CORS) func(http.Handler) http.Handler {
@@ -19,9 +20,10 @@ func CORS(cfg *config.CORS) func(http.Handler) http.Handler {
 			const sep = ","
 
 			headers := map[string]string{
-				HeaderAllowOrigin:  cfg.AllowedOrigin,
-				HeaderAllowMethods: strings.Join(cfg.AllowedMethods, sep),
-				HeaderAllowHeaders: strings.Join(cfg.AllowedHeaders, sep),
+				HeaderAllowOrigin:      cfg.AllowedOrigin,
+				HeaderAllowMethods:     strings.Join(cfg.AllowedMethods, sep),
+				HeaderAllowHeaders:     strings.Join(cfg.AllowedHeaders, sep),
+				HeaderAllowCredentials: cfg.AllowCredentials,
 			}
 
 			for k, v := range headers {

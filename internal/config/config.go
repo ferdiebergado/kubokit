@@ -111,9 +111,10 @@ type Argon2 struct {
 }
 
 type CORS struct {
-	AllowedOrigin  string   `json:"allowed_origin,omitempty"`
-	AllowedMethods []string `json:"allowed_methods,omitempty"`
-	AllowedHeaders []string `json:"allowed_headers,omitempty"`
+	AllowedOrigin    string   `json:"allowed_origin,omitempty" env:"CLIENT_URL"`
+	AllowedMethods   []string `json:"allowed_methods,omitempty"`
+	AllowedHeaders   []string `json:"allowed_headers,omitempty"`
+	AllowCredentials string   `json:"allow_credentials,omitempty"`
 }
 
 type CSRF struct {
