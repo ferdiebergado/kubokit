@@ -175,6 +175,18 @@ type UserLoginResponse struct {
 	User         *UserData `json:"user,omitempty"`
 }
 
+func (h *Handler) setRefreshCookie(w http.ResponseWriter, token string, maxAge int) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    token,
+		Path:     "/auth/refresh",
+		MaxAge:   maxAge,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	})
+}
+
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	req, err := web.ParamsFromContext[UserLoginRequest](r.Context())
 	if err != nil {
@@ -203,6 +215,8 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.setRefreshCookie(w, data.RefreshToken, int(data.ExpiresIn))
+
 	msg := MsgLoggedIn
 	res := &UserLoginResponse{
 		AccessToken:  data.AccessToken,
@@ -216,13 +230,14 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	token, err := extractBearerToken(r.Header.Get("Authorization"))
-	if err != nil || token == "" {
+	cookie, err := r.Cookie("refresh_token")
+
+	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	data, err := h.svc.RefreshToken(token)
+	data, err := h.svc.RefreshToken(cookie.Value)
 	if err != nil {
 		if errors.Is(err, ErrInvalidToken) {
 			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
@@ -232,6 +247,8 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		web.RespondInternalServerError(w, err)
 		return
 	}
+
+	h.setRefreshCookie(w, data.RefreshToken, int(data.ExpiresIn))
 
 	msg := MsgRefreshed
 	res := &UserLoginResponse{
