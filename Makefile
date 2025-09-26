@@ -27,6 +27,7 @@ fi)
 # Container of the postgres database
 DB_CONTAINER := kubokitdb
 DB_IMAGE := postgres:17.0-alpine3.20
+DB_TESTCONTAINER := postgres-mem
 
 # Path for db migrations
 MIGRATIONS_DIR := ./db/migrations
@@ -76,7 +77,7 @@ test: migrate-up mailhog
 	@go test $(GO_FLAGS) -coverprofile=coverage.out $(GO_MODULE_PATH)
 
 ## test-integration: Run the integration tests: make test-integration ENV=testing
-test-integration: migrate-up mailhog
+test-integration: db-test mailhog
 	@echo "Running integration tests..."
 	@go test $(GO_FLAGS) -tags=integration $(GO_MODULE_PATH)
 
@@ -119,6 +120,27 @@ db: docker-check
 		sleep 5s; \
 	else \
 		echo "Database container $(DB_CONTAINER) is already running."; \
+	fi
+
+db-test: docker-check
+	@if ! $(CONTAINER_RUNTIME) ps | grep -q $(DB_TESTCONTAINER); then \
+		echo "Starting test database container..."; \
+		set -a; . ./.env.testing; set +a; \
+		$(CONTAINER_RUNTIME) run \
+		--name $(DB_TESTCONTAINER) --rm -d \
+		-e POSTGRES_USER=$$DB_USER -e POSTGRES_PASSWORD=$$DB_PASS -e POSTGRES_DB=$$DB_NAME \
+		-p 5433:5432 \
+		--restart="no" \
+		--tmpfs /var/lib/postgresql/data:size=1g,mode=1777 \
+		-v "./configs/postgresql/postgresql-mem.conf":/etc/postgresql.conf:Z \
+		$(DB_IMAGE) \
+		-c 'config_file=/etc/postgresql.conf'; \
+		sleep 5s; \
+		echo "Running database migrations..."; \
+		migrate -path $(MIGRATIONS_DIR) -database "postgres://$$DB_USER:$$DB_PASS@localhost:5433/$$DB_NAME?sslmode=$$DB_SSLMODE" up; \
+		echo "Database migration completed."; \
+	else \
+		echo "Database container $(DB_TESTCONTAINER) is already running."; \
 	fi
 
 ## psql: Open a session with the database instance
