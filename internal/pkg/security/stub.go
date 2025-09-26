@@ -3,18 +3,22 @@ package security
 import (
 	"errors"
 	"net/http"
+
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 )
 
-type StubHardenedCookieBaker struct {
-	BakeFunc func(string) *http.Cookie
+type StubCSRFCookieBaker struct {
+	BakeFunc func() (*http.Cookie, error)
 }
 
-func (s *StubHardenedCookieBaker) Bake(val string) *http.Cookie {
+func (s *StubCSRFCookieBaker) Bake() (*http.Cookie, error) {
 	if s.BakeFunc == nil {
 		panic("Bake not implemented by stub")
 	}
-	return s.BakeFunc(val)
+	return s.BakeFunc()
 }
+
+var _ web.Baker = &StubCSRFCookieBaker{}
 
 type StubSHA256Hasher struct {
 	HashFunc func(string) ([]byte, error)
@@ -26,3 +30,5 @@ func (h *StubSHA256Hasher) Hash(s string) ([]byte, error) {
 	}
 	return h.HashFunc(s)
 }
+
+var _ ShortHasher = &StubSHA256Hasher{}
