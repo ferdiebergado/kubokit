@@ -5,5 +5,5 @@ import (
 )
 
 type Baker interface {
-	Bake(val string) *http.Cookie
+	Bake() (*http.Cookie, error)
 }
