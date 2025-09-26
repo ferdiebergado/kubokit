@@ -188,6 +188,15 @@ func (h *Handler) setRefreshCookie(w http.ResponseWriter, token string, maxAge i
 	})
 }
 
+func (h *Handler) setCSRFCookie(w http.ResponseWriter) {
+	csrfCookie, err := h.csrfCookieBaker.Bake()
+	if err != nil {
+		web.RespondBadRequest(w, err, message.InvalidUser, nil)
+		return
+	}
+	http.SetCookie(w, csrfCookie)
+}
+
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	req, err := web.ParamsFromContext[UserLoginRequest](r.Context())
 	if err != nil {
@@ -217,13 +226,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.setRefreshCookie(w, data.RefreshToken, int(data.ExpiresIn))
-
-	csrfCookie, err := h.csrfCookieBaker.Bake()
-	if err != nil {
-		web.RespondBadRequest(w, err, message.InvalidUser, nil)
-		return
-	}
-	http.SetCookie(w, csrfCookie)
+	h.setCSRFCookie(w)
 
 	msg := MsgLoggedIn
 	res := &UserLoginResponse{
