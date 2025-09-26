@@ -61,7 +61,7 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 	email := params.Email
 	existing, err := s.userSvc.FindUserByEmail(ctx, email)
 	if err != nil && !errors.Is(err, user.ErrNotFound) {
-		return u, fmt.Errorf("find user by email: %w", err)
+		return u, fmt.Errorf(MsgFmtFindUserByEmail, err)
 	}
 
 	if existing != nil {
@@ -157,7 +157,7 @@ func (p *LoginUserParams) LogValue() slog.Value {
 func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (*AuthData, error) {
 	u, err := s.userSvc.FindUserByEmail(ctx, params.Email)
 	if err != nil {
-		return nil, fmt.Errorf("find user by email: %w", err)
+		return nil, fmt.Errorf(MsgFmtFindUserByEmail, err)
 	}
 
 	if u.VerifiedAt == nil {
@@ -230,7 +230,7 @@ type ResetPasswordParams struct {
 func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
 	u, err := s.userSvc.FindUserByEmail(ctx, params.email)
 	if err != nil {
-		return fmt.Errorf("find user by email: %w", err)
+		return fmt.Errorf(MsgFmtFindUserByEmail, err)
 	}
 
 	ok, err := s.hasher.Verify(params.currentPassword, u.PasswordHash)
@@ -272,13 +272,13 @@ func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) err
 func (s *Service) RefreshToken(token string) (*AuthData, error) {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
-		return nil, ErrInvalidToken
+		return nil, fmt.Errorf("verify refresh token: %w", err)
 	}
 
 	userID := claims.UserID
 	u, err := s.userSvc.FindUser(context.Background(), userID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("find user by id: %w", err)
 	}
 
 	return s.generateToken(s.cfgJWT, userID, u.Email)
