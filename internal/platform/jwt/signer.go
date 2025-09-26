@@ -11,6 +11,6 @@ type Claims struct {
 
 // Signer defines methods for signing and verifying JWT tokens.
 type Signer interface {
-	Sign(subject string, audience []string, duration time.Duration) (token string, err error)
+	Sign(subject string, audience []string, duration time.Duration) (string, error)
 	Verify(tokenString string) (*Claims, error)
 }
