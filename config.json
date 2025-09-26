@@ -31,8 +31,8 @@
   "jwt": {
     "jti_length": 64,
     "issuer": "example.com",
-    "ttl": "1m",
-    "refresh_ttl": "2m"
+    "ttl": "30m",
+    "refresh_ttl": "24h"
   },
   "smtp": {
     "host": "localhost",
@@ -58,5 +58,11 @@
     "allowed_methods": ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     "allowed_headers": ["Content-Type", "Authorization"],
     "allow_credentials": "true"
+  },
+  "csrf": {
+    "cookie_name": "csrf_token",
+    "token_len": 64,
+    "max_age": "24h",
+    "header_name": "X-CSRF-Token"
   }
 }

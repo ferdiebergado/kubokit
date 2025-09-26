@@ -42,9 +42,10 @@ type AuthService interface {
 }
 
 type Handler struct {
-	svc    AuthService
-	signer jwt.Signer
-	cfgJWT *config.JWT
+	svc             AuthService
+	signer          jwt.Signer
+	cfgJWT          *config.JWT
+	csrfCookieBaker web.Baker
 }
 
 type RegisterUserRequest struct {
@@ -217,6 +218,13 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	h.setRefreshCookie(w, data.RefreshToken, int(data.ExpiresIn))
 
+	csrfCookie, err := h.csrfCookieBaker.Bake()
+	if err != nil {
+		web.RespondBadRequest(w, err, message.InvalidUser, nil)
+		return
+	}
+	http.SetCookie(w, csrfCookie)
+
 	msg := MsgLoggedIn
 	res := &UserLoginResponse{
 		AccessToken:  data.AccessToken,
@@ -232,8 +240,8 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("refresh_token")
 
-	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+	if err != nil || cookie.Value == "" {
+		web.RespondUnauthorized(w, errors.New("missing refresh cookie"), message.InvalidUser, nil)
 		return
 	}
 
@@ -341,10 +349,15 @@ func NewHandler(svc AuthService, providers *provider.Provider) (*Handler, error)
 		return nil, errors.New("signer should not be nil")
 	}
 
+	if providers.CSRFCookieBaker == nil {
+		return nil, errors.New("csrf cookie baker should not be nil")
+	}
+
 	handler := &Handler{
-		svc:    svc,
-		cfgJWT: cfgJWT,
-		signer: providers.Signer,
+		svc:             svc,
+		cfgJWT:          cfgJWT,
+		signer:          providers.Signer,
+		csrfCookieBaker: providers.CSRFCookieBaker,
 	}
 
 	return handler, nil

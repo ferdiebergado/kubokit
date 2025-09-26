@@ -7,6 +7,7 @@ import (
 
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -16,15 +17,16 @@ import (
 )
 
 type Provider struct {
-	Cfg         *config.Config
-	DB          *sql.DB
-	Signer      jwt.Signer
-	Mailer      email.Mailer
-	Validator   validation.Validator
-	Hasher      hash.Hasher
-	Router      router.Router
-	TxMgr       db.TxManager
-	ShortHasher security.ShortHasher
+	Cfg             *config.Config
+	DB              *sql.DB
+	Signer          jwt.Signer
+	Mailer          email.Mailer
+	Validator       validation.Validator
+	Hasher          hash.Hasher
+	Router          router.Router
+	TxMgr           db.TxManager
+	ShortHasher     security.ShortHasher
+	CSRFCookieBaker web.Baker
 }
 
 func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
@@ -52,17 +54,20 @@ func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
 	validator := validation.NewGoPlaygroundValidator()
 	txMgr := db.NewSQLTxManager(dbConn)
 	shortHasher := security.NewSHA256Hasher(cfg.App.Key)
+	csrfCfg := cfg.CSRF
+	csrfCookieBaker := security.NewCSRFCookieBaker(csrfCfg.CookieName, csrfCfg.TokenLen, csrfCfg.MaxAge.Duration)
 
 	provider := &Provider{
-		Cfg:         cfg,
-		DB:          dbConn,
-		Signer:      signer,
-		Hasher:      hasher,
-		Mailer:      mailer,
-		Router:      router,
-		Validator:   validator,
-		TxMgr:       txMgr,
-		ShortHasher: shortHasher,
+		Cfg:             cfg,
+		DB:              dbConn,
+		Signer:          signer,
+		Hasher:          hasher,
+		Mailer:          mailer,
+		Router:          router,
+		Validator:       validator,
+		TxMgr:           txMgr,
+		ShortHasher:     shortHasher,
+		CSRFCookieBaker: csrfCookieBaker,
 	}
 
 	return provider, nil

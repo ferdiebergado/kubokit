@@ -57,6 +57,7 @@ func (a *App) registerMiddlewares() {
 func (a *App) setupRoutes() {
 	cfg := a.config
 	maxBodySize := cfg.Server.MaxBodyBytes
+	csrfGuard := middleware.CSRFGuard(cfg.CSRF)
 	requireToken := auth.RequireToken(a.signer)
 
 	// auth routes
@@ -77,7 +78,7 @@ func (a *App) setupRoutes() {
 			middleware.DecodePayload[auth.ResendVerifyEmailRequest](maxBodySize),
 			middleware.ValidateInput[auth.ResendVerifyEmailRequest](a.validator))
 
-		gr.Post("/refresh", a.authHandler.RefreshToken, requireToken)
+		gr.Post("/refresh", a.authHandler.RefreshToken, csrfGuard)
 
 		gr.Post("/forgot", a.authHandler.ForgotPassword,
 			middleware.DecodePayload[auth.ForgotPasswordRequest](maxBodySize),

@@ -1,34 +1,44 @@
 package security
 
 import (
+	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 )
 
-func HardenedCookie(name, val string, duration time.Duration) *http.Cookie {
-	return &http.Cookie{
-		Name:     name,
-		Value:    val,
-		Path:     "/",
-		MaxAge:   time.Now().Add(duration).Second(),
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
-	}
-}
-
-type HardenedCookieBaker struct {
+type CSRFCookieBaker struct {
 	name   string
-	maxAge time.Duration
+	length uint32
+	maxAge int
 }
 
-func (b *HardenedCookieBaker) Bake(val string) *http.Cookie {
-	return HardenedCookie(b.name, val, b.maxAge)
+func (b *CSRFCookieBaker) Bake() (*http.Cookie, error) {
+	token, err := GenerateRandomBytesURLEncoded(b.length)
+	if err != nil {
+		return nil, fmt.Errorf("generate csrf token: %w", err)
+	}
+
+	cookie := &http.Cookie{
+		Name:     b.name,
+		Value:    token,
+		Path:     "/auth/refresh",
+		MaxAge:   b.maxAge,
+		Secure:   true,
+		HttpOnly: false,
+		SameSite: http.SameSiteNoneMode,
+	}
+
+	return cookie, nil
 }
 
-func NewHardenedCookieBaker(name string, duration time.Duration) *HardenedCookieBaker {
-	return &HardenedCookieBaker{
+func NewCSRFCookieBaker(name string, length uint32, maxAge time.Duration) *CSRFCookieBaker {
+	return &CSRFCookieBaker{
 		name:   name,
-		maxAge: duration,
+		length: length,
+		maxAge: time.Now().Add(maxAge).Second(),
 	}
 }
+
+var _ web.Baker = &CSRFCookieBaker{}
