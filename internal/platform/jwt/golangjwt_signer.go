@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -26,12 +27,18 @@ type GolangJWTSigner struct {
 
 // Sign generates a signed JWT token with the given subject, audience, and duration.
 func (s *GolangJWTSigner) Sign(sub string, audience []string, duration time.Duration) (string, error) {
+	jti, err := security.GenerateRandomBytesURLEncoded(s.jtiLen)
+	if err != nil {
+		return "", fmt.Errorf("generate jti with length %d: %w", s.jtiLen, err)
+	}
+
 	claims := &CustomClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
 			Issuer:    s.issuer,
 			Audience:  audience,
 			Subject:   sub,
+			ID:        jti,
 		},
 	}
 
