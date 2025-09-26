@@ -4,9 +4,9 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
@@ -42,7 +42,7 @@ func RequireToken(signer jwt.Signer) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			slog.Info("Verifying access token...")
 
-			token, err := extractBearerToken(r.Header.Get("Authorization"))
+			token, err := security.ExtractBearerToken(r)
 			if err != nil || token == "" {
 				web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 				return
@@ -59,15 +59,4 @@ func RequireToken(signer jwt.Signer) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
-}
-
-func extractBearerToken(header string) (string, error) {
-	if header == "" {
-		return "", errors.New("missing Authorization header")
-	}
-	const prefix = "Bearer "
-	if !strings.HasPrefix(header, prefix) {
-		return "", errors.New("missing Bearer prefix")
-	}
-	return strings.TrimSpace(header[len(prefix):]), nil
 }

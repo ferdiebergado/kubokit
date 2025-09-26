@@ -5,7 +5,10 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 )
 
 func GenerateRandomBytes(length uint32) ([]byte, error) {
@@ -64,4 +67,16 @@ func SHA256Hash(plain, key string) ([]byte, error) {
 		return nil, fmt.Errorf("sha256 write data: %w", err)
 	}
 	return h.Sum(nil), nil
+}
+
+func ExtractBearerToken(r *http.Request) (string, error) {
+	header := r.Header.Get("Authorization")
+	if header == "" {
+		return "", errors.New("missing Authorization header")
+	}
+	const prefix = "Bearer "
+	if !strings.HasPrefix(header, prefix) {
+		return "", errors.New("missing Bearer prefix")
+	}
+	return strings.TrimSpace(header[len(prefix):]), nil
 }
