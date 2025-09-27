@@ -178,9 +178,9 @@ type UserLoginResponse struct {
 
 func (h *Handler) setRefreshCookie(w http.ResponseWriter, token string, maxAge int) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
+		Name:     h.cfgCookie.Name,
 		Value:    token,
-		Path:     "/auth/refresh",
+		Path:     h.cfgCookie.Path,
 		MaxAge:   maxAge,
 		Secure:   true,
 		HttpOnly: true,
