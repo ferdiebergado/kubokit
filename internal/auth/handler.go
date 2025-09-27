@@ -45,6 +45,7 @@ type Handler struct {
 	svc             AuthService
 	signer          jwt.Signer
 	cfgJWT          *config.JWT
+	cfgCookie       *config.Cookie
 	csrfCookieBaker web.Baker
 }
 
@@ -356,9 +357,14 @@ func NewHandler(svc AuthService, providers *provider.Provider) (*Handler, error)
 		return nil, errors.New("csrf cookie baker should not be nil")
 	}
 
+	if cfg.Cookie == nil {
+		return nil, errors.New("cookie config should not be nil")
+	}
+
 	handler := &Handler{
 		svc:             svc,
 		cfgJWT:          cfgJWT,
+		cfgCookie:       cfg.Cookie,
 		signer:          providers.Signer,
 		csrfCookieBaker: providers.CSRFCookieBaker,
 	}

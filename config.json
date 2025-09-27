@@ -60,9 +60,13 @@
     "allow_credentials": "true"
   },
   "csrf": {
-    "cookie_name": "csrf_token",
+    "cookie_name": "__Secure-csrf_token",
     "token_len": 64,
     "max_age": "24h",
     "header_name": "X-CSRF-Token"
+  },
+  "cookie": {
+    "name": "__Secure-refresh_token",
+    "path": "/auth/refresh"
   }
 }

@@ -90,6 +90,10 @@ func TestHandler_RegisterUser(t *testing.T) {
 				App: &config.App{
 					ClientURL: "http://127.0.0.1:5173",
 				},
+				Cookie: &config.Cookie{
+					Name: "refresh_token",
+					Path: "/auth/refresh",
+				},
 			}
 
 			signer := jwt.StubSigner{
@@ -104,6 +108,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 				Cfg:             cfg,
 				Signer:          &signer,
 				CSRFCookieBaker: csrfBaker,
+				CookieCfg:       cfg.Cookie,
 			}
 
 			authHandler, err := auth.NewHandler(svc, provider)
@@ -256,12 +261,17 @@ func TestHandler_LoginUser(t *testing.T) {
 					TTL:        timex.Duration{Duration: defaultDuration},
 					RefreshTTL: timex.Duration{Duration: defaultDuration},
 				},
+				Cookie: &config.Cookie{
+					Name: "refresh_token",
+					Path: "/auth/refresh",
+				},
 			}
 
 			provider := &provider.Provider{
 				Cfg:             cfg,
 				Signer:          signer,
 				CSRFCookieBaker: csrfBaker,
+				CookieCfg:       cfg.Cookie,
 			}
 
 			authHandler, err := auth.NewHandler(svc, provider)
@@ -317,6 +327,10 @@ func TestHandler_VerifyUser(t *testing.T) {
 					App: &config.App{
 						ClientURL: "http://127.0.0.1:5173",
 					},
+					Cookie: &config.Cookie{
+						Name: "refresh_token",
+						Path: "/auth/refresh",
+					},
 				},
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
@@ -348,6 +362,10 @@ func TestHandler_VerifyUser(t *testing.T) {
 					App: &config.App{
 						ClientURL: "http://127.0.0.1:5173",
 					},
+					Cookie: &config.Cookie{
+						Name: "refresh_token",
+						Path: "/auth/refresh",
+					},
 				},
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
@@ -378,6 +396,10 @@ func TestHandler_VerifyUser(t *testing.T) {
 					},
 					App: &config.App{
 						ClientURL: "http://127.0.0.1:5173",
+					},
+					Cookie: &config.Cookie{
+						Name: "refresh_token",
+						Path: "/auth/refresh",
 					},
 				},
 				Signer: &jwt.StubSigner{
@@ -450,6 +472,10 @@ func TestHandler_ResetPassword(t *testing.T) {
 					App: &config.App{
 						ClientURL: "http://127.0.0.1:5173",
 					},
+					Cookie: &config.Cookie{
+						Name: "refresh_token",
+						Path: "/auth/refresh",
+					},
 				},
 				Signer: &jwt.StubSigner{
 					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
@@ -508,6 +534,10 @@ func TestHandler_RefreshToken(t *testing.T) {
 		},
 		App: &config.App{
 			ClientURL: "http://127.0.0.1:5173",
+		},
+		Cookie: &config.Cookie{
+			Name: "refresh_token",
+			Path: "/auth/refresh",
 		},
 	}
 
@@ -608,6 +638,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 				Cfg:             cfg,
 				Signer:          tc.signer,
 				CSRFCookieBaker: csrfBaker,
+				CookieCfg:       cfg.Cookie,
 			}
 
 			authHandler, err := auth.NewHandler(tc.svc, provider)

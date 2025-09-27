@@ -124,6 +124,11 @@ type CSRF struct {
 	HeaderName string         `json:"header_name,omitempty"`
 }
 
+type Cookie struct {
+	Name string `json:"name,omitempty"`
+	Path string `json:"path,omitempty"`
+}
+
 type Config struct {
 	*App    `json:"app,omitempty"`
 	*Server `json:"server,omitempty"`
@@ -134,6 +139,7 @@ type Config struct {
 	*Argon2 `json:"argon2,omitempty"`
 	*CORS   `json:"cors,omitempty"`
 	*CSRF   `json:"csrf,omitempty"`
+	*Cookie `json:"cookie,omitempty"`
 }
 
 func (c *Config) LogValue() slog.Value {
@@ -147,6 +153,7 @@ func (c *Config) LogValue() slog.Value {
 		slog.Any("argon2", c.Argon2),
 		slog.Any("cors", c.CORS),
 		slog.Any("csrf", c.CSRF),
+		slog.Any("cookie", c.Cookie),
 	)
 }
 

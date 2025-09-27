@@ -27,6 +27,7 @@ type Provider struct {
 	TxMgr           db.TxManager
 	ShortHasher     security.ShortHasher
 	CSRFCookieBaker web.Baker
+	CookieCfg       *config.Cookie
 }
 
 func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
@@ -68,6 +69,7 @@ func New(cfg *config.Config, dbConn *sql.DB) (*Provider, error) {
 		TxMgr:           txMgr,
 		ShortHasher:     shortHasher,
 		CSRFCookieBaker: csrfCookieBaker,
+		CookieCfg:       cfg.Cookie,
 	}
 
 	return provider, nil
