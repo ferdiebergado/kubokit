@@ -173,7 +173,7 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (*AuthD
 		return nil, ErrIncorrectPassword
 	}
 
-	authData, err := s.generateToken(s.cfgJWT, u.ID, params.Email)
+	authData, err := s.generateToken(u.ID, params.Email)
 	if err != nil {
 		return nil, fmt.Errorf("generate tokens: %w", err)
 	}
@@ -181,7 +181,8 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (*AuthD
 	return authData, nil
 }
 
-func (s *Service) generateToken(jwtConfig *config.JWT, userID, email string) (*AuthData, error) {
+func (s *Service) generateToken(userID, email string) (*AuthData, error) {
+	jwtConfig := s.cfgJWT
 	ttl := time.Now().Add(jwtConfig.TTL.Duration).UnixNano()
 	accessToken, err := s.signer.Sign(userID, []string{jwtConfig.Issuer}, time.Duration(ttl))
 	if err != nil {
@@ -281,7 +282,7 @@ func (s *Service) RefreshToken(token string) (*AuthData, error) {
 		return nil, fmt.Errorf("find user by id: %w", err)
 	}
 
-	return s.generateToken(s.cfgJWT, userID, u.Email)
+	return s.generateToken(userID, u.Email)
 }
 
 func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.UserService) (*Service, error) {
