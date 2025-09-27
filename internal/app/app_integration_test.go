@@ -11,15 +11,16 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/app"
+	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/env"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
-	"github.com/ferdiebergado/kubokit/internal/platform/router"
 	"github.com/ferdiebergado/kubokit/internal/platform/validation"
-	"github.com/ferdiebergado/kubokit/internal/provider"
+	"github.com/ferdiebergado/kubokit/internal/user"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -52,19 +53,28 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 		t.Fatalf("new hasher: %v", err)
 	}
 
-	provider := &provider.Provider{
-		Cfg:       cfg,
-		DB:        conn,
-		Signer:    signer,
-		Mailer:    &email.SMTPMailer{},
-		Validator: validation.NewGoPlaygroundValidator(),
-		Hasher:    hasher,
-		Router:    router.NewGoexpressRouter(),
-		TxMgr:     db.NewSQLTxManager(conn),
+	mailer := &email.SMTPMailer{}
+	validator := validation.NewGoPlaygroundValidator()
+	txMgr := db.NewSQLTxManager(conn)
+	csrfBaker := security.NewCSRFCookieBaker(cfg.CSRF.CookieName, cfg.CSRF.TokenLen, cfg.CSRF.MaxAge.Duration)
+
+	userRepo := user.NewRepository(conn)
+	userSvc := user.NewService(userRepo, hasher)
+	userHandler := user.NewHandler(userSvc)
+
+	authRepo := auth.NewRepository(conn)
+	authSvc, err := auth.NewService(cfg, hasher, mailer, signer, txMgr, authRepo, userSvc)
+	if err != nil {
+		t.Fatalf("failed to create new auth service: %v", err)
+	}
+
+	authHandler, err := auth.NewHandler(cfg.JWT, cfg.Cookie, signer, csrfBaker, authSvc)
+	if err != nil {
+		t.Fatalf("failed to create new auth handler: %v", err)
 	}
 
 	middlewares := []func(http.Handler) http.Handler{}
-	api, err = app.New(provider, middlewares)
+	api, err = app.New(cfg, middlewares, signer, validator, authHandler, userHandler)
 	if err != nil {
 		t.Fatalf("new api: %v", err)
 	}

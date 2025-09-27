@@ -12,7 +12,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
-	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -285,28 +284,7 @@ func (s *Service) RefreshToken(token string) (*AuthData, error) {
 	return s.generateToken(userID, u.Email)
 }
 
-func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.UserService) (*Service, error) {
-	if provider == nil {
-		return nil, errors.New("provider should not be nil")
-	}
-
-	if provider.Hasher == nil {
-		return nil, errors.New("hasher should not be nil")
-	}
-
-	if provider.Mailer == nil {
-		return nil, errors.New("mailer should not be nil")
-	}
-
-	if provider.Signer == nil {
-		return nil, errors.New("signer should not be nil")
-	}
-
-	if provider.TxMgr == nil {
-		return nil, errors.New("tx manager should not be nil")
-	}
-
-	cfg := provider.Cfg
+func NewService(cfg *config.Config, hasher hash.Hasher, mailer email.Mailer, signer jwt.Signer, txMgr db.TxManager, repo AuthRepository, userSvc user.UserService) (*Service, error) {
 	if cfg == nil {
 		return nil, errors.New("config should not be nil")
 	}
@@ -318,7 +296,6 @@ func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.U
 	clientURL := cfg.App.ClientURL
 
 	cfgJWT := cfg.JWT
-
 	if cfgJWT == nil {
 		return nil, errors.New("jwt config should not be nil")
 	}
@@ -331,10 +308,10 @@ func NewService(repo AuthRepository, provider *provider.Provider, userSvc user.U
 	svc := &Service{
 		repo:      repo,
 		userSvc:   userSvc,
-		hasher:    provider.Hasher,
-		mailer:    provider.Mailer,
-		signer:    provider.Signer,
-		txManager: provider.TxMgr,
+		hasher:    hasher,
+		mailer:    mailer,
+		signer:    signer,
+		txManager: txMgr,
 		clientURL: clientURL,
 		cfgJWT:    cfgJWT,
 		cfgEmail:  cfgEmail,

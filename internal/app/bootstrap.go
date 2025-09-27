@@ -10,12 +10,18 @@ import (
 	"syscall"
 
 	"github.com/ferdiebergado/goexpress"
+	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
 	"github.com/ferdiebergado/kubokit/internal/pkg/env"
 	"github.com/ferdiebergado/kubokit/internal/pkg/logging"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
-	"github.com/ferdiebergado/kubokit/internal/provider"
+	"github.com/ferdiebergado/kubokit/internal/platform/email"
+	"github.com/ferdiebergado/kubokit/internal/platform/hash"
+	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
+	"github.com/ferdiebergado/kubokit/internal/platform/validation"
+	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 const (
@@ -34,6 +40,7 @@ func Run() error {
 
 	slog.Info("Starting server...")
 
+	// TODO: use switch for envs
 	if appEnv != "production" {
 		if err := env.Load(".env"); err != nil {
 			return fmt.Errorf("load env: %w", err)
@@ -54,9 +61,40 @@ func Run() error {
 	}
 	defer dbConn.Close()
 
-	providers, err := provider.New(cfg, dbConn)
+	securityKey := cfg.App.Key
+	signer, err := jwt.NewGolangJWTSigner(cfg.JWT, securityKey)
 	if err != nil {
-		return fmt.Errorf("setup providers: %w", err)
+		return fmt.Errorf("new jwt signer: %w", err)
+	}
+
+	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
+	if err != nil {
+		return fmt.Errorf("new mailer: %w", err)
+	}
+
+	hasher, err := hash.NewArgon2Hasher(cfg.Argon2, securityKey)
+	if err != nil {
+		return fmt.Errorf("new hasher: %w", err)
+	}
+
+	validator := validation.NewGoPlaygroundValidator()
+	txMgr := db.NewSQLTxManager(dbConn)
+	csrfCfg := cfg.CSRF
+	csrfCookieBaker := security.NewCSRFCookieBaker(csrfCfg.CookieName, csrfCfg.TokenLen, csrfCfg.MaxAge.Duration)
+
+	userRepo := user.NewRepository(dbConn)
+	userService := user.NewService(userRepo, hasher)
+	userHandler := user.NewHandler(userService)
+
+	authRepo := auth.NewRepository(dbConn)
+	authService, err := auth.NewService(cfg, hasher, mailer, signer, txMgr, authRepo, userService)
+	if err != nil {
+		return fmt.Errorf("new service: %w", err)
+	}
+
+	authHandler, err := auth.NewHandler(cfg.JWT, cfg.Cookie, signer, csrfCookieBaker, authService)
+	if err != nil {
+		return fmt.Errorf("new auth handler: %w", err)
 	}
 
 	middlewares := []func(http.Handler) http.Handler{
@@ -67,7 +105,7 @@ func Run() error {
 		middleware.CheckContentType,
 	}
 
-	api, err := New(providers, middlewares)
+	api, err := New(cfg, middlewares, signer, validator, authHandler, userHandler)
 	if err != nil {
 		return fmt.Errorf("new api: %w", err)
 	}

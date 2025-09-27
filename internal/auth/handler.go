@@ -12,7 +12,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
-	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -338,35 +337,21 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	web.RespondOK(w, &msg, struct{}{})
 }
 
-func NewHandler(svc AuthService, providers *provider.Provider) (*Handler, error) {
-	cfg := providers.Cfg
-	if cfg == nil {
-		return nil, errors.New("config should not be nil")
-	}
-
-	cfgJWT := cfg.JWT
+func NewHandler(cfgJWT *config.JWT, cfgCookie *config.Cookie, signer jwt.Signer, csrfCookieBaker web.Baker, svc AuthService) (*Handler, error) {
 	if cfgJWT == nil {
 		return nil, errors.New("JWT config should not be nil")
 	}
 
-	if providers.Signer == nil {
-		return nil, errors.New("signer should not be nil")
-	}
-
-	if providers.CSRFCookieBaker == nil {
-		return nil, errors.New("csrf cookie baker should not be nil")
-	}
-
-	if cfg.Cookie == nil {
+	if cfgCookie == nil {
 		return nil, errors.New("cookie config should not be nil")
 	}
 
 	handler := &Handler{
 		svc:             svc,
 		cfgJWT:          cfgJWT,
-		cfgCookie:       cfg.Cookie,
-		signer:          providers.Signer,
-		csrfCookieBaker: providers.CSRFCookieBaker,
+		cfgCookie:       cfgCookie,
+		signer:          signer,
+		csrfCookieBaker: csrfCookieBaker,
 	}
 
 	return handler, nil

@@ -19,7 +19,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
-	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -104,14 +103,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 			csrfBaker := &security.StubCSRFCookieBaker{}
 
-			provider := &provider.Provider{
-				Cfg:             cfg,
-				Signer:          &signer,
-				CSRFCookieBaker: csrfBaker,
-				CookieCfg:       cfg.Cookie,
-			}
-
-			authHandler, err := auth.NewHandler(svc, provider)
+			authHandler, err := auth.NewHandler(cfg.JWT, cfg.Cookie, &signer, csrfBaker, svc)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -267,14 +259,7 @@ func TestHandler_LoginUser(t *testing.T) {
 				},
 			}
 
-			provider := &provider.Provider{
-				Cfg:             cfg,
-				Signer:          signer,
-				CSRFCookieBaker: csrfBaker,
-				CookieCfg:       cfg.Cookie,
-			}
-
-			authHandler, err := auth.NewHandler(svc, provider)
+			authHandler, err := auth.NewHandler(cfg.JWT, cfg.Cookie, signer, csrfBaker, svc)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -305,41 +290,41 @@ func TestHandler_VerifyUser(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name     string
-		userID   string
-		provider *provider.Provider
-		svc      auth.AuthService
-		code     int
-		token    string
-		request  *auth.VerifyUserRequest
+		name      string
+		userID    string
+		service   auth.AuthService
+		cfgJWT    *config.JWT
+		cfgCookie *config.Cookie
+		cfgApp    *config.App
+		signer    jwt.Signer
+		csfrBaker web.Baker
+		code      int
+		token     string
+		request   *auth.VerifyUserRequest
 	}{
 		{
 			name:   "Email verified successfully",
 			userID: "123",
-			provider: &provider.Provider{
-				Cfg: &config.Config{
-					JWT: &config.JWT{
-						JTILength:  8,
-						Issuer:     "example.com",
-						TTL:        timex.Duration{Duration: defaultDuration},
-						RefreshTTL: timex.Duration{Duration: defaultDuration},
-					},
-					App: &config.App{
-						ClientURL: "http://127.0.0.1:5173",
-					},
-					Cookie: &config.Cookie{
-						Name: "refresh_token",
-						Path: "/auth/refresh",
-					},
-				},
-				Signer: &jwt.StubSigner{
-					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-						return &jwt.Claims{UserID: "123"}, nil
-					},
-				},
-				CSRFCookieBaker: &security.StubCSRFCookieBaker{},
+			cfgJWT: &config.JWT{
+				JTILength:  8,
+				Issuer:     "example.com",
+				TTL:        timex.Duration{Duration: defaultDuration},
+				RefreshTTL: timex.Duration{Duration: defaultDuration},
 			},
-			svc: &auth.StubService{
+			cfgApp: &config.App{
+				ClientURL: "http://127.0.0.1:5173",
+			},
+			cfgCookie: &config.Cookie{
+				Name: "refresh_token",
+				Path: "/auth/refresh",
+			},
+			signer: &jwt.StubSigner{
+				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+					return &jwt.Claims{UserID: "123"}, nil
+				},
+			},
+			csfrBaker: &security.StubCSRFCookieBaker{},
+			service: &auth.StubService{
 				VerifyUserfunc: func(ctx context.Context, token string) error {
 					return nil
 				},
@@ -351,30 +336,26 @@ func TestHandler_VerifyUser(t *testing.T) {
 		{
 			name:   "User does not exists",
 			userID: "123",
-			provider: &provider.Provider{
-				Cfg: &config.Config{
-					JWT: &config.JWT{
-						JTILength:  8,
-						Issuer:     "example.com",
-						TTL:        timex.Duration{Duration: defaultDuration},
-						RefreshTTL: timex.Duration{Duration: defaultDuration},
-					},
-					App: &config.App{
-						ClientURL: "http://127.0.0.1:5173",
-					},
-					Cookie: &config.Cookie{
-						Name: "refresh_token",
-						Path: "/auth/refresh",
-					},
-				},
-				Signer: &jwt.StubSigner{
-					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-						return &jwt.Claims{UserID: "123"}, nil
-					},
-				},
-				CSRFCookieBaker: &security.StubCSRFCookieBaker{},
+			cfgJWT: &config.JWT{
+				JTILength:  8,
+				Issuer:     "example.com",
+				TTL:        timex.Duration{Duration: defaultDuration},
+				RefreshTTL: timex.Duration{Duration: defaultDuration},
 			},
-			svc: &auth.StubService{
+			cfgApp: &config.App{
+				ClientURL: "http://127.0.0.1:5173",
+			},
+			cfgCookie: &config.Cookie{
+				Name: "refresh_token",
+				Path: "/auth/refresh",
+			},
+			signer: &jwt.StubSigner{
+				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+					return &jwt.Claims{UserID: "123"}, nil
+				},
+			},
+			csfrBaker: &security.StubCSRFCookieBaker{},
+			service: &auth.StubService{
 				VerifyUserfunc: func(ctx context.Context, token string) error {
 					return user.ErrNotFound
 				},
@@ -386,30 +367,26 @@ func TestHandler_VerifyUser(t *testing.T) {
 		{
 			name:   "Verification failed due to database error",
 			userID: "123",
-			provider: &provider.Provider{
-				Cfg: &config.Config{
-					JWT: &config.JWT{
-						JTILength:  8,
-						Issuer:     "example.com",
-						TTL:        timex.Duration{Duration: defaultDuration},
-						RefreshTTL: timex.Duration{Duration: defaultDuration},
-					},
-					App: &config.App{
-						ClientURL: "http://127.0.0.1:5173",
-					},
-					Cookie: &config.Cookie{
-						Name: "refresh_token",
-						Path: "/auth/refresh",
-					},
-				},
-				Signer: &jwt.StubSigner{
-					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-						return &jwt.Claims{UserID: "123"}, nil
-					},
-				},
-				CSRFCookieBaker: &security.StubCSRFCookieBaker{},
+			cfgJWT: &config.JWT{
+				JTILength:  8,
+				Issuer:     "example.com",
+				TTL:        timex.Duration{Duration: defaultDuration},
+				RefreshTTL: timex.Duration{Duration: defaultDuration},
 			},
-			svc: &auth.StubService{
+			cfgApp: &config.App{
+				ClientURL: "http://127.0.0.1:5173",
+			},
+			cfgCookie: &config.Cookie{
+				Name: "refresh_token",
+				Path: "/auth/refresh",
+			},
+			signer: &jwt.StubSigner{
+				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+					return &jwt.Claims{UserID: "123"}, nil
+				},
+			},
+			csfrBaker: &security.StubCSRFCookieBaker{},
+			service: &auth.StubService{
 				VerifyUserfunc: func(ctx context.Context, token string) error {
 					return db.ErrQueryFailed
 				},
@@ -424,7 +401,7 @@ func TestHandler_VerifyUser(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			authHandler, err := auth.NewHandler(tc.svc, tc.provider)
+			authHandler, err := auth.NewHandler(tc.cfgJWT, tc.cfgCookie, tc.signer, tc.csfrBaker, tc.service)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -452,8 +429,12 @@ func TestHandler_ResetPassword(t *testing.T) {
 	tests := []struct {
 		name      string
 		userID    string
-		providers *provider.Provider
-		svc       auth.AuthService
+		signer    jwt.Signer
+		cfgJWT    *config.JWT
+		cfgApp    *config.App
+		cfgCookie *config.Cookie
+		csrfBaker web.Baker
+		service   auth.AuthService
 		code      int
 		ctx       context.Context
 		params    auth.ResetPasswordRequest
@@ -461,33 +442,29 @@ func TestHandler_ResetPassword(t *testing.T) {
 		{
 			name:   "Password was reset successfully",
 			userID: "123",
-			providers: &provider.Provider{
-				Cfg: &config.Config{
-					JWT: &config.JWT{
-						JTILength:  8,
-						Issuer:     "example.com",
-						TTL:        timex.Duration{Duration: defaultDuration},
-						RefreshTTL: timex.Duration{Duration: defaultDuration},
-					},
-					App: &config.App{
-						ClientURL: "http://127.0.0.1:5173",
-					},
-					Cookie: &config.Cookie{
-						Name: "refresh_token",
-						Path: "/auth/refresh",
-					},
-				},
-				Signer: &jwt.StubSigner{
-					VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-						return &jwt.Claims{UserID: "1"}, nil
-					},
-					SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
-						return "xyz", nil
-					},
-				},
-				CSRFCookieBaker: &security.StubCSRFCookieBaker{},
+			cfgJWT: &config.JWT{
+				JTILength:  8,
+				Issuer:     "example.com",
+				TTL:        timex.Duration{Duration: defaultDuration},
+				RefreshTTL: timex.Duration{Duration: defaultDuration},
 			},
-			svc: &auth.StubService{
+			cfgApp: &config.App{
+				ClientURL: "http://127.0.0.1:5173",
+			},
+			cfgCookie: &config.Cookie{
+				Name: "refresh_token",
+				Path: "/auth/refresh",
+			},
+			signer: &jwt.StubSigner{
+				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+					return &jwt.Claims{UserID: "1"}, nil
+				},
+				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+					return "xyz", nil
+				},
+			},
+			csrfBaker: &security.StubCSRFCookieBaker{},
+			service: &auth.StubService{
 				ResetPasswordFunc: func(ctx context.Context, params auth.ResetPasswordParams) error {
 					return nil
 				},
@@ -505,7 +482,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			authHandler, err := auth.NewHandler(tc.svc, tc.providers)
+			authHandler, err := auth.NewHandler(tc.cfgJWT, tc.cfgCookie, tc.signer, tc.csrfBaker, tc.service)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -544,7 +521,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 	tests := []struct {
 		name          string
 		refreshCookie *http.Cookie
-		svc           auth.AuthService
+		service       auth.AuthService
 		signer        jwt.Signer
 		code          int
 		gotBody       any
@@ -568,7 +545,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 					return "access_token", nil
 				},
 			},
-			svc: &auth.StubService{
+			service: &auth.StubService{
 				RefreshTokenFunc: func(token string) (*auth.AuthData, error) {
 					secret := &auth.AuthData{
 						AccessToken:  "new_access_token",
@@ -593,7 +570,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 		},
 		{
 			name:    "Missing refresh token",
-			svc:     &auth.StubService{},
+			service: &auth.StubService{},
 			code:    http.StatusUnauthorized,
 			gotBody: &web.ErrorResponse{},
 			wantBody: &web.ErrorResponse{
@@ -616,7 +593,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 					return nil, errors.New("token is expired")
 				},
 			},
-			svc: &auth.StubService{
+			service: &auth.StubService{
 				RefreshTokenFunc: func(token string) (*auth.AuthData, error) {
 					return nil, auth.ErrInvalidToken
 				},
@@ -634,14 +611,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 
 			csrfBaker := &security.StubCSRFCookieBaker{}
 
-			provider := &provider.Provider{
-				Cfg:             cfg,
-				Signer:          tc.signer,
-				CSRFCookieBaker: csrfBaker,
-				CookieCfg:       cfg.Cookie,
-			}
-
-			authHandler, err := auth.NewHandler(tc.svc, provider)
+			authHandler, err := auth.NewHandler(cfg.JWT, cfg.Cookie, tc.signer, csrfBaker, tc.service)
 			if err != nil {
 				t.Fatal(err)
 			}

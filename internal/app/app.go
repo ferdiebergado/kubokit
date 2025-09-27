@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,34 +12,23 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
-	"github.com/ferdiebergado/kubokit/internal/platform/db"
-	"github.com/ferdiebergado/kubokit/internal/platform/email"
-	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/platform/router"
 	"github.com/ferdiebergado/kubokit/internal/platform/validation"
-	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 type App struct {
 	server          *http.Server
-	config          *config.Config
 	middlewares     []func(http.Handler) http.Handler
 	stop            context.CancelFunc
 	shutdownTimeout time.Duration
-	db              *sql.DB
+	cfg             *config.Config
 	signer          jwt.Signer
-	mailer          email.Mailer
 	validator       validation.Validator
-	hasher          hash.Hasher
 	router          router.Router
-	txManager       db.TxManager
 	userHandler     *user.Handler
-	userSvc         user.UserService
 	authHandler     *auth.Handler
-	shortHasher     security.ShortHasher
 }
 
 func (a *App) registerMiddlewares() {
@@ -55,7 +43,7 @@ func (a *App) registerMiddlewares() {
 }
 
 func (a *App) setupRoutes() {
-	cfg := a.config
+	cfg := a.cfg
 	maxBodySize := cfg.Server.MaxBodyBytes
 	csrfGuard := middleware.CSRFGuard(cfg.CSRF)
 	requireToken := auth.RequireToken(a.signer)
@@ -132,14 +120,10 @@ func (a *App) Shutdown() error {
 	return nil
 }
 
-func New(providers *provider.Provider, middlewares []func(http.Handler) http.Handler) (*App, error) {
-	if providers == nil {
-		return nil, errors.New("provider should not be nil")
-	}
-
-	cfg := providers.Cfg
+func New(cfg *config.Config, middlewares []func(http.Handler) http.Handler, signer jwt.Signer, validator validation.Validator, authHandler *auth.Handler, userHandler *user.Handler) (*App, error) {
 	serverCfg := cfg.Server
-	handler := middleware.CORS(cfg.CORS)(providers.Router)
+	router := router.NewGoexpressRouter()
+	handler := middleware.CORS(cfg.CORS)(router)
 	serverCtx, stop := context.WithCancel(context.Background())
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", serverCfg.Port),
@@ -152,34 +136,17 @@ func New(providers *provider.Provider, middlewares []func(http.Handler) http.Han
 		IdleTimeout:  serverCfg.IdleTimeout.Duration,
 	}
 
-	userModule := user.NewModule(providers)
-	userHandler := userModule.Handler()
-	userSvc := userModule.Service()
-
-	authModule, err := auth.NewModule(providers, userSvc)
-	if err != nil {
-		stop()
-		return nil, fmt.Errorf("new auth module: %w", err)
-	}
-	authHandler := authModule.Handler()
-
 	api := &App{
-		config:          cfg,
-		db:              providers.DB,
-		txManager:       providers.TxMgr,
-		signer:          providers.Signer,
-		mailer:          providers.Mailer,
-		validator:       providers.Validator,
-		hasher:          providers.Hasher,
-		router:          providers.Router,
-		userHandler:     userHandler,
-		userSvc:         userSvc,
-		authHandler:     authHandler,
 		server:          server,
 		middlewares:     middlewares,
 		stop:            stop,
 		shutdownTimeout: serverCfg.ShutdownTimeout.Duration,
-		shortHasher:     providers.ShortHasher,
+		cfg:             cfg,
+		signer:          signer,
+		validator:       validator,
+		router:          router,
+		userHandler:     userHandler,
+		authHandler:     authHandler,
 	}
 
 	return api, nil

@@ -15,7 +15,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
-	"github.com/ferdiebergado/kubokit/internal/provider"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -125,15 +124,8 @@ func TestService_RegisterUser(t *testing.T) {
 					RefreshTTL: timex.Duration{Duration: 24 * time.Hour},
 				},
 			}
-			provider := &provider.Provider{
-				Hasher: tc.hasher,
-				Mailer: tc.mailer,
-				Signer: tc.signer,
-				Cfg:    cfg,
-				TxMgr:  &db.StubTxManager{},
-			}
 
-			authSvc, err := auth.NewService(&auth.StubRepo{}, provider, tc.userSvc)
+			authSvc, err := auth.NewService(cfg, tc.hasher, tc.mailer, tc.signer, &db.StubTxManager{}, &auth.StubRepo{}, tc.userSvc)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -213,18 +205,16 @@ func TestVerifyUser(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			providers := &provider.Provider{
-				Signer: &jwt.StubSigner{
-					VerifyFunc: tc.signerVerifyFunc,
-				},
-				Hasher: &hash.StubHasher{},
-				Mailer: &email.StubMailer{},
-				TxMgr:  &db.StubTxManager{},
-				Cfg: &config.Config{
-					App:   &config.App{},
-					JWT:   &config.JWT{},
-					Email: &config.Email{},
-				},
+			signer := &jwt.StubSigner{
+				VerifyFunc: tc.signerVerifyFunc,
+			}
+			hasher := &hash.StubHasher{}
+			mailer := &email.StubMailer{}
+			txMgr := &db.StubTxManager{}
+			cfg := &config.Config{
+				App:   &config.App{},
+				JWT:   &config.JWT{},
+				Email: &config.Email{},
 			}
 
 			repo := &auth.StubRepo{
@@ -233,7 +223,7 @@ func TestVerifyUser(t *testing.T) {
 
 			usrSvc := &user.StubService{}
 
-			svc, err := auth.NewService(repo, providers, usrSvc)
+			svc, err := auth.NewService(cfg, hasher, mailer, signer, txMgr, repo, usrSvc)
 			if err != nil {
 				t.Fatal(err)
 			}
