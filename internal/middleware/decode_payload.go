@@ -44,8 +44,6 @@ func DecodePayload[T any](bodySize int64) func(next http.Handler) http.Handler {
 				return
 			}
 
-			slog.Info("Payload decoded", slog.Any("payload", &decoded))
-
 			ctx := web.NewContextWithParams(r.Context(), decoded)
 			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)

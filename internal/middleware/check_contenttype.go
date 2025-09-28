@@ -21,7 +21,6 @@ func CheckContentType(next http.Handler) http.Handler {
 			}
 		}
 
-		slog.Info("Content-Type is valid.")
 		next.ServeHTTP(w, r)
 	})
 }

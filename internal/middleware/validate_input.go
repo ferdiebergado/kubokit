@@ -26,7 +26,6 @@ func ValidateInput[T any](validator validation.Validator) func(next http.Handler
 				return
 			}
 
-			slog.Info("Input is valid.")
 			next.ServeHTTP(w, r)
 		})
 	}
