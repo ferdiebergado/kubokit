@@ -125,7 +125,17 @@ func TestService_RegisterUser(t *testing.T) {
 				},
 			}
 
-			authSvc, err := auth.NewService(cfg, tc.hasher, tc.mailer, tc.signer, &db.StubTxManager{}, &auth.StubRepo{}, tc.userSvc)
+			provider := &auth.ServiceProvider{
+				CfgApp:   cfg.App,
+				CfgJWT:   cfg.JWT,
+				CfgEmail: cfg.Email,
+				Hasher:   tc.hasher,
+				Mailer:   tc.mailer,
+				Signer:   tc.signer,
+				Txmgr:    &db.StubTxManager{},
+				UsrSvc:   tc.userSvc,
+			}
+			authSvc, err := auth.NewService(&auth.StubRepo{}, provider)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -223,7 +233,17 @@ func TestVerifyUser(t *testing.T) {
 
 			usrSvc := &user.StubService{}
 
-			svc, err := auth.NewService(cfg, hasher, mailer, signer, txMgr, repo, usrSvc)
+			provider := &auth.ServiceProvider{
+				CfgApp:   cfg.App,
+				CfgJWT:   cfg.JWT,
+				CfgEmail: cfg.Email,
+				Hasher:   hasher,
+				Mailer:   mailer,
+				Signer:   signer,
+				Txmgr:    txMgr,
+				UsrSvc:   usrSvc,
+			}
+			svc, err := auth.NewService(repo, provider)
 			if err != nil {
 				t.Fatal(err)
 			}

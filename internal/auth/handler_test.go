@@ -91,11 +91,10 @@ func TestHandler_RegisterUser(t *testing.T) {
 				},
 				Cookie: &config.Cookie{
 					Name: "refresh_token",
-					Path: "/auth/refresh",
 				},
 			}
 
-			signer := jwt.StubSigner{
+			signer := &jwt.StubSigner{
 				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
 					return "1", nil
 				},
@@ -103,7 +102,13 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 			csrfBaker := &security.StubCSRFCookieBaker{}
 
-			authHandler, err := auth.NewHandler(cfg.JWT, cfg.Cookie, &signer, csrfBaker, svc)
+			provider := &auth.HandlerProvider{
+				CfgJWT:          cfg.JWT,
+				CfgCookie:       cfg.Cookie,
+				Signer:          signer,
+				CSRFCookieBaker: csrfBaker,
+			}
+			authHandler, err := auth.NewHandler(svc, provider)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -255,11 +260,16 @@ func TestHandler_LoginUser(t *testing.T) {
 				},
 				Cookie: &config.Cookie{
 					Name: "refresh_token",
-					Path: "/auth/refresh",
 				},
 			}
 
-			authHandler, err := auth.NewHandler(cfg.JWT, cfg.Cookie, signer, csrfBaker, svc)
+			provider := &auth.HandlerProvider{
+				CfgJWT:          cfg.JWT,
+				CfgCookie:       cfg.Cookie,
+				Signer:          signer,
+				CSRFCookieBaker: csrfBaker,
+			}
+			authHandler, err := auth.NewHandler(svc, provider)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -316,7 +326,6 @@ func TestHandler_VerifyUser(t *testing.T) {
 			},
 			cfgCookie: &config.Cookie{
 				Name: "refresh_token",
-				Path: "/auth/refresh",
 			},
 			signer: &jwt.StubSigner{
 				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
@@ -347,7 +356,6 @@ func TestHandler_VerifyUser(t *testing.T) {
 			},
 			cfgCookie: &config.Cookie{
 				Name: "refresh_token",
-				Path: "/auth/refresh",
 			},
 			signer: &jwt.StubSigner{
 				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
@@ -378,7 +386,6 @@ func TestHandler_VerifyUser(t *testing.T) {
 			},
 			cfgCookie: &config.Cookie{
 				Name: "refresh_token",
-				Path: "/auth/refresh",
 			},
 			signer: &jwt.StubSigner{
 				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
@@ -401,7 +408,13 @@ func TestHandler_VerifyUser(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			authHandler, err := auth.NewHandler(tc.cfgJWT, tc.cfgCookie, tc.signer, tc.csfrBaker, tc.service)
+			provider := &auth.HandlerProvider{
+				CfgJWT:          tc.cfgJWT,
+				CfgCookie:       tc.cfgCookie,
+				Signer:          tc.signer,
+				CSRFCookieBaker: tc.csfrBaker,
+			}
+			authHandler, err := auth.NewHandler(tc.service, provider)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -453,7 +466,6 @@ func TestHandler_ResetPassword(t *testing.T) {
 			},
 			cfgCookie: &config.Cookie{
 				Name: "refresh_token",
-				Path: "/auth/refresh",
 			},
 			signer: &jwt.StubSigner{
 				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
@@ -482,7 +494,13 @@ func TestHandler_ResetPassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			authHandler, err := auth.NewHandler(tc.cfgJWT, tc.cfgCookie, tc.signer, tc.csrfBaker, tc.service)
+			provider := &auth.HandlerProvider{
+				CfgJWT:          tc.cfgJWT,
+				CfgCookie:       tc.cfgCookie,
+				Signer:          tc.signer,
+				CSRFCookieBaker: tc.csrfBaker,
+			}
+			authHandler, err := auth.NewHandler(tc.service, provider)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -514,7 +532,6 @@ func TestHandler_RefreshToken(t *testing.T) {
 		},
 		Cookie: &config.Cookie{
 			Name: "refresh_token",
-			Path: "/auth/refresh",
 		},
 	}
 
@@ -609,9 +626,19 @@ func TestHandler_RefreshToken(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			csrfBaker := &security.StubCSRFCookieBaker{}
+			csrfBaker := &security.StubCSRFCookieBaker{
+				BakeFunc: func() (*http.Cookie, error) {
+					return &http.Cookie{}, nil
+				},
+			}
 
-			authHandler, err := auth.NewHandler(cfg.JWT, cfg.Cookie, tc.signer, csrfBaker, tc.service)
+			provider := &auth.HandlerProvider{
+				CfgJWT:          cfg.JWT,
+				CfgCookie:       cfg.Cookie,
+				Signer:          tc.signer,
+				CSRFCookieBaker: csrfBaker,
+			}
+			authHandler, err := auth.NewHandler(tc.service, provider)
 			if err != nil {
 				t.Fatal(err)
 			}

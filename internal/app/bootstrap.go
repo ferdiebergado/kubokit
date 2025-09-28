@@ -87,12 +87,28 @@ func Run() error {
 	userHandler := user.NewHandler(userService)
 
 	authRepo := auth.NewRepository(dbConn)
-	authService, err := auth.NewService(cfg, hasher, mailer, signer, txMgr, authRepo, userService)
+	authServiceProvider := &auth.ServiceProvider{
+		CfgApp:   cfg.App,
+		CfgJWT:   cfg.JWT,
+		CfgEmail: cfg.Email,
+		Hasher:   hasher,
+		Mailer:   mailer,
+		Signer:   signer,
+		Txmgr:    txMgr,
+		UsrSvc:   nil,
+	}
+	authService, err := auth.NewService(authRepo, authServiceProvider)
 	if err != nil {
 		return fmt.Errorf("new service: %w", err)
 	}
 
-	authHandler, err := auth.NewHandler(cfg.JWT, cfg.Cookie, signer, csrfCookieBaker, authService)
+	authHandlerProvider := &auth.HandlerProvider{
+		CfgJWT:          cfg.JWT,
+		CfgCookie:       cfg.Cookie,
+		Signer:          signer,
+		CSRFCookieBaker: csrfCookieBaker,
+	}
+	authHandler, err := auth.NewHandler(authService, authHandlerProvider)
 	if err != nil {
 		return fmt.Errorf("new auth handler: %w", err)
 	}
@@ -105,7 +121,13 @@ func Run() error {
 		middleware.CheckContentType,
 	}
 
-	api, err := New(cfg, middlewares, signer, validator, authHandler, userHandler)
+	provider := &Provider{
+		Cfg:       cfg,
+		Signer:    signer,
+		Validator: validator,
+	}
+
+	api, err := New(provider, middlewares, authHandler, userHandler)
 	if err != nil {
 		return fmt.Errorf("new api: %w", err)
 	}

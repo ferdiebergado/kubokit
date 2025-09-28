@@ -120,7 +120,14 @@ func (a *App) Shutdown() error {
 	return nil
 }
 
-func New(cfg *config.Config, middlewares []func(http.Handler) http.Handler, signer jwt.Signer, validator validation.Validator, authHandler *auth.Handler, userHandler *user.Handler) (*App, error) {
+type Provider struct {
+	Cfg       *config.Config
+	Signer    jwt.Signer
+	Validator validation.Validator
+}
+
+func New(provider *Provider, middlewares []func(http.Handler) http.Handler, authHandler *auth.Handler, userHandler *user.Handler) (*App, error) {
+	cfg := provider.Cfg
 	serverCfg := cfg.Server
 	router := router.NewGoexpressRouter()
 	handler := middleware.CORS(cfg.CORS)(router)
@@ -142,8 +149,8 @@ func New(cfg *config.Config, middlewares []func(http.Handler) http.Handler, sign
 		stop:            stop,
 		shutdownTimeout: serverCfg.ShutdownTimeout.Duration,
 		cfg:             cfg,
-		signer:          signer,
-		validator:       validator,
+		signer:          provider.Signer,
+		validator:       provider.Validator,
 		router:          router,
 		userHandler:     userHandler,
 		authHandler:     authHandler,

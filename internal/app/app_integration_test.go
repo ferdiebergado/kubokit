@@ -63,18 +63,39 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 	userHandler := user.NewHandler(userSvc)
 
 	authRepo := auth.NewRepository(conn)
-	authSvc, err := auth.NewService(cfg, hasher, mailer, signer, txMgr, authRepo, userSvc)
+	authSvcProvider := &auth.ServiceProvider{
+		CfgApp:   cfg.App,
+		CfgJWT:   cfg.JWT,
+		CfgEmail: cfg.Email,
+		Hasher:   hasher,
+		Mailer:   mailer,
+		Signer:   signer,
+		Txmgr:    txMgr,
+		UsrSvc:   userSvc,
+	}
+	authSvc, err := auth.NewService(authRepo, authSvcProvider)
 	if err != nil {
 		t.Fatalf("failed to create new auth service: %v", err)
 	}
 
-	authHandler, err := auth.NewHandler(cfg.JWT, cfg.Cookie, signer, csrfBaker, authSvc)
+	authHandlerProvider := &auth.HandlerProvider{
+		CfgJWT:          cfg.JWT,
+		CfgCookie:       cfg.Cookie,
+		Signer:          signer,
+		CSRFCookieBaker: csrfBaker,
+	}
+	authHandler, err := auth.NewHandler(authSvc, authHandlerProvider)
 	if err != nil {
 		t.Fatalf("failed to create new auth handler: %v", err)
 	}
 
 	middlewares := []func(http.Handler) http.Handler{}
-	api, err = app.New(cfg, middlewares, signer, validator, authHandler, userHandler)
+	provider := &app.Provider{
+		Cfg:       cfg,
+		Signer:    signer,
+		Validator: validator,
+	}
+	api, err = app.New(provider, middlewares, authHandler, userHandler)
 	if err != nil {
 		t.Fatalf("new api: %v", err)
 	}

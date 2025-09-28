@@ -284,34 +284,42 @@ func (s *Service) RefreshToken(token string) (*AuthData, error) {
 	return s.generateToken(userID, u.Email)
 }
 
-func NewService(cfg *config.Config, hasher hash.Hasher, mailer email.Mailer, signer jwt.Signer, txMgr db.TxManager, repo AuthRepository, userSvc user.UserService) (*Service, error) {
-	if cfg == nil {
-		return nil, errors.New("config should not be nil")
-	}
+type ServiceProvider struct {
+	CfgApp   *config.App
+	CfgJWT   *config.JWT
+	CfgEmail *config.Email
+	Hasher   hash.Hasher
+	Mailer   email.Mailer
+	Signer   jwt.Signer
+	Txmgr    db.TxManager
+	UsrSvc   user.UserService
+}
 
-	if cfg.App == nil {
+func NewService(repo AuthRepository, provider *ServiceProvider) (*Service, error) {
+	cfgApp := provider.CfgApp
+	if cfgApp == nil {
 		return nil, errors.New("app config should not be nil")
 	}
 
-	clientURL := cfg.App.ClientURL
-
-	cfgJWT := cfg.JWT
-	if cfgJWT == nil {
-		return nil, errors.New("jwt config should not be nil")
-	}
-
-	cfgEmail := cfg.Email
+	cfgEmail := provider.CfgEmail
 	if cfgEmail == nil {
 		return nil, errors.New("email config should not be nil")
 	}
 
+	cfgJWT := provider.CfgJWT
+	if cfgJWT == nil {
+		return nil, errors.New("jwt config should not be nil")
+	}
+
+	clientURL := cfgApp.ClientURL
+
 	svc := &Service{
 		repo:      repo,
-		userSvc:   userSvc,
-		hasher:    hasher,
-		mailer:    mailer,
-		signer:    signer,
-		txManager: txMgr,
+		userSvc:   provider.UsrSvc,
+		hasher:    provider.Hasher,
+		mailer:    provider.Mailer,
+		signer:    provider.Signer,
+		txManager: provider.Txmgr,
 		clientURL: clientURL,
 		cfgJWT:    cfgJWT,
 		cfgEmail:  cfgEmail,
