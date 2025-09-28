@@ -79,7 +79,7 @@ test: migrate-up mailhog
 ## test-integration: Run the integration tests: make test-integration ENV=testing
 test-integration: db-test mailhog
 	@echo "Running integration tests..."
-	@go test $(GO_FLAGS) -tags=integration $(GO_MODULE_PATH)
+	@go test -tags=integration $(GO_MODULE_PATH)
 
 test-cover: test
 	@go tool cover -html=coverage.out
