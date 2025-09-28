@@ -126,7 +126,6 @@ type CSRF struct {
 
 type Cookie struct {
 	Name string `json:"name,omitempty"`
-	Path string `json:"path,omitempty"`
 }
 
 type Config struct {
