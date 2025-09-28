@@ -23,10 +23,9 @@ func (b *CSRFCookieBaker) Bake() (*http.Cookie, error) {
 	cookie := &http.Cookie{
 		Name:     b.name,
 		Value:    token,
-		Path:     "/auth/refresh",
+		Path:     "/",
 		MaxAge:   b.maxAge,
 		Secure:   true,
-		HttpOnly: false,
 		SameSite: http.SameSiteNoneMode,
 	}
 
@@ -37,7 +36,7 @@ func NewCSRFCookieBaker(name string, length uint32, maxAge time.Duration) *CSRFC
 	return &CSRFCookieBaker{
 		name:   name,
 		length: length,
-		maxAge: time.Now().Add(maxAge).Second(),
+		maxAge: int(maxAge.Seconds()),
 	}
 }
 
