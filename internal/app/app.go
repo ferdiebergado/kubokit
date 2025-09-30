@@ -23,7 +23,9 @@ type App struct {
 	middlewares     []func(http.Handler) http.Handler
 	stop            context.CancelFunc
 	shutdownTimeout time.Duration
-	cfg             *config.Config
+	cfgServer       *config.Server
+	cfgCORS         *config.CORS
+	cfgCSRF         *config.CSRF
 	signer          jwt.Signer
 	validator       validation.Validator
 	router          router.Router
@@ -43,9 +45,8 @@ func (a *App) registerMiddlewares() {
 }
 
 func (a *App) setupRoutes() {
-	cfg := a.cfg
-	maxBodySize := cfg.Server.MaxBodyBytes
-	csrfGuard := middleware.CSRFGuard(cfg.CSRF)
+	maxBodySize := a.cfgServer.MaxBodyBytes
+	csrfGuard := middleware.CSRFGuard(a.cfgCSRF)
 	requireToken := auth.RequireToken(a.signer)
 
 	// auth routes
@@ -121,35 +122,38 @@ func (a *App) Shutdown() error {
 }
 
 type Provider struct {
-	Cfg       *config.Config
+	CfgServer *config.Server
+	CfgCORS   *config.CORS
+	CfgCSRF   *config.CSRF
 	Router    router.Router
 	Signer    jwt.Signer
 	Validator validation.Validator
 }
 
 func New(provider *Provider, middlewares []func(http.Handler) http.Handler, authHandler *auth.Handler, userHandler *user.Handler) (*App, error) {
-	cfg := provider.Cfg
-	serverCfg := cfg.Server
+	cfgServer := provider.CfgServer
 	router := provider.Router
-	handler := middleware.CORS(cfg.CORS)(router)
+	handler := middleware.CORS(provider.CfgCORS)(router)
 	serverCtx, stop := context.WithCancel(context.Background())
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", serverCfg.Port),
+		Addr:    fmt.Sprintf(":%d", cfgServer.Port),
 		Handler: handler,
 		BaseContext: func(_ net.Listener) context.Context {
 			return serverCtx
 		},
-		ReadTimeout:  serverCfg.ReadTimeout.Duration,
-		WriteTimeout: serverCfg.WriteTimeout.Duration,
-		IdleTimeout:  serverCfg.IdleTimeout.Duration,
+		ReadTimeout:  cfgServer.ReadTimeout.Duration,
+		WriteTimeout: cfgServer.WriteTimeout.Duration,
+		IdleTimeout:  cfgServer.IdleTimeout.Duration,
 	}
 
 	api := &App{
 		server:          server,
 		middlewares:     middlewares,
 		stop:            stop,
-		shutdownTimeout: serverCfg.ShutdownTimeout.Duration,
-		cfg:             cfg,
+		shutdownTimeout: cfgServer.ShutdownTimeout.Duration,
+		cfgServer:       cfgServer,
+		cfgCORS:         provider.CfgCORS,
+		cfgCSRF:         provider.CfgCSRF,
 		signer:          provider.Signer,
 		validator:       provider.Validator,
 		router:          router,

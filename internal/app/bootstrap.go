@@ -80,8 +80,8 @@ func Run() error {
 
 	validator := validation.NewGoPlaygroundValidator()
 	txMgr := db.NewSQLTxManager(dbConn)
-	csrfCfg := cfg.CSRF
-	csrfCookieBaker := security.NewCSRFCookieBaker(csrfCfg.CookieName, csrfCfg.TokenLen, csrfCfg.MaxAge.Duration)
+	cfgCSRF := cfg.CSRF
+	csrfCookieBaker := security.NewCSRFCookieBaker(cfgCSRF.CookieName, cfgCSRF.TokenLen, cfgCSRF.MaxAge.Duration)
 
 	userRepo := user.NewRepository(dbConn)
 	userService := user.NewService(userRepo, hasher)
@@ -123,7 +123,9 @@ func Run() error {
 	}
 
 	provider := &Provider{
-		Cfg:       cfg,
+		CfgServer: cfg.Server,
+		CfgCORS:   cfg.CORS,
+		CfgCSRF:   cfg.CSRF,
 		Router:    router.NewGoexpressRouter(),
 		Signer:    signer,
 		Validator: validator,
