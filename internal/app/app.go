@@ -122,6 +122,7 @@ func (a *App) Shutdown() error {
 
 type Provider struct {
 	Cfg       *config.Config
+	Router    router.Router
 	Signer    jwt.Signer
 	Validator validation.Validator
 }
@@ -129,7 +130,7 @@ type Provider struct {
 func New(provider *Provider, middlewares []func(http.Handler) http.Handler, authHandler *auth.Handler, userHandler *user.Handler) (*App, error) {
 	cfg := provider.Cfg
 	serverCfg := cfg.Server
-	router := router.NewGoexpressRouter()
+	router := provider.Router
 	handler := middleware.CORS(cfg.CORS)(router)
 	serverCtx, stop := context.WithCancel(context.Background())
 	server := &http.Server{

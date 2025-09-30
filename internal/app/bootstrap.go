@@ -20,6 +20,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
+	"github.com/ferdiebergado/kubokit/internal/platform/router"
 	"github.com/ferdiebergado/kubokit/internal/platform/validation"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
@@ -123,6 +124,7 @@ func Run() error {
 
 	provider := &Provider{
 		Cfg:       cfg,
+		Router:    router.NewGoexpressRouter(),
 		Signer:    signer,
 		Validator: validator,
 	}
