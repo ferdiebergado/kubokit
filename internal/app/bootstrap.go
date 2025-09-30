@@ -35,6 +35,9 @@ const (
 )
 
 func Run() error {
+	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
+
 	appEnv := env.Env(envEnv, defaultEnv)
 	logLevel := env.Env(envLogLevel, defaultLogLevel)
 	logging.SetupLogger(appEnv, logLevel, os.Stdout)
@@ -52,9 +55,6 @@ func Run() error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-
-	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	defer stop()
 
 	dbConn, err := db.NewPostgresDB(signalCtx, cfg.DB)
 	if err != nil {
