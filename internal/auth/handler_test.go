@@ -665,3 +665,192 @@ func TestHandler_RefreshToken(t *testing.T) {
 		})
 	}
 }
+
+func TestHandler_LogoutUser(t *testing.T) {
+	type testCase struct {
+		name        string
+		withCookies bool
+		logoutFunc  func(string) error
+		code        int
+		message     string
+	}
+
+	testCases := []testCase{
+		{
+			name:        "should return 204 and delete cookies when token is valid",
+			withCookies: true,
+			logoutFunc:  func(s string) error { return nil },
+			code:        http.StatusNoContent,
+		},
+		{
+			name:       "should return 401 when token is invalid",
+			logoutFunc: func(s string) error { return auth.ErrInvalidToken },
+			code:       http.StatusUnauthorized,
+			message:    message.InvalidUser,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &auth.StubService{
+				LogoutUserFunc: tc.logoutFunc,
+			}
+			provider := &auth.HandlerProvider{
+				CfgJWT: &config.JWT{},
+				CfgCookie: &config.Cookie{
+					Name: "refresh_token",
+				},
+				CfgCSRF: &config.CSRF{
+					CookieName: "csrf_token",
+				},
+				Signer: &jwt.StubSigner{},
+				CSRFCookieBaker: &security.StubCSRFCookieBaker{
+					BakeFunc: func() (*http.Cookie, error) {
+						return &http.Cookie{
+							Name:   "csrf_token",
+							Value:  "123",
+							Path:   "/",
+							MaxAge: 18000,
+						}, nil
+					},
+				},
+			}
+
+			authHandler, err := auth.NewHandler(svc, provider)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			logoutRequest := auth.LogoutRequest{
+				AccessToken: "123",
+			}
+
+			ctx := web.NewContextWithParams(context.Background(), logoutRequest)
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/logout", http.NoBody)
+
+			if tc.withCookies {
+				refreshCookie := &http.Cookie{
+					Name:     "refresh_token",
+					Value:    "123",
+					Path:     "/",
+					MaxAge:   36000,
+					HttpOnly: true,
+					SameSite: http.SameSiteNoneMode,
+				}
+				req.AddCookie(refreshCookie)
+
+				csrfCookie := &http.Cookie{
+					Name:     "csrf_token",
+					Value:    "abc",
+					Path:     "/",
+					MaxAge:   36000,
+					SameSite: http.SameSiteNoneMode,
+				}
+				req.AddCookie(csrfCookie)
+			}
+
+			rec := httptest.NewRecorder()
+			authHandler.LogoutUser(rec, req)
+
+			wantCode, gotCode := tc.code, rec.Code
+			if gotCode != wantCode {
+				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
+			}
+
+			result := rec.Result()
+
+			defer result.Body.Close()
+
+			var body map[string]string
+			err = json.Unmarshal(rec.Body.Bytes(), &body)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			wantMsg, gotMsg := tc.message, body["message"]
+			if gotMsg != wantMsg {
+				t.Errorf("rec.Body.String() = %q, want: %q", gotMsg, wantMsg)
+			}
+
+			cookies := result.Cookies()
+			findCookie := func(cookies []*http.Cookie, name string) *http.Cookie {
+				for _, cookie := range cookies {
+					if cookie.Name == name {
+						return cookie
+					}
+				}
+
+				return nil
+			}
+
+			if tc.withCookies {
+				if len(cookies) != 2 {
+					t.Fatal("there should be 2 cookies in the response")
+				}
+
+				wantCRSFCookie := &http.Cookie{
+					Name:     "csrf_token",
+					Value:    "",
+					Path:     "/",
+					MaxAge:   -1,
+					SameSite: http.SameSiteNoneMode,
+				}
+				gotCSRFCookie := findCookie(cookies, "csrf_token")
+
+				if gotCSRFCookie.Name != wantCRSFCookie.Name {
+					t.Errorf("gotCSRFCookie.Name = %q, want: %q", gotCSRFCookie.Name, wantCRSFCookie.Name)
+				}
+
+				if gotCSRFCookie.Value != wantCRSFCookie.Value {
+					t.Errorf("gotCSRFCookie.Value = %q, want: %q", gotCSRFCookie.Value, wantCRSFCookie.Value)
+				}
+
+				if gotCSRFCookie.Path != wantCRSFCookie.Path {
+					t.Errorf("gotCSRFCookie.Path = %q, want: %q", gotCSRFCookie.Path, wantCRSFCookie.Path)
+				}
+
+				if gotCSRFCookie.MaxAge != wantCRSFCookie.MaxAge {
+					t.Errorf("gotCSRFCookie.MaxAge = %d, want: %d", gotCSRFCookie.MaxAge, wantCRSFCookie.MaxAge)
+				}
+
+				if int(gotCSRFCookie.SameSite) != int(wantCRSFCookie.SameSite) {
+					t.Errorf("gotCSRFCookie.SameSite = %d, want: %d", gotCSRFCookie.SameSite, wantCRSFCookie.SameSite)
+				}
+
+				wantRefreshCookie := &http.Cookie{
+					Name:     "refresh_token",
+					Value:    "",
+					Path:     "/",
+					MaxAge:   -1,
+					SameSite: http.SameSiteNoneMode,
+					HttpOnly: true,
+				}
+				gotRefreshCookie := findCookie(cookies, "refresh_token")
+
+				if gotRefreshCookie.Name != wantRefreshCookie.Name {
+					t.Errorf("gotRefreshCookie.Name = %q, want: %q", gotRefreshCookie.Name, wantRefreshCookie.Name)
+				}
+
+				if gotRefreshCookie.Value != wantRefreshCookie.Value {
+					t.Errorf("gotRefreshCookie.Value = %q, want: %q", gotRefreshCookie.Value, wantRefreshCookie.Value)
+				}
+
+				if gotRefreshCookie.Path != wantRefreshCookie.Path {
+					t.Errorf("gotRefreshCookie.Path = %q, want: %q", gotRefreshCookie.Path, wantRefreshCookie.Path)
+				}
+
+				if gotRefreshCookie.MaxAge != wantRefreshCookie.MaxAge {
+					t.Errorf("gotRefreshCookie.MaxAge = %d, want: %d", gotRefreshCookie.MaxAge, wantRefreshCookie.MaxAge)
+				}
+
+				if int(gotRefreshCookie.SameSite) != int(wantRefreshCookie.SameSite) {
+					t.Errorf("gotRefreshCookie.SameSite = %d, want: %d", gotRefreshCookie.SameSite, wantRefreshCookie.SameSite)
+				}
+
+				if gotRefreshCookie.HttpOnly != wantRefreshCookie.HttpOnly {
+					t.Errorf("gotRefreshCookie.HttpOnly = %t, want: %t", gotRefreshCookie.HttpOnly, wantRefreshCookie.HttpOnly)
+				}
+			}
+		})
+	}
+}

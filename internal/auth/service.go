@@ -284,6 +284,21 @@ func (s *Service) RefreshToken(token string) (*AuthData, error) {
 	return s.generateToken(userID, u.Email)
 }
 
+func (s *Service) LogoutUser(token string) error {
+	claims, err := s.signer.Verify(token)
+	if err != nil {
+		return fmt.Errorf("verify access token: %w", err)
+	}
+
+	userID := claims.UserID
+	_, err = s.userSvc.FindUser(context.Background(), userID)
+	if err != nil {
+		return fmt.Errorf("find user by id: %w", err)
+	}
+
+	return nil
+}
+
 type ServiceProvider struct {
 	CfgApp   *config.App
 	CfgJWT   *config.JWT

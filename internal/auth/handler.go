@@ -38,6 +38,7 @@ type AuthService interface {
 	SendPasswordReset(email string)
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
 	RefreshToken(token string) (*AuthData, error)
+	LogoutUser(token string) error
 }
 
 type Handler struct {
@@ -45,6 +46,7 @@ type Handler struct {
 	signer          jwt.Signer
 	cfgJWT          *config.JWT
 	cfgCookie       *config.Cookie
+	cfgCSRF         *config.CSRF
 	csrfCookieBaker web.Baker
 }
 
@@ -176,25 +178,16 @@ type UserLoginResponse struct {
 	User         *UserData `json:"user,omitempty"`
 }
 
-func (h *Handler) setRefreshCookie(w http.ResponseWriter, token string, maxAge time.Duration) {
-	http.SetCookie(w, &http.Cookie{
+func (h *Handler) refreshCookie(token string, maxAge int) *http.Cookie {
+	return &http.Cookie{
 		Name:     h.cfgCookie.Name,
 		Value:    token,
 		Path:     "/",
-		MaxAge:   int(maxAge.Seconds()),
+		MaxAge:   maxAge,
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
-	})
-}
-
-func (h *Handler) setCSRFCookie(w http.ResponseWriter) {
-	csrfCookie, err := h.csrfCookieBaker.Bake()
-	if err != nil {
-		web.RespondBadRequest(w, err, message.InvalidUser, nil)
-		return
 	}
-	http.SetCookie(w, csrfCookie)
 }
 
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
@@ -225,8 +218,16 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.setRefreshCookie(w, data.RefreshToken, h.cfgJWT.RefreshTTL.Duration)
-	h.setCSRFCookie(w)
+	refreshCookie := h.refreshCookie(data.RefreshToken, int(h.cfgJWT.RefreshTTL.Duration.Seconds()))
+	http.SetCookie(w, refreshCookie)
+
+	csrfCookie, err := h.csrfCookieBaker.Bake()
+	if err != nil {
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		return
+	}
+
+	http.SetCookie(w, csrfCookie)
 
 	msg := MsgLoggedIn
 	res := &UserLoginResponse{
@@ -259,8 +260,15 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.setRefreshCookie(w, data.RefreshToken, h.cfgJWT.RefreshTTL.Duration)
-	h.setCSRFCookie(w)
+	refreshCookie := h.refreshCookie(data.RefreshToken, int(h.cfgJWT.RefreshTTL.Duration.Seconds()))
+	http.SetCookie(w, refreshCookie)
+
+	csrfCookie, err := h.csrfCookieBaker.Bake()
+	if err != nil {
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		return
+	}
+	http.SetCookie(w, csrfCookie)
 
 	msg := MsgRefreshed
 	res := &UserLoginResponse{
@@ -339,9 +347,41 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	web.RespondOK(w, &msg, struct{}{})
 }
 
+type LogoutRequest struct {
+	AccessToken string `json:"access_token,omitempty"`
+}
+
+func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
+	params, err := web.ParamsFromContext[LogoutRequest](r.Context())
+	if err != nil {
+		web.RespondBadRequest(w, err, message.InvalidInput, nil)
+		return
+	}
+
+	if err = h.svc.LogoutUser(params.AccessToken); err != nil {
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		return
+	}
+
+	refreshCookie := h.refreshCookie("", -1)
+	http.SetCookie(w, refreshCookie)
+
+	csrfCookie := &http.Cookie{
+		Name:     h.cfgCSRF.CookieName,
+		Path:     "/",
+		MaxAge:   -1,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	}
+	http.SetCookie(w, csrfCookie)
+
+	web.RespondNoContent[any](w, nil, nil)
+}
+
 type HandlerProvider struct {
 	CfgJWT          *config.JWT
 	CfgCookie       *config.Cookie
+	CfgCSRF         *config.CSRF
 	Signer          jwt.Signer
 	CSRFCookieBaker web.Baker
 }
@@ -357,10 +397,16 @@ func NewHandler(svc AuthService, provider *HandlerProvider) (*Handler, error) {
 		return nil, errors.New("cookie config should not be nil")
 	}
 
+	cfgCSRF := provider.CfgCSRF
+	if cfgCSRF == nil {
+		return nil, errors.New("csrf config should not be nil")
+	}
+
 	handler := &Handler{
 		svc:             svc,
 		cfgJWT:          cfgJWT,
 		cfgCookie:       cfgCookie,
+		cfgCSRF:         cfgCSRF,
 		signer:          provider.Signer,
 		csrfCookieBaker: provider.CSRFCookieBaker,
 	}

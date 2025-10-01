@@ -17,6 +17,7 @@ type StubService struct {
 	ResetPasswordFunc           func(ctx context.Context, params ResetPasswordParams) error
 	RefreshTokenFunc            func(token string) (*AuthData, error)
 	ResendVerificationEmailFunc func(ctx context.Context, email string) error
+	LogoutUserFunc              func(token string) error
 }
 
 // ResendVerificationEmail implements AuthService.
@@ -67,6 +68,13 @@ func (s *StubService) RefreshToken(token string) (*AuthData, error) {
 		return nil, errors.New("RefreshToken not implemented by stub")
 	}
 	return s.RefreshTokenFunc(token)
+}
+
+func (s *StubService) LogoutUser(token string) error {
+	if s.LogoutUserFunc == nil {
+		return errors.New("LogoutUser not implemented by stub")
+	}
+	return s.LogoutUserFunc(token)
 }
 
 type StubRepo struct {
