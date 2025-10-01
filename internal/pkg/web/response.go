@@ -36,6 +36,11 @@ func RespondCreated[T any](w http.ResponseWriter, clientMsg *string, data T) {
 	RespondJSON(w, http.StatusCreated, clientMsg, &data)
 }
 
+// RespondNoContent sends a 204 No Content JSON response.
+func RespondNoContent[T any](w http.ResponseWriter, clientMsg *string, data T) {
+	RespondJSON(w, http.StatusNoContent, clientMsg, &data)
+}
+
 // ErrorResponse represents the structure of a JSON-encoded error response.
 type ErrorResponse struct {
 	Message string            `json:"message"`
@@ -63,24 +68,14 @@ func RespondUnauthorized(w http.ResponseWriter, err error, clientMsg string, det
 	RespondError(w, http.StatusUnauthorized, err, clientMsg, details)
 }
 
-// RespondInternalServerError sends a 500 Internal Server error.
-func RespondInternalServerError(w http.ResponseWriter, err error) {
-	RespondError(w, http.StatusInternalServerError, err, "an unexpected error occurred", nil)
+// RespondForbidden sends a 403 Forbidden error.
+func RespondForbidden(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusForbidden, err, clientMsg, details)
 }
 
-// RespondUnprocessableEntity sends a 422 Unprocessable Entity error.
-func RespondUnprocessableEntity(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
-	RespondError(w, http.StatusUnprocessableEntity, err, clientMsg, details)
-}
-
-// RespondUnsupportedMediaType sends a 415 Unsupported Media Type error.
-func RespondUnsupportedMediaType(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
-	RespondError(w, http.StatusUnsupportedMediaType, err, clientMsg, details)
-}
-
-// RespondRequestEntityTooLarge sends a 413 Request Entity Too Large error.
-func RespondRequestEntityTooLarge(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
-	RespondError(w, http.StatusRequestEntityTooLarge, err, clientMsg, details)
+// RespondNotFound sends a 404 Not Found error.
+func RespondNotFound(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusNotFound, err, clientMsg, details)
 }
 
 // RespondRequestTimeout sends a 408 Request Timeout error.
@@ -93,12 +88,22 @@ func RespondConflict(w http.ResponseWriter, err error, clientMsg string, details
 	RespondError(w, http.StatusConflict, err, clientMsg, details)
 }
 
-// RespondForbidden sends a 403 Forbidden error.
-func RespondForbidden(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
-	RespondError(w, http.StatusForbidden, err, clientMsg, details)
+// RespondRequestEntityTooLarge sends a 413 Request Entity Too Large error.
+func RespondRequestEntityTooLarge(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusRequestEntityTooLarge, err, clientMsg, details)
 }
 
-// RespondNotFound sends a 404 Not Found error.
-func RespondNotFound(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
-	RespondError(w, http.StatusNotFound, err, clientMsg, details)
+// RespondUnsupportedMediaType sends a 415 Unsupported Media Type error.
+func RespondUnsupportedMediaType(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusUnsupportedMediaType, err, clientMsg, details)
+}
+
+// RespondUnprocessableEntity sends a 422 Unprocessable Entity error.
+func RespondUnprocessableEntity(w http.ResponseWriter, err error, clientMsg string, details map[string]string) {
+	RespondError(w, http.StatusUnprocessableEntity, err, clientMsg, details)
+}
+
+// RespondInternalServerError sends a 500 Internal Server error.
+func RespondInternalServerError(w http.ResponseWriter, err error) {
+	RespondError(w, http.StatusInternalServerError, err, "an unexpected error occurred", nil)
 }
