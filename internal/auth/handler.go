@@ -36,7 +36,7 @@ type AuthService interface {
 	ResendVerificationEmail(ctx context.Context, email string) error
 	LoginUser(ctx context.Context, params LoginUserParams) (*AuthData, error)
 	SendPasswordReset(email string)
-	ResetPassword(ctx context.Context, params ResetPasswordParams) error
+	ChangePassword(ctx context.Context, params ChangePasswordParams) error
 	RefreshToken(token string) (*AuthData, error)
 	LogoutUser(token string) error
 }
@@ -304,13 +304,13 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	web.RespondOK(w, &msg, struct{}{})
 }
 
-type ResetPasswordRequest struct {
+type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password,omitempty" validate:"required"`
 	NewPassword     string `json:"new_password,omitempty" validate:"required"`
 	RepeatPassword  string `json:"repeat_password,omitempty" validate:"required,eqfield=NewPassword"`
 }
 
-func (r *ResetPasswordRequest) LogValue() slog.Value {
+func (r *ChangePasswordRequest) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("email", maskChar),
 		slog.String("current_password", maskChar),
@@ -319,26 +319,26 @@ func (r *ResetPasswordRequest) LogValue() slog.Value {
 	)
 }
 
-func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	email, err := user.FromContext(r.Context())
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	req, err := web.ParamsFromContext[ResetPasswordRequest](r.Context())
+	req, err := web.ParamsFromContext[ChangePasswordRequest](r.Context())
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	params := ResetPasswordParams{
+	params := ChangePasswordParams{
 		email:           email,
 		currentPassword: req.CurrentPassword,
 		newPassword:     req.NewPassword,
 	}
 
-	if err := h.svc.ResetPassword(r.Context(), params); err != nil {
+	if err := h.svc.ChangePassword(r.Context(), params); err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}

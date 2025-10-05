@@ -223,11 +223,11 @@ func (s *Service) SendPasswordReset(email string) {
 	go s.sendEmail(resetEmail)
 }
 
-type ResetPasswordParams struct {
+type ChangePasswordParams struct {
 	email, currentPassword, newPassword string
 }
 
-func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
+func (s *Service) ChangePassword(ctx context.Context, params ChangePasswordParams) error {
 	u, err := s.userSvc.FindUserByEmail(ctx, params.email)
 	if err != nil {
 		return fmt.Errorf(MsgFmtFindUserByEmail, err)

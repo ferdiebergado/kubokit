@@ -73,10 +73,10 @@ func (a *App) setupRoutes() {
 			middleware.DecodePayload[auth.ForgotPasswordRequest](maxBodySize),
 			middleware.ValidateInput[auth.ForgotPasswordRequest](a.validator))
 
-		gr.Post("/reset", a.authHandler.ResetPassword,
-			auth.VerifyToken(a.signer),
-			middleware.DecodePayload[auth.ResetPasswordRequest](maxBodySize),
-			middleware.ValidateInput[auth.ResetPasswordRequest](a.validator))
+		gr.Post("/change-password", a.authHandler.ChangePassword,
+			requireToken,
+			middleware.DecodePayload[auth.ChangePasswordRequest](maxBodySize),
+			middleware.ValidateInput[auth.ChangePasswordRequest](a.validator))
 	})
 
 	// users routes

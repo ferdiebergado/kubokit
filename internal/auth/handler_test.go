@@ -86,8 +86,11 @@ func TestHandler_RegisterUser(t *testing.T) {
 					TTL:        timex.Duration{Duration: defaultDuration},
 					RefreshTTL: timex.Duration{Duration: defaultDuration},
 				},
-				App: &config.App{
-					ClientURL: "http://127.0.0.1:5173",
+				CSRF: &config.CSRF{
+					CookieName: "csrf_token",
+					TokenLen:   4,
+					MaxAge:     timex.Duration{Duration: defaultDuration},
+					HeaderName: "X-CSRF-Token",
 				},
 				Cookie: &config.Cookie{
 					Name: "refresh_token",
@@ -105,6 +108,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 			provider := &auth.HandlerProvider{
 				CfgJWT:          cfg.JWT,
 				CfgCookie:       cfg.Cookie,
+				CfgCSRF:         cfg.CSRF,
 				Signer:          signer,
 				CSRFCookieBaker: csrfBaker,
 			}
@@ -514,9 +518,17 @@ func TestHandler_VerifyUser(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
+			cfgCSRF := &config.CSRF{
+				CookieName: "csrf_token",
+				TokenLen:   4,
+				MaxAge:     timex.Duration{Duration: defaultDuration},
+				HeaderName: "X-CSRF-Token",
+			}
+
 			provider := &auth.HandlerProvider{
 				CfgJWT:          tc.cfgJWT,
 				CfgCookie:       tc.cfgCookie,
+				CfgCSRF:         cfgCSRF,
 				Signer:          tc.signer,
 				CSRFCookieBaker: tc.csfrBaker,
 			}
@@ -542,7 +554,7 @@ func TestHandler_VerifyUser(t *testing.T) {
 	}
 }
 
-func TestHandler_ResetPassword(t *testing.T) {
+func TestHandler_ChangePassword(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -556,10 +568,10 @@ func TestHandler_ResetPassword(t *testing.T) {
 		service   auth.AuthService
 		code      int
 		ctx       context.Context
-		params    auth.ResetPasswordRequest
+		params    auth.ChangePasswordRequest
 	}{
 		{
-			name:   "Password was reset successfully",
+			name:   "Password was changed successfully",
 			userID: "123",
 			cfgJWT: &config.JWT{
 				JTILength:  8,
@@ -583,13 +595,13 @@ func TestHandler_ResetPassword(t *testing.T) {
 			},
 			csrfBaker: &security.StubCSRFCookieBaker{},
 			service: &auth.StubService{
-				ResetPasswordFunc: func(ctx context.Context, params auth.ResetPasswordParams) error {
+				ChangePasswordFunc: func(ctx context.Context, params auth.ChangePasswordParams) error {
 					return nil
 				},
 			},
 			code: http.StatusOK,
 			ctx:  user.NewContextWithUser(context.Background(), "123"),
-			params: auth.ResetPasswordRequest{
+			params: auth.ChangePasswordRequest{
 				CurrentPassword: "oldtest",
 				NewPassword:     "test",
 				RepeatPassword:  "test",
@@ -600,9 +612,17 @@ func TestHandler_ResetPassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
+			cfgCSRF := &config.CSRF{
+				CookieName: "csrf_token",
+				TokenLen:   4,
+				MaxAge:     timex.Duration{Duration: defaultDuration},
+				HeaderName: "X-CSRF-Token",
+			}
+
 			provider := &auth.HandlerProvider{
 				CfgJWT:          tc.cfgJWT,
 				CfgCookie:       tc.cfgCookie,
+				CfgCSRF:         cfgCSRF,
 				Signer:          tc.signer,
 				CSRFCookieBaker: tc.csrfBaker,
 			}
@@ -611,9 +631,9 @@ func TestHandler_ResetPassword(t *testing.T) {
 				t.Fatal(err)
 			}
 			ctx := web.NewContextWithParams(tc.ctx, tc.params)
-			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/reset", http.NoBody)
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/change-password", http.NoBody)
 			rec := httptest.NewRecorder()
-			authHandler.ResetPassword(rec, req)
+			authHandler.ChangePassword(rec, req)
 
 			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
@@ -635,6 +655,12 @@ func TestHandler_RefreshToken(t *testing.T) {
 		},
 		App: &config.App{
 			ClientURL: "http://127.0.0.1:5173",
+		},
+		CSRF: &config.CSRF{
+			CookieName: "csrf_token",
+			TokenLen:   4,
+			MaxAge:     timex.Duration{Duration: defaultDuration},
+			HeaderName: "X-CSRF-Token",
 		},
 		Cookie: &config.Cookie{
 			Name: "refresh_token",
@@ -741,6 +767,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			provider := &auth.HandlerProvider{
 				CfgJWT:          cfg.JWT,
 				CfgCookie:       cfg.Cookie,
+				CfgCSRF:         cfg.CSRF,
 				Signer:          tc.signer,
 				CSRFCookieBaker: csrfBaker,
 			}
