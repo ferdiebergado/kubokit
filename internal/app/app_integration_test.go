@@ -19,6 +19,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
+	"github.com/ferdiebergado/kubokit/internal/platform/router"
 	"github.com/ferdiebergado/kubokit/internal/platform/validation"
 	"github.com/ferdiebergado/kubokit/internal/user"
 
@@ -81,6 +82,7 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 	authHandlerProvider := &auth.HandlerProvider{
 		CfgJWT:          cfg.JWT,
 		CfgCookie:       cfg.Cookie,
+		CfgCSRF:         cfg.CSRF,
 		Signer:          signer,
 		CSRFCookieBaker: csrfBaker,
 	}
@@ -96,6 +98,7 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 		CfgCSRF:   cfg.CSRF,
 		Signer:    signer,
 		Validator: validator,
+		Router:    router.NewGoexpressRouter(),
 	}
 	api, err = app.New(provider, middlewares, authHandler, userHandler)
 	if err != nil {
