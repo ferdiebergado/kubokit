@@ -261,3 +261,45 @@ func TestVerifyUser(t *testing.T) {
 		})
 	}
 }
+
+func TestService_ResetPassword(t *testing.T) {
+	repo := &auth.StubRepo{
+		ChangeUserPasswordFunc: func(ctx context.Context, email, newPassword string) error {
+			return nil
+		},
+	}
+
+	hasher := &hash.StubHasher{
+		HashFunc: func(plain string) (string, error) {
+			return "hashed", nil
+		},
+	}
+
+	svcUsr := &user.StubService{
+		FindUserByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+			return &user.User{}, nil
+		},
+	}
+	provider := &auth.ServiceProvider{
+		CfgApp:   &config.App{},
+		CfgJWT:   &config.JWT{},
+		CfgEmail: &config.Email{},
+		Hasher:   hasher,
+		Mailer:   nil,
+		Signer:   nil,
+		Txmgr:    nil,
+		UsrSvc:   svcUsr,
+	}
+	svc, err := auth.NewService(repo, provider)
+	if err != nil {
+		t.Fatalf("Failed to create auth service: %v", err)
+	}
+
+	params := auth.ResetPasswordParams{
+		Email:    "abc@example.com",
+		Password: "abc@123",
+	}
+	if err := svc.ResetPassword(context.Background(), params); err != nil {
+		t.Errorf("svc.ResetPassword(context.Background(),params) = %v, want: nil", err)
+	}
+}

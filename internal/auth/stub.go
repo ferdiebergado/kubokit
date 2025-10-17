@@ -15,6 +15,7 @@ type StubService struct {
 	LoginUserFunc               func(ctx context.Context, params LoginUserParams) (*AuthData, error)
 	SendPasswordResetFunc       func(email string)
 	ChangePasswordFunc          func(ctx context.Context, params ChangePasswordParams) error
+	ResetPasswordFunc           func(ctx context.Context, params ResetPasswordParams) error
 	RefreshTokenFunc            func(token string) (*AuthData, error)
 	ResendVerificationEmailFunc func(ctx context.Context, email string) error
 	LogoutUserFunc              func(token string) error
@@ -61,6 +62,13 @@ func (s *StubService) ChangePassword(ctx context.Context, params ChangePasswordP
 		return errors.New("ChangePassword not implemented by stub")
 	}
 	return s.ChangePasswordFunc(ctx, params)
+}
+
+func (s *StubService) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
+	if s.ResetPasswordFunc == nil {
+		return errors.New("ResetPassword not implemented by stub")
+	}
+	return s.ResetPasswordFunc(ctx, params)
 }
 
 func (s *StubService) RefreshToken(token string) (*AuthData, error) {
