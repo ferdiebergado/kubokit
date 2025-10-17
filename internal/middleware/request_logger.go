@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -13,6 +14,11 @@ import (
 
 func LogRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("ENV") != "development" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		start := time.Now()
 		next.ServeHTTP(w, r)
 

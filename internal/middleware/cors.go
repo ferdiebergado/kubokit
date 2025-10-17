@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
@@ -17,6 +18,11 @@ const (
 func CORS(cfg *config.CORS) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if os.Getenv("ENV") != "development" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			const sep = ","
 
 			headers := map[string]string{
