@@ -6,7 +6,10 @@ import (
 	"errors"
 )
 
-var ErrQueryFailed = errors.New("query failed")
+var (
+	ErrQueryFailed               = errors.New("query failed")
+	ErrUniqueConstraintViolation = errors.New("unique constraint violation")
+)
 
 type Executor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
@@ -21,5 +24,3 @@ type TxManager interface {
 	// based on the function's return value.
 	RunInTx(ctx context.Context, fn func(ctx context.Context) error) error
 }
-
-var ErrUniqueConstraintViolation = errors.New("unique constraint violation")
