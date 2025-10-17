@@ -37,6 +37,7 @@ type AuthService interface {
 	LoginUser(ctx context.Context, params LoginUserParams) (*AuthData, error)
 	SendPasswordReset(email string)
 	ChangePassword(ctx context.Context, params ChangePasswordParams) error
+	ResetPassword(ctx context.Context, params ResetPasswordParams) error
 	RefreshToken(token string) (*AuthData, error)
 	LogoutUser(token string) error
 }

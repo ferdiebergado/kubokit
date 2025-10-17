@@ -299,6 +299,28 @@ func (s *Service) LogoutUser(token string) error {
 	return nil
 }
 
+type ResetPasswordParams struct {
+	Email, Password string
+}
+
+func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
+	_, err := s.userSvc.FindUserByEmail(ctx, params.Email)
+	if err != nil {
+		return fmt.Errorf(MsgFmtFindUser, err)
+	}
+
+	hashed, err := s.hasher.Hash(params.Password)
+	if err != nil {
+		return fmt.Errorf("hash new password: %w", err)
+	}
+
+	if err := s.repo.ChangeUserPassword(ctx, params.Email, hashed); err != nil {
+		return fmt.Errorf("change password: %w", err)
+	}
+
+	return nil
+}
+
 type ServiceProvider struct {
 	CfgApp   *config.App
 	CfgJWT   *config.JWT
