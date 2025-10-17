@@ -9,13 +9,11 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-var _ AuthRepository = &Repository{}
-
-type Repository struct {
+type repo struct {
 	db db.Executor
 }
 
-func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
+func (r *repo) Verify(ctx context.Context, userID string) error {
 	const query = "UPDATE users SET verified_at = NOW() WHERE id = $1 AND verified_at IS NULL"
 
 	executor := r.db
@@ -40,7 +38,7 @@ func (r *Repository) VerifyUser(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (r *Repository) ChangeUserPassword(ctx context.Context, email, passwordHash string) error {
+func (r *repo) ChangePassword(ctx context.Context, email, passwordHash string) error {
 	const query = "UPDATE users SET password_hash = $1 WHERE email = $2"
 
 	executor := r.db
@@ -65,6 +63,8 @@ func (r *Repository) ChangeUserPassword(ctx context.Context, email, passwordHash
 	return nil
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db}
+func NewRepository(db *sql.DB) *repo {
+	return &repo{db}
 }
+
+var _ Repository = &repo{}

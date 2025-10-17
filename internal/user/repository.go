@@ -9,11 +9,9 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 )
 
-var _ UserRepository = &Repository{}
-
 var ErrNotFound = errors.New("user not found")
 
-type Repository struct {
+type repo struct {
 	db db.Executor
 }
 
@@ -21,7 +19,7 @@ type CreateUserParams struct {
 	Email, Password string
 }
 
-func (r *Repository) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
+func (r *repo) Create(ctx context.Context, params CreateUserParams) (User, error) {
 	const query = `
 	INSERT INTO users (email, password_hash)
 	VALUES ($1, $2)
@@ -42,7 +40,7 @@ func (r *Repository) CreateUser(ctx context.Context, params CreateUserParams) (U
 	return u, nil
 }
 
-func (r *Repository) FindUserByEmail(ctx context.Context, email string) (*User, error) {
+func (r *repo) FindByEmail(ctx context.Context, email string) (*User, error) {
 	const query = `
 	SELECT id, email, password_hash, created_at, updated_at, verified_at
 	FROM users
@@ -63,7 +61,7 @@ func (r *Repository) FindUserByEmail(ctx context.Context, email string) (*User, 
 	return &u, nil
 }
 
-func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
+func (r *repo) List(ctx context.Context) ([]User, error) {
 	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users"
 
 	executor := r.db
@@ -97,7 +95,7 @@ func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-func (r *Repository) FindUser(ctx context.Context, userID string) (*User, error) {
+func (r *repo) Find(ctx context.Context, userID string) (*User, error) {
 	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users WHERE id = $1"
 
 	executor := r.db
@@ -112,7 +110,7 @@ func (r *Repository) FindUser(ctx context.Context, userID string) (*User, error)
 	return &u, nil
 }
 
-func (r *Repository) DeleteUser(ctx context.Context, userID string) error {
+func (r *repo) DeleteUser(ctx context.Context, userID string) error {
 	const query = "DELETE FROM users WHERE id = $1"
 
 	executor := r.db
@@ -136,13 +134,13 @@ func (r *Repository) DeleteUser(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (r *Repository) UpdateUser(ctx context.Context, updates *User, userID string) error {
+func (r *repo) UpdateUser(ctx context.Context, updates *User, userID string) error {
 	// TODO: update metadata
 	const query = `
 	UPDATE users
 	SET
-		password_hash = COALESCE(NULLIF($1, ''), password_hash),
-		verified_at = COALESCE($2, verified_at)
+	password_hash = COALESCE(NULLIF($1, ''), password_hash),
+	verified_at = COALESCE($2, verified_at)
 	WHERE id = $3`
 
 	executor := r.db
@@ -166,6 +164,8 @@ func (r *Repository) UpdateUser(ctx context.Context, updates *User, userID strin
 	return nil
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db}
+func NewRepository(db *sql.DB) *repo {
+	return &repo{db}
 }
+
+var _ Repository = &repo{}

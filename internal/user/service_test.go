@@ -2,7 +2,6 @@ package user_test
 
 import (
 	"context"
-	"reflect"
 	"testing"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-func TestService_ListUsers(t *testing.T) {
+func TestService_List(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -29,7 +28,7 @@ func TestService_ListUsers(t *testing.T) {
 		},
 	}
 	repo := &user.StubRepo{
-		ListUsersFunc: func(_ context.Context) ([]user.User, error) {
+		ListFunc: func(_ context.Context) ([]user.User, error) {
 			return users, nil
 		},
 	}
@@ -39,7 +38,7 @@ func TestService_ListUsers(t *testing.T) {
 		},
 	}
 	service := user.NewService(repo, hasher)
-	allUsers, err := service.ListUsers(ctx)
+	allUsers, err := service.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,56 +46,5 @@ func TestService_ListUsers(t *testing.T) {
 	wantLen, gotLen := len(users), len(allUsers)
 	if gotLen != wantLen {
 		t.Errorf("len(allUsers) = %d, want: %d", wantLen, gotLen)
-	}
-}
-
-func TestService_CreateUser(t *testing.T) {
-	const (
-		testID    = "1"
-		testEmail = "test@example.com"
-		testPass  = "hashed"
-	)
-
-	now := time.Now().Truncate(0)
-	repo := &user.StubRepo{
-		CreateUserFunc: func(_ context.Context, params user.CreateUserParams) (user.User, error) {
-			return user.User{
-				Model: model.Model{
-					ID:        testID,
-					CreatedAt: now,
-					UpdatedAt: now,
-				},
-				Email:        params.Email,
-				PasswordHash: params.Password,
-			}, nil
-		},
-	}
-	hasher := &hash.StubHasher{
-		HashFunc: func(_ string) (string, error) {
-			return "hashed", nil
-		},
-	}
-	svc := user.NewService(repo, hasher)
-	params := user.CreateUserParams{
-		Email:    testEmail,
-		Password: testPass,
-	}
-	ctx := context.Background()
-	gotUser, err := svc.CreateUser(ctx, params)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	wantUser := user.User{
-		Model: model.Model{
-			ID:        testID,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		Email:        testEmail,
-		PasswordHash: testPass,
-	}
-	if !reflect.DeepEqual(gotUser, wantUser) {
-		t.Errorf("svc.CreateUser(ctx, params) = %+v, want: %+v", gotUser, wantUser)
 	}
 }

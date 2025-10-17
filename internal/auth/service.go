@@ -17,22 +17,20 @@ import (
 
 const verificationPath = "/account/verify"
 
-var _ AuthService = &Service{}
-
 var (
-	ErrUserNotVerified   = errors.New("email not verified")
-	ErrUserExists        = errors.New("user already exists")
+	ErrNotVerified       = errors.New("email not verified")
+	ErrExists            = errors.New("user already exists")
 	ErrIncorrectPassword = errors.New("incorrect password")
 )
 
-type AuthRepository interface {
-	VerifyUser(ctx context.Context, userID string) error
-	ChangeUserPassword(ctx context.Context, email, newPassword string) error
+type Repository interface {
+	Verify(ctx context.Context, userID string) error
+	ChangePassword(ctx context.Context, email, newPassword string) error
 }
 
-type Service struct {
-	repo      AuthRepository
-	userSvc   user.UserService
+type service struct {
+	repo      Repository
+	userRepo  user.Repository
 	hasher    hash.Hasher
 	signer    jwt.Signer
 	mailer    email.Mailer
@@ -55,19 +53,24 @@ type HTMLEmail struct {
 	Address, Subject, Title, Template, Link string
 }
 
-func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error) {
+func (s *service) Register(ctx context.Context, params RegisterUserParams) (user.User, error) {
 	u := user.User{}
 	email := params.Email
-	existing, err := s.userSvc.FindUserByEmail(ctx, email)
+	existing, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil && !errors.Is(err, user.ErrNotFound) {
 		return u, fmt.Errorf(MsgFmtFindUserByEmail, err)
 	}
 
 	if existing != nil {
-		return u, ErrUserExists
+		return u, ErrExists
 	}
 
-	newUser, err := s.userSvc.CreateUser(ctx, user.CreateUserParams{Email: email, Password: params.Password})
+	hash, err := s.hasher.Hash(params.Password)
+	if err != nil {
+		return u, fmt.Errorf("hash password: %w", err)
+	}
+
+	newUser, err := s.userRepo.Create(ctx, user.CreateUserParams{Email: email, Password: hash})
 	if err != nil {
 		return u, fmt.Errorf("create user: %w", err)
 	}
@@ -79,7 +82,7 @@ func (s *Service) RegisterUser(ctx context.Context, params RegisterUserParams) (
 	return newUser, nil
 }
 
-func (s *Service) sendVerificationEmail(email, userID string) error {
+func (s *service) sendVerificationEmail(email, userID string) error {
 	audience := s.clientURL + verificationPath
 
 	// TODO: add purpose claim
@@ -102,8 +105,8 @@ func (s *Service) sendVerificationEmail(email, userID string) error {
 	return nil
 }
 
-func (s *Service) ResendVerificationEmail(ctx context.Context, email string) error {
-	u, err := s.userSvc.FindUserByEmail(ctx, email)
+func (s *service) ResendVerificationEmail(ctx context.Context, email string) error {
+	u, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
 		return fmt.Errorf("find unverified user: %w", err)
 	}
@@ -115,7 +118,7 @@ func (s *Service) ResendVerificationEmail(ctx context.Context, email string) err
 	return nil
 }
 
-func (s *Service) sendEmail(email *HTMLEmail) {
+func (s *service) sendEmail(email *HTMLEmail) {
 	data := map[string]string{
 		"Title":  email.Title,
 		"Header": email.Subject,
@@ -129,13 +132,13 @@ func (s *Service) sendEmail(email *HTMLEmail) {
 	}
 }
 
-func (s *Service) VerifyUser(ctx context.Context, token string) error {
+func (s *service) Verify(ctx context.Context, token string) error {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
 		return fmt.Errorf("check verification token: %w", err)
 	}
 
-	if err := s.repo.VerifyUser(ctx, claims.UserID); err != nil {
+	if err := s.repo.Verify(ctx, claims.UserID); err != nil {
 		return fmt.Errorf("verify user: %w", err)
 	}
 	return nil
@@ -153,14 +156,14 @@ func (p *LoginUserParams) LogValue() slog.Value {
 	)
 }
 
-func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (*AuthData, error) {
-	u, err := s.userSvc.FindUserByEmail(ctx, params.Email)
+func (s *service) Login(ctx context.Context, params LoginUserParams) (*AuthData, error) {
+	u, err := s.userRepo.FindByEmail(ctx, params.Email)
 	if err != nil {
 		return nil, fmt.Errorf(MsgFmtFindUserByEmail, err)
 	}
 
 	if u.VerifiedAt == nil {
-		return nil, ErrUserNotVerified
+		return nil, ErrNotVerified
 	}
 
 	ok, err := s.hasher.Verify(params.Password, u.PasswordHash)
@@ -180,7 +183,7 @@ func (s *Service) LoginUser(ctx context.Context, params LoginUserParams) (*AuthD
 	return authData, nil
 }
 
-func (s *Service) generateToken(userID, email string) (*AuthData, error) {
+func (s *service) generateToken(userID, email string) (*AuthData, error) {
 	jwtConfig := s.cfgJWT
 	ttl := time.Now().Add(jwtConfig.TTL.Duration).UnixNano()
 	accessToken, err := s.signer.Sign(userID, []string{jwtConfig.Issuer}, time.Duration(ttl))
@@ -195,7 +198,7 @@ func (s *Service) generateToken(userID, email string) (*AuthData, error) {
 
 	expiresIn := ttl / int64(time.Millisecond)
 
-	userData := &UserData{
+	userData := &Data{
 		ID:    userID,
 		Email: email,
 	}
@@ -211,7 +214,7 @@ func (s *Service) generateToken(userID, email string) (*AuthData, error) {
 	return data, nil
 }
 
-func (s *Service) SendPasswordReset(email string) {
+func (s *service) SendPasswordReset(email string) {
 	resetEmail := &HTMLEmail{
 		Address:  email,
 		Subject:  "Reset Your Password",
@@ -227,8 +230,8 @@ type ChangePasswordParams struct {
 	email, currentPassword, newPassword string
 }
 
-func (s *Service) ChangePassword(ctx context.Context, params ChangePasswordParams) error {
-	u, err := s.userSvc.FindUserByEmail(ctx, params.email)
+func (s *service) ChangePassword(ctx context.Context, params ChangePasswordParams) error {
+	u, err := s.userRepo.FindByEmail(ctx, params.email)
 	if err != nil {
 		return fmt.Errorf(MsgFmtFindUserByEmail, err)
 	}
@@ -247,7 +250,7 @@ func (s *Service) ChangePassword(ctx context.Context, params ChangePasswordParam
 		return fmt.Errorf("hash new password: %w", err)
 	}
 
-	err = s.repo.ChangeUserPassword(ctx, u.Email, newHash)
+	err = s.repo.ChangePassword(ctx, u.Email, newHash)
 	if err != nil {
 		return fmt.Errorf("change user password: %w", err)
 	}
@@ -255,7 +258,7 @@ func (s *Service) ChangePassword(ctx context.Context, params ChangePasswordParam
 	return nil
 }
 
-func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) error {
+func (s *service) PerformAtomicOperation(ctx context.Context, userID string) error {
 	return s.txManager.RunInTx(ctx, func(txCtx context.Context) error {
 		// All calls within this func will use the same transaction
 		// if err := s.repo.VerifyUser(txCtx, userID); err != nil {
@@ -269,14 +272,14 @@ func (s *Service) PerformAtomicOperation(ctx context.Context, userID string) err
 	})
 }
 
-func (s *Service) RefreshToken(token string) (*AuthData, error) {
+func (s *service) RefreshToken(token string) (*AuthData, error) {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
 		return nil, fmt.Errorf("verify refresh token: %w", err)
 	}
 
 	userID := claims.UserID
-	u, err := s.userSvc.FindUser(context.Background(), userID)
+	u, err := s.userRepo.Find(context.Background(), userID)
 	if err != nil {
 		return nil, fmt.Errorf("find user by id: %w", err)
 	}
@@ -284,14 +287,14 @@ func (s *Service) RefreshToken(token string) (*AuthData, error) {
 	return s.generateToken(userID, u.Email)
 }
 
-func (s *Service) LogoutUser(token string) error {
+func (s *service) Logout(token string) error {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
 		return fmt.Errorf("verify access token: %w", err)
 	}
 
 	userID := claims.UserID
-	_, err = s.userSvc.FindUser(context.Background(), userID)
+	_, err = s.userRepo.Find(context.Background(), userID)
 	if err != nil {
 		return fmt.Errorf("find user by id: %w", err)
 	}
@@ -303,8 +306,8 @@ type ResetPasswordParams struct {
 	Email, Password string
 }
 
-func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
-	_, err := s.userSvc.FindUserByEmail(ctx, params.Email)
+func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
+	_, err := s.userRepo.FindByEmail(ctx, params.Email)
 	if err != nil {
 		return fmt.Errorf(MsgFmtFindUser, err)
 	}
@@ -314,7 +317,7 @@ func (s *Service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 		return fmt.Errorf("hash new password: %w", err)
 	}
 
-	if err := s.repo.ChangeUserPassword(ctx, params.Email, hashed); err != nil {
+	if err := s.repo.ChangePassword(ctx, params.Email, hashed); err != nil {
 		return fmt.Errorf("change password: %w", err)
 	}
 
@@ -329,10 +332,10 @@ type ServiceProvider struct {
 	Mailer   email.Mailer
 	Signer   jwt.Signer
 	Txmgr    db.TxManager
-	UsrSvc   user.UserService
+	UserRepo user.Repository
 }
 
-func NewService(repo AuthRepository, provider *ServiceProvider) (*Service, error) {
+func NewService(repo Repository, provider *ServiceProvider) (*service, error) {
 	cfgApp := provider.CfgApp
 	if cfgApp == nil {
 		return nil, errors.New("app config should not be nil")
@@ -350,9 +353,9 @@ func NewService(repo AuthRepository, provider *ServiceProvider) (*Service, error
 
 	clientURL := cfgApp.ClientURL
 
-	svc := &Service{
+	svc := &service{
 		repo:      repo,
-		userSvc:   provider.UsrSvc,
+		userRepo:  provider.UserRepo,
 		hasher:    provider.Hasher,
 		mailer:    provider.Mailer,
 		signer:    provider.Signer,
@@ -364,3 +367,5 @@ func NewService(repo AuthRepository, provider *ServiceProvider) (*Service, error
 
 	return svc, nil
 }
+
+var _ Service = &service{}

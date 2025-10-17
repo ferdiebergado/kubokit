@@ -72,7 +72,7 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 		Mailer:   mailer,
 		Signer:   signer,
 		Txmgr:    txMgr,
-		UsrSvc:   userSvc,
+		UserRepo: userRepo,
 	}
 	authSvc, err := auth.NewService(authRepo, authSvcProvider)
 	if err != nil {

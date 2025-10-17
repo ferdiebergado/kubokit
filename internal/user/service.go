@@ -2,63 +2,37 @@ package user
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 )
 
-var _ UserService = &Service{}
-
-// UserRepository is the interface for user management.
-type UserRepository interface {
-	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
-	ListUsers(ctx context.Context) ([]User, error)
-	FindUserByEmail(ctx context.Context, email string) (*User, error)
-	FindUser(ctx context.Context, userID string) (*User, error)
+// Repository is the interface for user management.
+type Repository interface {
+	Create(ctx context.Context, params CreateUserParams) (User, error)
+	List(ctx context.Context) ([]User, error)
+	FindByEmail(ctx context.Context, email string) (*User, error)
+	Find(ctx context.Context, userID string) (*User, error)
 }
 
-// Service is the implementation of the User Service interface.
-type Service struct {
-	repo   UserRepository
+// service is the implementation of the User service interface.
+type service struct {
+	repo   Repository
 	hasher hash.Hasher
 }
 
-func (s *Service) FindUser(ctx context.Context, userID string) (*User, error) {
-	return s.repo.FindUser(ctx, userID)
-}
-
-func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
-	hash, err := s.hasher.Hash(params.Password)
-	if err != nil {
-		return User{}, fmt.Errorf("hash password: %w", err)
-	}
-	params.Password = hash
-	u, err := s.repo.CreateUser(ctx, params)
-	if err != nil {
-		return u, err
-	}
-	return u, nil
-}
-
-func (s *Service) FindUserByEmail(ctx context.Context, email string) (*User, error) {
-	u, err := s.repo.FindUserByEmail(ctx, email)
-	if err != nil {
-		return u, err
-	}
-	return u, nil
-}
-
-func (s *Service) ListUsers(ctx context.Context) ([]User, error) {
-	users, err := s.repo.ListUsers(ctx)
+func (s *service) List(ctx context.Context) ([]User, error) {
+	users, err := s.repo.List(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return users, nil
 }
 
-func NewService(repo UserRepository, hasher hash.Hasher) *Service {
-	return &Service{
+func NewService(repo Repository, hasher hash.Hasher) *service {
+	return &service{
 		repo:   repo,
 		hasher: hasher,
 	}
 }
+
+var _ Service = &service{}

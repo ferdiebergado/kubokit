@@ -65,7 +65,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 		{"User already exists",
 			auth.RegisterUserRequest{Email: testEmail, Password: testPass, PasswordConfirm: testPass},
 			func(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
-				return user.User{}, auth.ErrUserExists
+				return user.User{}, auth.ErrExists
 			},
 			http.StatusConflict,
 			nil,
@@ -76,7 +76,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 			t.Parallel()
 
 			svc := &auth.StubService{
-				RegisterUserFunc: tt.regUserFunc,
+				RegisterFunc: tt.regUserFunc,
 			}
 
 			cfg := &config.Config{
@@ -120,7 +120,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 			paramsCtx := web.NewContextWithParams(context.Background(), tt.params)
 			req := httptest.NewRequestWithContext(paramsCtx, http.MethodPost, "/auth/register", nil)
 			rec := httptest.NewRecorder()
-			authHandler.RegisterUser(rec, req)
+			authHandler.Register(rec, req)
 
 			gotStatus, wantStatus := rec.Code, tt.code
 			if gotStatus != wantStatus {
@@ -185,7 +185,7 @@ func TestHandler_LoginUser(t *testing.T) {
 
 	tests := []struct {
 		name                              string
-		input                             auth.UserLoginRequest
+		input                             auth.LoginRequest
 		code                              int
 		loginFunc                         func(ctx context.Context, params auth.LoginUserParams) (*auth.AuthData, error)
 		verifyFunc                        func(tokenString string) (*jwt.Claims, error)
@@ -195,7 +195,7 @@ func TestHandler_LoginUser(t *testing.T) {
 	}{
 		{
 			name: "Registered user with verified email",
-			input: auth.UserLoginRequest{
+			input: auth.LoginRequest{
 				Email:    testEmail,
 				Password: testPass,
 			},
@@ -215,10 +215,10 @@ func TestHandler_LoginUser(t *testing.T) {
 			bakeFunc: func() (*http.Cookie, error) {
 				return mockCSRFCookie, nil
 			},
-			gotBody: &web.OKResponse[auth.UserLoginResponse]{},
-			wantBody: &web.OKResponse[auth.UserLoginResponse]{
+			gotBody: &web.OKResponse[auth.LoginResponse]{},
+			wantBody: &web.OKResponse[auth.LoginResponse]{
 				Message: auth.MsgLoggedIn,
-				Data: auth.UserLoginResponse{
+				Data: auth.LoginResponse{
 					AccessToken:  mockAuthData.AccessToken,
 					RefreshToken: mockAuthData.RefreshToken,
 					ExpiresIn:    mockAuthData.ExpiresIn,
@@ -238,12 +238,12 @@ func TestHandler_LoginUser(t *testing.T) {
 		},
 		{
 			name: "Registered user with email not yet verified",
-			input: auth.UserLoginRequest{
+			input: auth.LoginRequest{
 				Email:    testEmail,
 				Password: testPass,
 			},
 			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.AuthData, error) {
-				return nil, auth.ErrUserNotVerified
+				return nil, auth.ErrNotVerified
 			},
 			code:    http.StatusUnauthorized,
 			gotBody: &web.ErrorResponse{},
@@ -254,7 +254,7 @@ func TestHandler_LoginUser(t *testing.T) {
 		},
 		{
 			name: "Unregistered user",
-			input: auth.UserLoginRequest{
+			input: auth.LoginRequest{
 				Email:    testEmail,
 				Password: testPass,
 			},
@@ -269,7 +269,7 @@ func TestHandler_LoginUser(t *testing.T) {
 		},
 		{
 			name: "Incorrect password",
-			input: auth.UserLoginRequest{
+			input: auth.LoginRequest{
 				Email:    testEmail,
 				Password: "anotherpass",
 			},
@@ -317,7 +317,7 @@ func TestHandler_LoginUser(t *testing.T) {
 			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/login", http.NoBody)
 			req.Header.Set("User-Agent", "Chrome")
 			rec := httptest.NewRecorder()
-			authHandler.LoginUser(rec, req)
+			authHandler.Login(rec, req)
 
 			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
@@ -412,7 +412,7 @@ func TestHandler_VerifyUser(t *testing.T) {
 	tests := []struct {
 		name      string
 		userID    string
-		service   auth.AuthService
+		service   auth.Service
 		cfgJWT    *config.JWT
 		cfgCookie *config.Cookie
 		cfgApp    *config.App
@@ -420,7 +420,7 @@ func TestHandler_VerifyUser(t *testing.T) {
 		csfrBaker web.Baker
 		code      int
 		token     string
-		request   *auth.VerifyUserRequest
+		request   *auth.VerifyRequest
 	}{
 		{
 			name:   "Email verified successfully",
@@ -444,13 +444,13 @@ func TestHandler_VerifyUser(t *testing.T) {
 			},
 			csfrBaker: &security.StubCSRFCookieBaker{},
 			service: &auth.StubService{
-				VerifyUserfunc: func(ctx context.Context, token string) error {
+				VerifyFunc: func(ctx context.Context, token string) error {
 					return nil
 				},
 			},
 			code:    http.StatusOK,
 			token:   "test_token",
-			request: &auth.VerifyUserRequest{Token: "test_token"},
+			request: &auth.VerifyRequest{Token: "test_token"},
 		},
 		{
 			name:   "User does not exists",
@@ -474,13 +474,13 @@ func TestHandler_VerifyUser(t *testing.T) {
 			},
 			csfrBaker: &security.StubCSRFCookieBaker{},
 			service: &auth.StubService{
-				VerifyUserfunc: func(ctx context.Context, token string) error {
+				VerifyFunc: func(ctx context.Context, token string) error {
 					return user.ErrNotFound
 				},
 			},
 			code:    http.StatusUnauthorized,
 			token:   "test_token",
-			request: &auth.VerifyUserRequest{Token: "test_token"},
+			request: &auth.VerifyRequest{Token: "test_token"},
 		},
 		{
 			name:   "Verification failed due to database error",
@@ -504,13 +504,13 @@ func TestHandler_VerifyUser(t *testing.T) {
 			},
 			csfrBaker: &security.StubCSRFCookieBaker{},
 			service: &auth.StubService{
-				VerifyUserfunc: func(ctx context.Context, token string) error {
+				VerifyFunc: func(ctx context.Context, token string) error {
 					return db.ErrQueryFailed
 				},
 			},
 			code:    http.StatusInternalServerError,
 			token:   "test_token",
-			request: &auth.VerifyUserRequest{Token: "test_token"},
+			request: &auth.VerifyRequest{Token: "test_token"},
 		},
 		// TODO: test cases for expired token, invalid token
 	}
@@ -544,7 +544,7 @@ func TestHandler_VerifyUser(t *testing.T) {
 
 			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/verify", http.NoBody)
 			rec := httptest.NewRecorder()
-			authHandler.VerifyUser(rec, req)
+			authHandler.Verify(rec, req)
 
 			gotCode, wantCode := rec.Code, tc.code
 			if gotCode != wantCode {
@@ -565,7 +565,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 		cfgApp    *config.App
 		cfgCookie *config.Cookie
 		csrfBaker web.Baker
-		service   auth.AuthService
+		service   auth.Service
 		code      int
 		ctx       context.Context
 		params    auth.ChangePasswordRequest
@@ -670,7 +670,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 	tests := []struct {
 		name          string
 		refreshCookie *http.Cookie
-		service       auth.AuthService
+		service       auth.Service
 		signer        jwt.Signer
 		code          int
 		gotBody       any
@@ -706,10 +706,10 @@ func TestHandler_RefreshToken(t *testing.T) {
 				},
 			},
 			code:    http.StatusOK,
-			gotBody: &web.OKResponse[auth.UserLoginResponse]{},
-			wantBody: &web.OKResponse[auth.UserLoginResponse]{
+			gotBody: &web.OKResponse[auth.LoginResponse]{},
+			wantBody: &web.OKResponse[auth.LoginResponse]{
 				Message: "Token refreshed.",
-				Data: auth.UserLoginResponse{
+				Data: auth.LoginResponse{
 					AccessToken:  "new_access_token",
 					RefreshToken: "new_refresh_token",
 					TokenType:    "Bearer",
@@ -826,7 +826,7 @@ func TestHandler_LogoutUser(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			svc := &auth.StubService{
-				LogoutUserFunc: tc.logoutFunc,
+				LogoutFunc: tc.logoutFunc,
 			}
 			provider := &auth.HandlerProvider{
 				CfgJWT: &config.JWT{},
@@ -883,7 +883,7 @@ func TestHandler_LogoutUser(t *testing.T) {
 			}
 
 			rec := httptest.NewRecorder()
-			authHandler.LogoutUser(rec, req)
+			authHandler.Logout(rec, req)
 
 			wantCode, gotCode := tc.code, rec.Code
 			if gotCode != wantCode {

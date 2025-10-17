@@ -21,14 +21,14 @@ VALUES (
     '3d594650-3436-11e5-bf21-0800200c9a66',
     'bob@example.com',
     '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa',
-    '2025-05-09T10:09:00Z',
+    NULL,
     '{"role":"user","signup_source":"organic"}',
     '2025-05-09T10:05:00Z',
     '2025-05-09T10:05:00Z',
     NULL
 );`
 
-func TestIntegrationRepository_VerifyUser(t *testing.T) {
+func TestIntegrationRepository_Verify(t *testing.T) {
 	t.Parallel()
 
 	conn, tx := db.Setup(t)
@@ -51,9 +51,9 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 			ctx := context.Background()
 			txCtx := db.NewContextWithTx(ctx, tx)
 			repo := auth.NewRepository(conn)
-			err := repo.VerifyUser(txCtx, tc.userID)
+			err := repo.Verify(txCtx, tc.userID)
 			if !errors.Is(err, tc.err) {
-				t.Errorf("repo.VerifyUser(txCtx, %q) = %v, want: %v", tc.userID, err, tc.err)
+				t.Errorf("repo.Verify(txCtx, %q) = %v, want: %v", tc.userID, err, tc.err)
 			}
 
 			if tc.err == nil {
@@ -69,7 +69,7 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 					t.Errorf("verifiedAt = %v, want: non-zero", verifiedAt)
 				}
 
-				if !updatedAt.Equal(*verifiedAt) {
+				if !updatedAt.Truncate(0).Equal(verifiedAt.Truncate(0)) {
 					t.Errorf("updatedAt = %v, want: %v", updatedAt, verifiedAt)
 				}
 			}
@@ -77,7 +77,7 @@ func TestIntegrationRepository_VerifyUser(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
+func TestIntegrationRepository_ChangePassword(t *testing.T) {
 	t.Parallel()
 
 	conn, tx := db.Setup(t)
@@ -113,8 +113,8 @@ func TestIntegrationRepository_ChangeUserPassword(t *testing.T) {
 
 			repo := auth.NewRepository(conn)
 			const testPassword = "test"
-			if err = repo.ChangeUserPassword(txCtx, tc.email, testPassword); !errors.Is(err, tc.err) {
-				t.Errorf("repo.ChangeUserPassword(txCtx, %q, %q) = %v, want: %v", tc.email, testPassword, err, tc.err)
+			if err = repo.ChangePassword(txCtx, tc.email, testPassword); !errors.Is(err, tc.err) {
+				t.Errorf("repo.ChangePassword(txCtx, %q, %q) = %v, want: %v", tc.email, testPassword, err, tc.err)
 			}
 
 			if tc.err == nil {

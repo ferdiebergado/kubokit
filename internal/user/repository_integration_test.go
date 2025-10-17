@@ -74,7 +74,7 @@ func TestIntegrationRepository_ListUsers(t *testing.T) {
 	txCtx := db.NewContextWithTx(ctx, tx)
 	repo := user.NewRepository(conn)
 
-	users, err := repo.ListUsers(txCtx)
+	users, err := repo.List(txCtx)
 	if err != nil {
 		t.Errorf("repo.ListUsers(txCtx) = %v, want: %v", err, nil)
 	}
@@ -110,7 +110,7 @@ func TestIntegrationRepository_FindUser(t *testing.T) {
 		Email:      "alice@example.com",
 		VerifiedAt: &verifiedAt,
 	}
-	gotUser, err := repo.FindUser(txCtx, userID)
+	gotUser, err := repo.Find(txCtx, userID)
 	if err != nil {
 		t.Fatalf("failed to find user: %v", err)
 	}
@@ -177,7 +177,7 @@ func TestIntegrationRepository_FindUserByEmail(t *testing.T) {
 		PasswordHash: "$2a$10$e0MYzXyjpJS7Pd0RVvHwHeFx4fQnhdQnZZF9uG6x1Z1ZzR12uLh9e",
 		VerifiedAt:   &verifiedAt,
 	}
-	u, err := repo.FindUserByEmail(txCtx, testEmail)
+	u, err := repo.FindByEmail(txCtx, testEmail)
 	if err != nil {
 		t.Fatalf("failed to find user: %v", err)
 	}
@@ -225,7 +225,7 @@ func TestIntegrationRepository_CreateUser(t *testing.T) {
 			txCtx := db.NewContextWithTx(ctx, tx)
 
 			repo := user.NewRepository(conn)
-			u, err := repo.CreateUser(txCtx, tc.params)
+			u, err := repo.Create(txCtx, tc.params)
 			if err != nil {
 				if tc.err == nil {
 					t.Fatalf("failed to create user: %v", err)

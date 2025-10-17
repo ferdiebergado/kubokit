@@ -51,17 +51,17 @@ func (a *App) setupRoutes() {
 
 	// auth routes
 	a.router.Group("/auth", func(gr router.Router) {
-		gr.Post("/register", a.authHandler.RegisterUser,
+		gr.Post("/register", a.authHandler.Register,
 			middleware.DecodePayload[auth.RegisterUserRequest](maxBodySize),
 			middleware.ValidateInput[auth.RegisterUserRequest](a.validator))
 
-		gr.Post("/login", a.authHandler.LoginUser,
-			middleware.DecodePayload[auth.UserLoginRequest](maxBodySize),
-			middleware.ValidateInput[auth.UserLoginRequest](a.validator))
+		gr.Post("/login", a.authHandler.Login,
+			middleware.DecodePayload[auth.LoginRequest](maxBodySize),
+			middleware.ValidateInput[auth.LoginRequest](a.validator))
 
-		gr.Post("/verify", a.authHandler.VerifyUser,
-			middleware.DecodePayload[auth.VerifyUserRequest](maxBodySize),
-			middleware.ValidateInput[auth.VerifyUserRequest](a.validator))
+		gr.Post("/verify", a.authHandler.Verify,
+			middleware.DecodePayload[auth.VerifyRequest](maxBodySize),
+			middleware.ValidateInput[auth.VerifyRequest](a.validator))
 
 		gr.Post("/resend-verify-email", a.authHandler.ResendVerifyEmail,
 			middleware.DecodePayload[auth.ResendVerifyEmailRequest](maxBodySize),
@@ -81,7 +81,7 @@ func (a *App) setupRoutes() {
 
 	// users routes
 	a.router.Group("/users", func(gr router.Router) {
-		gr.Get("/", a.userHandler.ListUsers)
+		gr.Get("/", a.userHandler.List)
 	}, requireToken)
 }
 

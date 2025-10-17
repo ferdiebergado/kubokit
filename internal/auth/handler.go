@@ -27,23 +27,23 @@ type AuthData struct {
 	RefreshToken string
 	ExpiresIn    int64
 	TokenType    string
-	User         *UserData
+	User         *Data
 }
 
-type AuthService interface {
-	RegisterUser(ctx context.Context, params RegisterUserParams) (user.User, error)
-	VerifyUser(ctx context.Context, token string) error
+type Service interface {
+	Register(ctx context.Context, params RegisterUserParams) (user.User, error)
+	Verify(ctx context.Context, token string) error
 	ResendVerificationEmail(ctx context.Context, email string) error
-	LoginUser(ctx context.Context, params LoginUserParams) (*AuthData, error)
+	Login(ctx context.Context, params LoginUserParams) (*AuthData, error)
 	SendPasswordReset(email string)
 	ChangePassword(ctx context.Context, params ChangePasswordParams) error
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
 	RefreshToken(token string) (*AuthData, error)
-	LogoutUser(token string) error
+	Logout(token string) error
 }
 
 type Handler struct {
-	svc             AuthService
+	svc             Service
 	signer          jwt.Signer
 	cfgJWT          *config.JWT
 	cfgCookie       *config.Cookie
@@ -72,7 +72,7 @@ type RegisterUserResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	req, err := web.ParamsFromContext[RegisterUserRequest](r.Context())
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
@@ -83,9 +83,9 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		Email:    req.Email,
 		Password: req.Password,
 	}
-	user, err := h.svc.RegisterUser(r.Context(), params)
+	user, err := h.svc.Register(r.Context(), params)
 	if err != nil {
-		if errors.Is(err, ErrUserExists) {
+		if errors.Is(err, ErrExists) {
 			web.RespondConflict(w, err, "User already exists.", nil)
 			return
 		}
@@ -104,18 +104,18 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	web.RespondCreated(w, &msg, data)
 }
 
-type VerifyUserRequest struct {
+type VerifyRequest struct {
 	Token string `json:"token,omitempty" validate:"required"`
 }
 
-func (h *Handler) VerifyUser(w http.ResponseWriter, r *http.Request) {
-	req, err := web.ParamsFromContext[VerifyUserRequest](r.Context())
+func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
+	req, err := web.ParamsFromContext[VerifyRequest](r.Context())
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	if err := h.svc.VerifyUser(r.Context(), req.Token); err != nil {
+	if err := h.svc.Verify(r.Context(), req.Token); err != nil {
 		if errors.Is(err, db.ErrQueryFailed) {
 			web.RespondInternalServerError(w, err)
 			return
@@ -154,29 +154,29 @@ func (h *Handler) ResendVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	web.RespondOK(w, &msg, struct{}{})
 }
 
-type UserLoginRequest struct {
+type LoginRequest struct {
 	Email    string `json:"email,omitempty" validate:"required,email"`
 	Password string `json:"password,omitempty" validate:"required"`
 }
 
-func (r *UserLoginRequest) LogValue() slog.Value {
+func (r *LoginRequest) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("email", maskChar),
 		slog.String("password", maskChar),
 	)
 }
 
-type UserData struct {
+type Data struct {
 	ID    string `json:"id,omitempty"`
 	Email string `json:"email,omitempty"`
 }
 
-type UserLoginResponse struct {
-	AccessToken  string    `json:"access_token,omitempty"`
-	RefreshToken string    `json:"refresh_token,omitempty"`
-	TokenType    string    `json:"token_type,omitempty"`
-	ExpiresIn    int64     `json:"expires_in,omitempty"`
-	User         *UserData `json:"user,omitempty"`
+type LoginResponse struct {
+	AccessToken  string `json:"access_token,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	TokenType    string `json:"token_type,omitempty"`
+	ExpiresIn    int64  `json:"expires_in,omitempty"`
+	User         *Data  `json:"user,omitempty"`
 }
 
 func (h *Handler) refreshCookie(token string, maxAge int) *http.Cookie {
@@ -191,17 +191,17 @@ func (h *Handler) refreshCookie(token string, maxAge int) *http.Cookie {
 	}
 }
 
-func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
-	req, err := web.ParamsFromContext[UserLoginRequest](r.Context())
+func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+	req, err := web.ParamsFromContext[LoginRequest](r.Context())
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
 	params := LoginUserParams(req)
-	data, err := h.svc.LoginUser(r.Context(), params)
+	data, err := h.svc.Login(r.Context(), params)
 	if err != nil {
-		if errors.Is(err, ErrUserNotVerified) {
+		if errors.Is(err, ErrNotVerified) {
 			msg := MsgNotVerified
 			details := map[string]string{
 				"error_code": "ACCOUNT_NOT_VERIFIED",
@@ -231,7 +231,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, csrfCookie)
 
 	msg := MsgLoggedIn
-	res := &UserLoginResponse{
+	res := &LoginResponse{
 		AccessToken:  data.AccessToken,
 		RefreshToken: data.RefreshToken,
 		ExpiresIn:    data.ExpiresIn,
@@ -272,7 +272,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, csrfCookie)
 
 	msg := MsgRefreshed
-	res := &UserLoginResponse{
+	res := &LoginResponse{
 		AccessToken:  data.AccessToken,
 		RefreshToken: data.RefreshToken,
 		ExpiresIn:    data.ExpiresIn,
@@ -352,14 +352,14 @@ type LogoutRequest struct {
 	AccessToken string `json:"access_token,omitempty"`
 }
 
-func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	params, err := web.ParamsFromContext[LogoutRequest](r.Context())
 	if err != nil {
 		web.RespondBadRequest(w, err, message.InvalidInput, nil)
 		return
 	}
 
-	if err = h.svc.LogoutUser(params.AccessToken); err != nil {
+	if err = h.svc.Logout(params.AccessToken); err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
@@ -387,7 +387,7 @@ type HandlerProvider struct {
 	CSRFCookieBaker web.Baker
 }
 
-func NewHandler(svc AuthService, provider *HandlerProvider) (*Handler, error) {
+func NewHandler(svc Service, provider *HandlerProvider) (*Handler, error) {
 	cfgJWT := provider.CfgJWT
 	if cfgJWT == nil {
 		return nil, errors.New("JWT config should not be nil")

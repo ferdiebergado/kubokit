@@ -27,7 +27,7 @@ func TestService_RegisterUser(t *testing.T) {
 
 	tests := []struct {
 		name, email, password string
-		userSvc               user.UserService
+		userRepo              user.Repository
 		hasher                hash.Hasher
 		signer                jwt.Signer
 		mailer                email.Mailer
@@ -38,8 +38,8 @@ func TestService_RegisterUser(t *testing.T) {
 			name:     "Successful registration",
 			email:    user1,
 			password: "test",
-			userSvc: &user.StubService{
-				CreateUserFunc: func(ctx context.Context, params user.CreateUserParams) (user.User, error) {
+			userRepo: &user.StubRepo{
+				CreateFunc: func(ctx context.Context, params user.CreateUserParams) (user.User, error) {
 					return user.User{
 						Model: model.Model{
 							ID:        "1",
@@ -49,7 +49,7 @@ func TestService_RegisterUser(t *testing.T) {
 						Email: params.Email,
 					}, nil
 				},
-				FindUserByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+				FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
 					return nil, user.ErrNotFound
 				},
 			},
@@ -81,8 +81,8 @@ func TestService_RegisterUser(t *testing.T) {
 			name:     "User already exists",
 			email:    user1,
 			password: "test",
-			userSvc: &user.StubService{
-				FindUserByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+			userRepo: &user.StubRepo{
+				FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
 					return &user.User{
 						Model: model.Model{
 							ID:        "1",
@@ -97,7 +97,7 @@ func TestService_RegisterUser(t *testing.T) {
 			mailer: &email.StubMailer{},
 			signer: &jwt.StubSigner{},
 			user:   user.User{},
-			err:    auth.ErrUserExists,
+			err:    auth.ErrExists,
 		},
 	}
 	for _, tc := range tests {
@@ -133,7 +133,7 @@ func TestService_RegisterUser(t *testing.T) {
 				Mailer:   tc.mailer,
 				Signer:   tc.signer,
 				Txmgr:    &db.StubTxManager{},
-				UsrSvc:   tc.userSvc,
+				UserRepo: tc.userRepo,
 			}
 			authSvc, err := auth.NewService(&auth.StubRepo{}, provider)
 			if err != nil {
@@ -145,7 +145,7 @@ func TestService_RegisterUser(t *testing.T) {
 				Email:    tc.email,
 				Password: tc.password,
 			}
-			gotUser, err := authSvc.RegisterUser(ctx, params)
+			gotUser, err := authSvc.Register(ctx, params)
 			if err != nil {
 				if tc.err == nil {
 					t.Fatal(err)
@@ -228,10 +228,10 @@ func TestVerifyUser(t *testing.T) {
 			}
 
 			repo := &auth.StubRepo{
-				VerifyUserFunc: tc.repoVerifyFunc,
+				VerifyFunc: tc.repoVerifyFunc,
 			}
 
-			usrSvc := &user.StubService{}
+			userRepo := &user.StubRepo{}
 
 			provider := &auth.ServiceProvider{
 				CfgApp:   cfg.App,
@@ -241,7 +241,7 @@ func TestVerifyUser(t *testing.T) {
 				Mailer:   mailer,
 				Signer:   signer,
 				Txmgr:    txMgr,
-				UsrSvc:   usrSvc,
+				UserRepo: userRepo,
 			}
 			svc, err := auth.NewService(repo, provider)
 			if err != nil {
@@ -249,7 +249,7 @@ func TestVerifyUser(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			if err := svc.VerifyUser(ctx, tc.token); err != nil {
+			if err := svc.Verify(ctx, tc.token); err != nil {
 				if tc.err == nil {
 					t.Fatal(err)
 				}
@@ -264,7 +264,7 @@ func TestVerifyUser(t *testing.T) {
 
 func TestService_ResetPassword(t *testing.T) {
 	repo := &auth.StubRepo{
-		ChangeUserPasswordFunc: func(ctx context.Context, email, newPassword string) error {
+		ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
 			return nil
 		},
 	}
@@ -275,8 +275,8 @@ func TestService_ResetPassword(t *testing.T) {
 		},
 	}
 
-	svcUsr := &user.StubService{
-		FindUserByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+	userRepo := &user.StubRepo{
+		FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
 			return &user.User{}, nil
 		},
 	}
@@ -288,7 +288,7 @@ func TestService_ResetPassword(t *testing.T) {
 		Mailer:   nil,
 		Signer:   nil,
 		Txmgr:    nil,
-		UsrSvc:   svcUsr,
+		UserRepo: userRepo,
 	}
 	svc, err := auth.NewService(repo, provider)
 	if err != nil {

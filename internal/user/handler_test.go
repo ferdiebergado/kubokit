@@ -47,12 +47,12 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 	}
 
 	userService := &user.StubService{
-		ListUsersFunc: func(_ context.Context) ([]user.User, error) {
+		ListFunc: func(_ context.Context) ([]user.User, error) {
 			return users, nil
 		},
 	}
 	userHandler := user.NewHandler(userService)
-	userHandler.ListUsers(rec, req)
+	userHandler.List(rec, req)
 
 	wantStatus, gotStatus := http.StatusOK, rec.Code
 	if gotStatus != wantStatus {
@@ -64,7 +64,7 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 		t.Errorf("rec.Header().Get(%q) = %q, want: %q", web.HeaderContentType, gotHeader, wantHeader)
 	}
 
-	var apiRes web.OKResponse[*user.ListUsersResponse]
+	var apiRes web.OKResponse[*user.ListResponse]
 	if err := json.NewDecoder(rec.Body).Decode(&apiRes); err != nil {
 		t.Fatal(err)
 	}
@@ -100,12 +100,12 @@ func TestHandler_ListUsers_Error(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	userService := &user.StubService{
-		ListUsersFunc: func(_ context.Context) ([]user.User, error) {
+		ListFunc: func(_ context.Context) ([]user.User, error) {
 			return nil, errors.New("service error")
 		},
 	}
 	userHandler := user.NewHandler(userService)
-	userHandler.ListUsers(rec, req)
+	userHandler.List(rec, req)
 
 	wantStatus, gotStatus := http.StatusInternalServerError, rec.Code
 	if gotStatus != wantStatus {

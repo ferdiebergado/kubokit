@@ -96,7 +96,7 @@ func Run() error {
 		Mailer:   mailer,
 		Signer:   signer,
 		Txmgr:    txMgr,
-		UsrSvc:   nil,
+		UserRepo: userRepo,
 	}
 	authService, err := auth.NewService(authRepo, authServiceProvider)
 	if err != nil {
