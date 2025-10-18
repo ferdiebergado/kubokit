@@ -2,6 +2,8 @@ package user_test
 
 import (
 	"context"
+	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -15,36 +17,96 @@ func TestService_List(t *testing.T) {
 
 	ctx := context.Background()
 	now := time.Now()
-	users := []user.User{
+
+	tests := []struct {
+		name    string
+		repo    user.Repository
+		want    []user.User
+		wantErr error
+	}{
 		{
-			Model: model.Model{
-				ID:        "1",
-				CreatedAt: now,
-				UpdatedAt: now,
+			name: "success - returns users",
+			repo: &user.StubRepo{
+				ListFunc: func(_ context.Context) ([]user.User, error) {
+					return []user.User{
+						{
+							Model: model.Model{
+								ID:        "1",
+								Metadata:  []byte(`{"role":"admin"}`),
+								CreatedAt: now,
+								UpdatedAt: now,
+							},
+							Email:        "a@example.com",
+							PasswordHash: "hashed123",
+							VerifiedAt:   &now,
+						},
+						{
+							Model: model.Model{
+								ID:        "2",
+								Metadata:  []byte(`{"role":"user"}`),
+								CreatedAt: now,
+								UpdatedAt: now,
+							},
+							Email:        "b@example.com",
+							PasswordHash: "hashed456",
+							VerifiedAt:   nil,
+						},
+					}, nil
+				},
 			},
-			Email:        "123@test.com",
-			PasswordHash: "hash1",
-			VerifiedAt:   &now,
+			want: []user.User{
+				{
+					Model: model.Model{
+						ID:        "1",
+						Metadata:  []byte(`{"role":"admin"}`),
+						CreatedAt: now,
+						UpdatedAt: now,
+					},
+					Email:        "a@example.com",
+					PasswordHash: "hashed123",
+					VerifiedAt:   &now,
+				},
+				{
+					Model: model.Model{
+						ID:        "2",
+						Metadata:  []byte(`{"role":"user"}`),
+						CreatedAt: now,
+						UpdatedAt: now,
+					},
+					Email:        "b@example.com",
+					PasswordHash: "hashed456",
+					VerifiedAt:   nil,
+				},
+			},
 		},
-	}
-	repo := &user.StubRepo{
-		ListFunc: func(_ context.Context) ([]user.User, error) {
-			return users, nil
+		{
+			name: "error - repo fails",
+			repo: &user.StubRepo{
+				ListFunc: func(_ context.Context) ([]user.User, error) {
+					return nil, errors.New("db error")
+				},
+			},
+			wantErr: errors.New("db error"),
 		},
-	}
-	hasher := &hash.StubHasher{
-		HashFunc: func(_ string) (string, error) {
-			return "hashed", nil
-		},
-	}
-	service := user.NewService(repo, hasher)
-	allUsers, err := service.List(ctx)
-	if err != nil {
-		t.Fatal(err)
 	}
 
-	wantLen, gotLen := len(users), len(allUsers)
-	if gotLen != wantLen {
-		t.Errorf("len(allUsers) = %d, want: %d", wantLen, gotLen)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := user.NewService(tt.repo, &hash.StubHasher{})
+
+			got, err := svc.List(ctx)
+
+			if (err != nil) != (tt.wantErr != nil) {
+				t.Fatalf("service.List(ctx) error = %v, wantErr: %v", err, tt.wantErr)
+			}
+
+			if err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
+				t.Fatalf("service.List(ctx) error = %v, wantErr: %v", err, tt.wantErr)
+			}
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("service.List(ctx) = %+v, want: %+v", got, tt.want)
+			}
+		})
 	}
 }
