@@ -281,8 +281,8 @@ func TestIntegrationRepository_DeleteUser(t *testing.T) {
 			ctx := context.Background()
 			txCtx := db.NewContextWithTx(ctx, tx)
 
-			repo := user.NewRepository(conn)
-			err := repo.DeleteUser(txCtx, tc.userID)
+			userRepo := user.NewRepository(conn)
+			err := userRepo.Delete(txCtx, tc.userID)
 			if err != nil {
 				if tc.err == nil {
 					t.Fatalf("failed to delete user: %v", err)
@@ -317,13 +317,13 @@ func TestIntegrationRepository_UpdateUser(t *testing.T) {
 	ctx := context.Background()
 	txCtx := db.NewContextWithTx(ctx, tx)
 
-	repo := user.NewRepository(conn)
+	userRepo := user.NewRepository(conn)
 	const userID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
 	currentTimestamp := time.Now().Truncate(time.Microsecond)
 	updates := &user.User{
 		VerifiedAt: &currentTimestamp,
 	}
-	if err := repo.UpdateUser(txCtx, updates, userID); err != nil {
+	if err := userRepo.Update(txCtx, updates, userID); err != nil {
 		t.Fatalf("failed to update user: %v", err)
 	}
 

@@ -110,7 +110,7 @@ func (r *repo) Find(ctx context.Context, userID string) (*User, error) {
 	return &u, nil
 }
 
-func (r *repo) DeleteUser(ctx context.Context, userID string) error {
+func (r *repo) Delete(ctx context.Context, userID string) error {
 	const query = "DELETE FROM users WHERE id = $1"
 
 	executor := r.db
@@ -134,7 +134,7 @@ func (r *repo) DeleteUser(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (r *repo) UpdateUser(ctx context.Context, updates *User, userID string) error {
+func (r *repo) Update(ctx context.Context, updates *User, userID string) error {
 	// TODO: update metadata
 	const query = `
 	UPDATE users
