@@ -47,17 +47,23 @@ INSERT INTO users (id, email, password_hash, verified_at, metadata, created_at, 
     '2025-05-09T10:10:00Z',
     '2025-05-09T10:10:00Z',
     '2025-05-09T12:00:00Z'
-);
-`
+	);
+	`
 
-func TestIntegrationRepository_ListUsers(t *testing.T) {
+const (
+	mockUserID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+	mockEmail  = "alice@example.com"
+	fmtErrSeed = "failed to seed users: %v"
+)
+
+func TestIntegrationRepository_List(t *testing.T) {
 	t.Parallel()
 
 	conn, tx := db.Setup(t)
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
-		t.Fatalf("failed to seed users: %v", err)
+		t.Fatalf(fmtErrSeed, err)
 	}
 
 	row := tx.QueryRow("SELECT COUNT(id) FROM users")
@@ -85,32 +91,31 @@ func TestIntegrationRepository_ListUsers(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_FindUser(t *testing.T) {
+func TestIntegrationRepository_Find(t *testing.T) {
 	t.Parallel()
 
 	conn, tx := db.Setup(t)
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
-		t.Fatalf("failed to seed users: %v", err)
+		t.Fatalf(fmtErrSeed, err)
 	}
 
 	ctx := context.Background()
 	txCtx := db.NewContextWithTx(ctx, tx)
 
 	repo := user.NewRepository(conn)
-	const userID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
 	verifiedAt := time.Date(2025, time.May, 9, 20, 0, 0, 0, time.Local)
 	wantUser := user.User{
 		Model: model.Model{
-			ID:        userID,
+			ID:        mockUserID,
 			CreatedAt: time.Date(2025, time.May, 9, 18, 0, 0, 0, time.Local),
 			UpdatedAt: time.Date(2025, time.May, 9, 18, 0, 0, 0, time.Local),
 		},
-		Email:      "alice@example.com",
+		Email:      mockEmail,
 		VerifiedAt: &verifiedAt,
 	}
-	gotUser, err := repo.Find(txCtx, userID)
+	gotUser, err := repo.Find(txCtx, mockUserID)
 	if err != nil {
 		t.Fatalf("failed to find user: %v", err)
 	}
@@ -132,15 +137,17 @@ func TestIntegrationRepository_FindUser(t *testing.T) {
 	gotVerifiedAt := gotUser.VerifiedAt
 	wantVerifiedAt := wantUser.VerifiedAt
 
+	const fmtErrCreate = "gotUser.CreatedAt = %v, want: %v"
+
 	if !gotVerifiedAt.Equal(*wantVerifiedAt) {
-		t.Errorf("gotUser.CreatedAt = %v, want: %v", gotVerifiedAt, wantVerifiedAt)
+		t.Errorf(fmtErrCreate, gotVerifiedAt, wantVerifiedAt)
 	}
 
 	gotCreatedAt := gotUser.CreatedAt
 	wantCreatedAt := wantUser.CreatedAt
 
 	if !gotCreatedAt.Equal(wantCreatedAt) {
-		t.Errorf("gotUser.CreatedAt = %v, want: %v", gotCreatedAt, wantCreatedAt)
+		t.Errorf(fmtErrCreate, gotCreatedAt, wantCreatedAt)
 	}
 
 	gotUpdatedAt := gotUser.UpdatedAt
@@ -151,21 +158,20 @@ func TestIntegrationRepository_FindUser(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_FindUserByEmail(t *testing.T) {
+func TestIntegrationRepository_FindByEmail(t *testing.T) {
 	t.Parallel()
 
 	conn, tx := db.Setup(t)
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
-		t.Fatalf("failed to seed users: %v", err)
+		t.Fatalf(fmtErrSeed, err)
 	}
 
 	ctx := context.Background()
 	txCtx := db.NewContextWithTx(ctx, tx)
 
 	repo := user.NewRepository(conn)
-	const testEmail = "alice@example.com"
 	verifiedAt := time.Date(2025, time.May, 9, 20, 0, 0, 0, time.Local)
 	wantUser := &user.User{
 		Model: model.Model{
@@ -173,28 +179,28 @@ func TestIntegrationRepository_FindUserByEmail(t *testing.T) {
 			CreatedAt: time.Date(2025, time.May, 9, 18, 0, 0, 0, time.Local),
 			UpdatedAt: time.Date(2025, time.May, 9, 18, 0, 0, 0, time.Local),
 		},
-		Email:        testEmail,
+		Email:        mockEmail,
 		PasswordHash: "$2a$10$e0MYzXyjpJS7Pd0RVvHwHeFx4fQnhdQnZZF9uG6x1Z1ZzR12uLh9e",
 		VerifiedAt:   &verifiedAt,
 	}
-	u, err := repo.FindByEmail(txCtx, testEmail)
+	u, err := repo.FindByEmail(txCtx, mockEmail)
 	if err != nil {
 		t.Fatalf("failed to find user: %v", err)
 	}
 
 	if !reflect.DeepEqual(u, wantUser) {
-		t.Errorf("repo.FindUserByEmail(txCtx, %q) = %+v, want: %+v", testEmail, u, wantUser)
+		t.Errorf("repo.FindUserByEmail(txCtx, %q) = %+v, want: %+v", mockEmail, u, wantUser)
 	}
 }
 
-func TestIntegrationRepository_CreateUser(t *testing.T) {
+func TestIntegrationRepository_Create(t *testing.T) {
 	t.Parallel()
 
 	conn, tx := db.Setup(t)
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
-		t.Fatalf("failed to seed users: %v", err)
+		t.Fatalf(fmtErrSeed, err)
 	}
 
 	tests := []struct {
@@ -252,14 +258,14 @@ func TestIntegrationRepository_CreateUser(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_DeleteUser(t *testing.T) {
+func TestIntegrationRepository_Delete(t *testing.T) {
 	t.Parallel()
 
 	conn, tx := db.Setup(t)
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
-		t.Fatalf("failed to seed users: %v", err)
+		t.Fatalf(fmtErrSeed, err)
 	}
 
 	tests := []struct {
@@ -304,31 +310,30 @@ func TestIntegrationRepository_DeleteUser(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_UpdateUser(t *testing.T) {
+func TestIntegrationRepository_Update(t *testing.T) {
 	t.Parallel()
 
 	conn, tx := db.Setup(t)
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
-		t.Fatalf("failed to seed users: %v", err)
+		t.Fatalf(fmtErrSeed, err)
 	}
 
 	ctx := context.Background()
 	txCtx := db.NewContextWithTx(ctx, tx)
 
 	userRepo := user.NewRepository(conn)
-	const userID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
 	currentTimestamp := time.Now().Truncate(time.Microsecond)
 	updates := &user.User{
 		VerifiedAt: &currentTimestamp,
 	}
-	if err := userRepo.Update(txCtx, updates, userID); err != nil {
+	if err := userRepo.Update(txCtx, updates, mockUserID); err != nil {
 		t.Fatalf("failed to update user: %v", err)
 	}
 
 	const query = "SELECT id, verified_at, password_hash, updated_at, created_at, email FROM users WHERE id = $1"
-	row := tx.QueryRow(query, userID)
+	row := tx.QueryRow(query, mockUserID)
 	var updatedUser user.User
 	if err := row.Scan(&updatedUser.ID, &updatedUser.VerifiedAt, &updatedUser.PasswordHash, &updatedUser.UpdatedAt, &updatedUser.CreatedAt, &updatedUser.Email); err != nil {
 		t.Fatal(err)
@@ -352,7 +357,7 @@ func TestIntegrationRepository_UpdateUser(t *testing.T) {
 	}
 
 	gotID := updatedUser.ID
-	wantID := userID
+	wantID := mockUserID
 	if gotID != wantID {
 		t.Errorf("updatedUser.ID = %q, want: %q", gotID, wantID)
 	}
