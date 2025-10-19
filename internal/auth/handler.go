@@ -43,12 +43,10 @@ type Service interface {
 }
 
 type Handler struct {
-	svc             Service
-	signer          jwt.Signer
-	cfgJWT          *config.JWT
-	cfgCookie       *config.Cookie
-	cfgCSRF         *config.CSRF
-	csrfCookieBaker web.Baker
+	svc       Service
+	signer    jwt.Signer
+	cfgJWT    *config.JWT
+	cfgCookie *config.Cookie
 }
 
 type RegisterUserRequest struct {
@@ -187,7 +185,7 @@ func (h *Handler) refreshCookie(token string, maxAge int) *http.Cookie {
 		MaxAge:   maxAge,
 		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: http.SameSiteStrictMode,
 	}
 }
 
@@ -222,14 +220,6 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	refreshCookie := h.refreshCookie(data.RefreshToken, int(h.cfgJWT.RefreshTTL.Duration.Seconds()))
 	http.SetCookie(w, refreshCookie)
 
-	csrfCookie, err := h.csrfCookieBaker.Bake()
-	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
-		return
-	}
-
-	http.SetCookie(w, csrfCookie)
-
 	msg := MsgLoggedIn
 	res := &LoginResponse{
 		AccessToken:  data.AccessToken,
@@ -263,13 +253,6 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	refreshCookie := h.refreshCookie(data.RefreshToken, int(h.cfgJWT.RefreshTTL.Duration.Seconds()))
 	http.SetCookie(w, refreshCookie)
-
-	csrfCookie, err := h.csrfCookieBaker.Bake()
-	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
-		return
-	}
-	http.SetCookie(w, csrfCookie)
 
 	msg := MsgRefreshed
 	res := &LoginResponse{
@@ -367,24 +350,13 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	refreshCookie := h.refreshCookie("", -1)
 	http.SetCookie(w, refreshCookie)
 
-	csrfCookie := &http.Cookie{
-		Name:     h.cfgCSRF.CookieName,
-		Path:     "/",
-		MaxAge:   -1,
-		Secure:   true,
-		SameSite: http.SameSiteNoneMode,
-	}
-	http.SetCookie(w, csrfCookie)
-
 	web.RespondNoContent[any](w, nil, nil)
 }
 
 type HandlerProvider struct {
-	CfgJWT          *config.JWT
-	CfgCookie       *config.Cookie
-	CfgCSRF         *config.CSRF
-	Signer          jwt.Signer
-	CSRFCookieBaker web.Baker
+	CfgJWT    *config.JWT
+	CfgCookie *config.Cookie
+	Signer    jwt.Signer
 }
 
 func NewHandler(svc Service, provider *HandlerProvider) (*Handler, error) {
@@ -398,18 +370,11 @@ func NewHandler(svc Service, provider *HandlerProvider) (*Handler, error) {
 		return nil, errors.New("cookie config should not be nil")
 	}
 
-	cfgCSRF := provider.CfgCSRF
-	if cfgCSRF == nil {
-		return nil, errors.New("csrf config should not be nil")
-	}
-
 	handler := &Handler{
-		svc:             svc,
-		cfgJWT:          cfgJWT,
-		cfgCookie:       cfgCookie,
-		cfgCSRF:         cfgCSRF,
-		signer:          provider.Signer,
-		csrfCookieBaker: provider.CSRFCookieBaker,
+		svc:       svc,
+		cfgJWT:    cfgJWT,
+		cfgCookie: cfgCookie,
+		signer:    provider.Signer,
 	}
 
 	return handler, nil

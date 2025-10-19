@@ -117,13 +117,6 @@ type CORS struct {
 	AllowCredentials string   `json:"allow_credentials,omitempty"`
 }
 
-type CSRF struct {
-	CookieName string         `json:"cookie_name,omitempty"`
-	TokenLen   uint32         `json:"token_len,omitempty"`
-	MaxAge     timex.Duration `json:"max_age,omitempty"`
-	HeaderName string         `json:"header_name,omitempty"`
-}
-
 type Cookie struct {
 	Name string `json:"name,omitempty"`
 }
@@ -137,7 +130,6 @@ type Config struct {
 	*Email  `json:"email,omitempty"`
 	*Argon2 `json:"argon2,omitempty"`
 	*CORS   `json:"cors,omitempty"`
-	*CSRF   `json:"csrf,omitempty"`
 	*Cookie `json:"cookie,omitempty"`
 }
 
@@ -151,7 +143,6 @@ func (c *Config) LogValue() slog.Value {
 		slog.Any("email", c.Email),
 		slog.Any("argon2", c.Argon2),
 		slog.Any("cors", c.CORS),
-		slog.Any("csrf", c.CSRF),
 		slog.Any("cookie", c.Cookie),
 	)
 }

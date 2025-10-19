@@ -59,12 +59,6 @@
     "allowed_headers": ["Content-Type", "Authorization", "X-CSRF-Token"],
     "allow_credentials": "true"
   },
-  "csrf": {
-    "cookie_name": "__Secure-csrf_token",
-    "token_len": 64,
-    "max_age": "24h",
-    "header_name": "X-CSRF-Token"
-  },
   "cookie": {
     "name": "__Secure-refresh_token"
   }

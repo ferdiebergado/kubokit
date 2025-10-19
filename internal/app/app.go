@@ -25,7 +25,6 @@ type App struct {
 	shutdownTimeout time.Duration
 	cfgServer       *config.Server
 	cfgCORS         *config.CORS
-	cfgCSRF         *config.CSRF
 	signer          jwt.Signer
 	validator       validation.Validator
 	router          router.Router
@@ -46,7 +45,6 @@ func (a *App) registerMiddlewares() {
 
 func (a *App) setupRoutes() {
 	maxBodySize := a.cfgServer.MaxBodyBytes
-	csrfGuard := middleware.CSRFGuard(a.cfgCSRF)
 	requireToken := auth.RequireToken(a.signer)
 
 	// auth routes
@@ -67,7 +65,7 @@ func (a *App) setupRoutes() {
 			middleware.DecodePayload[auth.ResendVerifyEmailRequest](maxBodySize),
 			middleware.ValidateInput[auth.ResendVerifyEmailRequest](a.validator))
 
-		gr.Post("/refresh", a.authHandler.RefreshToken, csrfGuard)
+		gr.Post("/refresh", a.authHandler.RefreshToken)
 
 		gr.Post("/forgot", a.authHandler.ForgotPassword,
 			middleware.DecodePayload[auth.ForgotPasswordRequest](maxBodySize),
@@ -124,7 +122,6 @@ func (a *App) Shutdown() error {
 type Provider struct {
 	CfgServer *config.Server
 	CfgCORS   *config.CORS
-	CfgCSRF   *config.CSRF
 	Router    router.Router
 	Signer    jwt.Signer
 	Validator validation.Validator
@@ -153,7 +150,6 @@ func New(provider *Provider, middlewares []func(http.Handler) http.Handler, auth
 		shutdownTimeout: cfgServer.ShutdownTimeout.Duration,
 		cfgServer:       cfgServer,
 		cfgCORS:         provider.CfgCORS,
-		cfgCSRF:         provider.CfgCSRF,
 		signer:          provider.Signer,
 		validator:       provider.Validator,
 		router:          router,

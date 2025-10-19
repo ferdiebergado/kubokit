@@ -15,7 +15,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/middleware"
 	"github.com/ferdiebergado/kubokit/internal/pkg/env"
 	"github.com/ferdiebergado/kubokit/internal/pkg/logging"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -80,8 +79,6 @@ func Run() error {
 
 	validator := validation.NewGoPlaygroundValidator()
 	txMgr := db.NewSQLTxManager(dbConn)
-	cfgCSRF := cfg.CSRF
-	csrfCookieBaker := security.NewCSRFCookieBaker(cfgCSRF.CookieName, cfgCSRF.TokenLen, cfgCSRF.MaxAge.Duration)
 
 	userRepo := user.NewRepository(dbConn)
 	userService := user.NewService(userRepo, hasher)
@@ -104,10 +101,9 @@ func Run() error {
 	}
 
 	authHandlerProvider := &auth.HandlerProvider{
-		CfgJWT:          cfg.JWT,
-		CfgCookie:       cfg.Cookie,
-		Signer:          signer,
-		CSRFCookieBaker: csrfCookieBaker,
+		CfgJWT:    cfg.JWT,
+		CfgCookie: cfg.Cookie,
+		Signer:    signer,
 	}
 	authHandler, err := auth.NewHandler(authService, authHandlerProvider)
 	if err != nil {
@@ -125,7 +121,6 @@ func Run() error {
 	provider := &Provider{
 		CfgServer: cfg.Server,
 		CfgCORS:   cfg.CORS,
-		CfgCSRF:   cfg.CSRF,
 		Router:    router.NewGoexpressRouter(),
 		Signer:    signer,
 		Validator: validator,

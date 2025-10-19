@@ -14,7 +14,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/env"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/hash"
@@ -57,7 +56,6 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 	mailer := &email.SMTPMailer{}
 	validator := validation.NewGoPlaygroundValidator()
 	txMgr := db.NewSQLTxManager(conn)
-	csrfBaker := security.NewCSRFCookieBaker(cfg.CSRF.CookieName, cfg.CSRF.TokenLen, cfg.CSRF.MaxAge.Duration)
 
 	userRepo := user.NewRepository(conn)
 	userSvc := user.NewService(userRepo, hasher)
@@ -80,11 +78,9 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 	}
 
 	authHandlerProvider := &auth.HandlerProvider{
-		CfgJWT:          cfg.JWT,
-		CfgCookie:       cfg.Cookie,
-		CfgCSRF:         cfg.CSRF,
-		Signer:          signer,
-		CSRFCookieBaker: csrfBaker,
+		CfgJWT:    cfg.JWT,
+		CfgCookie: cfg.Cookie,
+		Signer:    signer,
 	}
 	authHandler, err := auth.NewHandler(authSvc, authHandlerProvider)
 	if err != nil {
@@ -95,7 +91,6 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 	provider := &app.Provider{
 		CfgServer: cfg.Server,
 		CfgCORS:   cfg.CORS,
-		CfgCSRF:   cfg.CSRF,
 		Signer:    signer,
 		Validator: validator,
 		Router:    router.NewGoexpressRouter(),
