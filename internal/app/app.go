@@ -24,7 +24,6 @@ type App struct {
 	stop            context.CancelFunc
 	shutdownTimeout time.Duration
 	cfgServer       *config.Server
-	cfgCORS         *config.CORS
 	signer          jwt.Signer
 	validator       validation.Validator
 	router          router.Router
@@ -121,7 +120,6 @@ func (a *App) Shutdown() error {
 
 type Provider struct {
 	CfgServer *config.Server
-	CfgCORS   *config.CORS
 	Router    router.Router
 	Signer    jwt.Signer
 	Validator validation.Validator
@@ -130,11 +128,10 @@ type Provider struct {
 func New(provider *Provider, middlewares []func(http.Handler) http.Handler, authHandler *auth.Handler, userHandler *user.Handler) (*App, error) {
 	cfgServer := provider.CfgServer
 	router := provider.Router
-	handler := middleware.CORS(provider.CfgCORS)(router)
 	serverCtx, stop := context.WithCancel(context.Background())
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfgServer.Port),
-		Handler: handler,
+		Handler: router,
 		BaseContext: func(_ net.Listener) context.Context {
 			return serverCtx
 		},
@@ -149,7 +146,6 @@ func New(provider *Provider, middlewares []func(http.Handler) http.Handler, auth
 		stop:            stop,
 		shutdownTimeout: cfgServer.ShutdownTimeout.Duration,
 		cfgServer:       cfgServer,
-		cfgCORS:         provider.CfgCORS,
 		signer:          provider.Signer,
 		validator:       provider.Validator,
 		router:          router,

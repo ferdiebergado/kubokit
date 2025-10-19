@@ -90,7 +90,6 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 	middlewares := []func(http.Handler) http.Handler{}
 	provider := &app.Provider{
 		CfgServer: cfg.Server,
-		CfgCORS:   cfg.CORS,
 		Signer:    signer,
 		Validator: validator,
 		Router:    router.NewGoexpressRouter(),

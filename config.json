@@ -53,12 +53,6 @@
     "salt_length": 16,
     "key_length": 32
   },
-  "cors": {
-    "allowed_origin": "http://127.0.0.1:5173",
-    "allowed_methods": ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    "allowed_headers": ["Content-Type", "Authorization", "X-CSRF-Token"],
-    "allow_credentials": "true"
-  },
   "cookie": {
     "name": "__Secure-refresh_token"
   }

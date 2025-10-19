@@ -110,13 +110,6 @@ type Argon2 struct {
 	KeyLength  uint32 `json:"key_length,omitempty"`
 }
 
-type CORS struct {
-	AllowedOrigin    string   `json:"allowed_origin,omitempty" env:"CLIENT_URL"`
-	AllowedMethods   []string `json:"allowed_methods,omitempty"`
-	AllowedHeaders   []string `json:"allowed_headers,omitempty"`
-	AllowCredentials string   `json:"allow_credentials,omitempty"`
-}
-
 type Cookie struct {
 	Name string `json:"name,omitempty"`
 }
@@ -129,7 +122,6 @@ type Config struct {
 	*SMTP   `json:"smtp,omitempty"`
 	*Email  `json:"email,omitempty"`
 	*Argon2 `json:"argon2,omitempty"`
-	*CORS   `json:"cors,omitempty"`
 	*Cookie `json:"cookie,omitempty"`
 }
 
@@ -142,7 +134,6 @@ func (c *Config) LogValue() slog.Value {
 		slog.Any("smtp", c.SMTP),
 		slog.Any("email", c.Email),
 		slog.Any("argon2", c.Argon2),
-		slog.Any("cors", c.CORS),
 		slog.Any("cookie", c.Cookie),
 	)
 }

@@ -120,7 +120,6 @@ func Run() error {
 
 	provider := &Provider{
 		CfgServer: cfg.Server,
-		CfgCORS:   cfg.CORS,
 		Router:    router.NewGoexpressRouter(),
 		Signer:    signer,
 		Validator: validator,
