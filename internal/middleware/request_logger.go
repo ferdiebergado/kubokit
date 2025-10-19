@@ -14,7 +14,7 @@ import (
 
 func LogRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if os.Getenv("ENV") != "development" {
+		if os.Getenv("ENV") == "production" {
 			next.ServeHTTP(w, r)
 			return
 		}
