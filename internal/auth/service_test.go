@@ -10,29 +10,65 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/model"
+	"github.com/ferdiebergado/kubokit/internal/pkg/email"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
-	"github.com/ferdiebergado/kubokit/internal/platform/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-const configFile = "../../config.json"
+const (
+	configFile = "../../config.json"
+	user1      = "user1@example.com"
+)
 
 func TestService_RegisterUser(t *testing.T) {
 	t.Parallel()
 
-	const user1 = "user1@example.com"
-
 	now := time.Now().Truncate(0)
 
-	cfg, err := config.Load(configFile)
+	cfg := &config.Config{
+		App: &config.App{
+			URL: "localhost:8888",
+			Key: "123",
+		},
+		Server: &config.Server{
+			Port: 8888,
+		},
+		Argon2: &config.Argon2{
+			Memory:     1024,
+			Iterations: 1,
+			Threads:    1,
+			SaltLength: 8,
+			KeyLength:  8,
+		},
+		SMTP: &config.SMTP{
+			Host:     "",
+			Port:     0,
+			User:     user1,
+			Password: "",
+		},
+		Email: &config.Email{
+			Templates: "../../web/templates",
+			Layout:    "layout.html",
+			Sender:    "test@example.com",
+			VerifyTTL: timex.Duration{Duration: 5 * time.Minute},
+		},
+		JWT: &config.JWT{
+			JTILength:  8,
+			Issuer:     "localhost:8888",
+			TTL:        timex.Duration{Duration: 15 * time.Minute},
+			RefreshTTL: timex.Duration{Duration: 24 * time.Hour},
+		},
+	}
+
+	hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
+	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +77,6 @@ func TestService_RegisterUser(t *testing.T) {
 		name, email, password string
 		userRepo              user.Repository
 		signer                jwt.Signer
-		mailer                email.Mailer
 		user                  user.User
 		err                   error
 	}{
@@ -70,11 +105,6 @@ func TestService_RegisterUser(t *testing.T) {
 					return "1", nil
 				},
 			},
-			mailer: &email.StubMailer{
-				SendHTMLFunc: func(to []string, subject, tmplName string, data map[string]string) error {
-					return nil
-				},
-			},
 			user: user.User{
 				Model: model.Model{
 					ID:        "1",
@@ -100,7 +130,6 @@ func TestService_RegisterUser(t *testing.T) {
 					}, nil
 				},
 			},
-			mailer: &email.StubMailer{},
 			signer: &jwt.StubSigner{},
 			user:   user.User{},
 			err:    auth.ErrExists,
@@ -110,33 +139,12 @@ func TestService_RegisterUser(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := &config.Config{
-				App: &config.App{
-					URL: "localhost:8888",
-				},
-				Server: &config.Server{
-					Port: 8888,
-				},
-				Email: &config.Email{
-					Templates: "../../web/templates",
-					Layout:    "layout.html",
-					Sender:    "test@example.com",
-					VerifyTTL: timex.Duration{Duration: 5 * time.Minute},
-				},
-				JWT: &config.JWT{
-					JTILength:  8,
-					Issuer:     "localhost:8888",
-					TTL:        timex.Duration{Duration: 15 * time.Minute},
-					RefreshTTL: timex.Duration{Duration: 24 * time.Hour},
-				},
-			}
-
 			provider := &auth.ServiceProvider{
 				CfgApp:   cfg.App,
 				CfgJWT:   cfg.JWT,
 				CfgEmail: cfg.Email,
 				Hasher:   hasher,
-				Mailer:   tc.mailer,
+				Mailer:   mailer,
 				Signer:   tc.signer,
 				Txmgr:    &db.StubTxManager{},
 				UserRepo: tc.userRepo,
@@ -169,17 +177,43 @@ func TestService_RegisterUser(t *testing.T) {
 	}
 }
 
-func TestVerifyUser(t *testing.T) {
+func TestService_VerifyUser(t *testing.T) {
 	t.Parallel()
 
 	errTokenExpired := errors.New("token expired")
 
-	cfg, err := config.Load(configFile)
+	cfg := &config.Config{
+		App: &config.App{
+			URL: "localhost:8888",
+			Key: "123",
+		},
+		Argon2: &config.Argon2{
+			Memory:     1024,
+			Iterations: 1,
+			Threads:    1,
+			SaltLength: 8,
+			KeyLength:  8,
+		},
+		SMTP: &config.SMTP{
+			Host:     "",
+			Port:     0,
+			User:     user1,
+			Password: "",
+		},
+		Email: &config.Email{
+			Templates: "../../web/templates",
+			Layout:    "layout.html",
+			Sender:    "test@example.com",
+			VerifyTTL: timex.Duration{Duration: 5 * time.Minute},
+		},
+	}
+
+	hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
+	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +268,6 @@ func TestVerifyUser(t *testing.T) {
 			signer := &jwt.StubSigner{
 				VerifyFunc: tc.signerVerifyFunc,
 			}
-			mailer := &email.StubMailer{}
 			txMgr := &db.StubTxManager{}
 			cfg := &config.Config{
 				App:   &config.App{},

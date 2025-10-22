@@ -15,8 +15,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 )
 
-var _ Mailer = &SMTPMailer{}
-
 type templateMap map[string]*template.Template
 
 type SMTPMailer struct {

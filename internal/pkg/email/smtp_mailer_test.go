@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/pkg/email"
 	"github.com/ferdiebergado/kubokit/internal/pkg/env"
-	"github.com/ferdiebergado/kubokit/internal/platform/email"
 )
 
 func TestSMTPMailer_SendHTML(t *testing.T) {
