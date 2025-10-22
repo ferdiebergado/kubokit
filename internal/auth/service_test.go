@@ -10,13 +10,15 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/model"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
-	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
+
+const configFile = "../../config.json"
 
 func TestService_RegisterUser(t *testing.T) {
 	t.Parallel()
@@ -25,10 +27,19 @@ func TestService_RegisterUser(t *testing.T) {
 
 	now := time.Now().Truncate(0)
 
+	cfg, err := config.Load(configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	tests := []struct {
 		name, email, password string
 		userRepo              user.Repository
-		hasher                hash.Hasher
 		signer                jwt.Signer
 		mailer                email.Mailer
 		user                  user.User
@@ -53,11 +64,7 @@ func TestService_RegisterUser(t *testing.T) {
 					return nil, user.ErrNotFound
 				},
 			},
-			hasher: &hash.StubHasher{
-				HashFunc: func(plain string) (string, error) {
-					return "hashed", nil
-				},
-			},
+
 			signer: &jwt.StubSigner{
 				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
 					return "1", nil
@@ -93,7 +100,6 @@ func TestService_RegisterUser(t *testing.T) {
 					}, nil
 				},
 			},
-			hasher: &hash.StubHasher{},
 			mailer: &email.StubMailer{},
 			signer: &jwt.StubSigner{},
 			user:   user.User{},
@@ -129,7 +135,7 @@ func TestService_RegisterUser(t *testing.T) {
 				CfgApp:   cfg.App,
 				CfgJWT:   cfg.JWT,
 				CfgEmail: cfg.Email,
-				Hasher:   tc.hasher,
+				Hasher:   hasher,
 				Mailer:   tc.mailer,
 				Signer:   tc.signer,
 				Txmgr:    &db.StubTxManager{},
@@ -166,7 +172,17 @@ func TestService_RegisterUser(t *testing.T) {
 func TestVerifyUser(t *testing.T) {
 	t.Parallel()
 
-	var errTokenExpired = errors.New("token expired")
+	errTokenExpired := errors.New("token expired")
+
+	cfg, err := config.Load(configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	type TestCase struct {
 		name             string
@@ -218,7 +234,6 @@ func TestVerifyUser(t *testing.T) {
 			signer := &jwt.StubSigner{
 				VerifyFunc: tc.signerVerifyFunc,
 			}
-			hasher := &hash.StubHasher{}
 			mailer := &email.StubMailer{}
 			txMgr := &db.StubTxManager{}
 			cfg := &config.Config{
@@ -269,10 +284,14 @@ func TestService_ResetPassword(t *testing.T) {
 		},
 	}
 
-	hasher := &hash.StubHasher{
-		HashFunc: func(plain string) (string, error) {
-			return "hashed", nil
-		},
+	cfg, err := config.Load(configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	userRepo := &user.StubRepo{

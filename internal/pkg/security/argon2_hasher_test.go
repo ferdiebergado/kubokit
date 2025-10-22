@@ -1,11 +1,11 @@
-package hash_test
+package security_test
 
 import (
 	"strings"
 	"testing"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
-	"github.com/ferdiebergado/kubokit/internal/platform/hash"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 )
 
 func TestArgon2Hasher_Hash(t *testing.T) {
@@ -19,7 +19,7 @@ func TestArgon2Hasher_Hash(t *testing.T) {
 		KeyLength:  32,
 	}
 	pepper := "paminta"
-	hasher, err := hash.NewArgon2Hasher(opts, pepper)
+	hasher, err := security.NewArgon2Hasher(opts, pepper)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestArgon2Hasher_Verify(t *testing.T) {
 				KeyLength:  32,
 			}
 			pepper := "paminta"
-			hasher, err := hash.NewArgon2Hasher(opts, pepper)
+			hasher, err := security.NewArgon2Hasher(opts, pepper)
 			if err != nil {
 				t.Fatal(err)
 			}

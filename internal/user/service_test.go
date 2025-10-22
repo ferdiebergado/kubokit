@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/model"
-	"github.com/ferdiebergado/kubokit/internal/platform/hash"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -92,7 +93,17 @@ func TestService_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := user.NewService(tt.repo, &hash.StubHasher{})
+			cfg, err := config.Load("../../config.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			svc := user.NewService(tt.repo, hasher)
 
 			got, err := svc.List(ctx)
 

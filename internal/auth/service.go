@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
-	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
@@ -31,7 +31,7 @@ type Repository interface {
 type service struct {
 	repo      Repository
 	userRepo  user.Repository
-	hasher    hash.Hasher
+	hasher    *security.Argon2Hasher
 	signer    jwt.Signer
 	mailer    email.Mailer
 	cfgJWT    *config.JWT
@@ -328,7 +328,7 @@ type ServiceProvider struct {
 	CfgApp   *config.App
 	CfgJWT   *config.JWT
 	CfgEmail *config.Email
-	Hasher   hash.Hasher
+	Hasher   *security.Argon2Hasher
 	Mailer   email.Mailer
 	Signer   jwt.Signer
 	Txmgr    db.TxManager

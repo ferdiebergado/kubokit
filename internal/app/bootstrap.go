@@ -15,9 +15,9 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/middleware"
 	"github.com/ferdiebergado/kubokit/internal/pkg/env"
 	"github.com/ferdiebergado/kubokit/internal/pkg/logging"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
-	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/platform/router"
 	"github.com/ferdiebergado/kubokit/internal/platform/validation"
@@ -72,7 +72,7 @@ func Run() error {
 		return fmt.Errorf("new mailer: %w", err)
 	}
 
-	hasher, err := hash.NewArgon2Hasher(cfg.Argon2, securityKey)
+	hasher, err := security.NewArgon2Hasher(cfg.Argon2, securityKey)
 	if err != nil {
 		return fmt.Errorf("new hasher: %w", err)
 	}

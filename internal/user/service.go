@@ -3,7 +3,7 @@ package user
 import (
 	"context"
 
-	"github.com/ferdiebergado/kubokit/internal/platform/hash"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 )
 
 // Repository is the interface for user management.
@@ -17,7 +17,7 @@ type Repository interface {
 // service is the implementation of the User service interface.
 type service struct {
 	repo   Repository
-	hasher hash.Hasher
+	hasher *security.Argon2Hasher
 }
 
 func (s *service) List(ctx context.Context) ([]User, error) {
@@ -28,7 +28,7 @@ func (s *service) List(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-func NewService(repo Repository, hasher hash.Hasher) *service {
+func NewService(repo Repository, hasher *security.Argon2Hasher) *service {
 	return &service{
 		repo:   repo,
 		hasher: hasher,

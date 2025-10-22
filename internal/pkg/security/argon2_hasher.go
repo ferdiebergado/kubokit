@@ -1,4 +1,4 @@
-package hash
+package security
 
 import (
 	"crypto/subtle"
@@ -8,11 +8,8 @@ import (
 	"strings"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"golang.org/x/crypto/argon2"
 )
-
-var _ Hasher = &Argon2Hasher{}
 
 const variant = "argon2id"
 
@@ -28,7 +25,7 @@ type Argon2Hasher struct {
 // Hash implements Hasher.
 func (h *Argon2Hasher) Hash(plain string) (string, error) {
 	// Generate a random salt
-	salt, err := security.GenerateRandomBytes(h.saltLen)
+	salt, err := GenerateRandomBytes(h.saltLen)
 	if err != nil {
 		return "", fmt.Errorf("generate salt with length %d: %w", h.saltLen, err)
 	}

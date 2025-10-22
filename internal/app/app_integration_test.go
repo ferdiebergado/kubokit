@@ -14,9 +14,9 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/env"
+	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/email"
-	"github.com/ferdiebergado/kubokit/internal/platform/hash"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/platform/router"
 	"github.com/ferdiebergado/kubokit/internal/platform/validation"
@@ -48,7 +48,7 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 		t.Fatalf("new jwt signer: %v", err)
 	}
 
-	hasher, err := hash.NewArgon2Hasher(cfg.Argon2, "testsecret")
+	hasher, err := security.NewArgon2Hasher(cfg.Argon2, "testsecret")
 	if err != nil {
 		t.Fatalf("new hasher: %v", err)
 	}
