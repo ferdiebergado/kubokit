@@ -238,7 +238,7 @@ func TestIntegrationRepository_Create(t *testing.T) {
 				}
 
 				if err != tc.err {
-					t.Errorf("repo.CreateUser(txCtx, tc.params) = %v, want: %v", err, tc.err)
+					t.Errorf("repo.Create(txCtx, tc.params) = %v, want: %v", err, tc.err)
 				}
 			} else {
 				gotEmail, wantEmail := u.Email, tc.params.Email
@@ -295,7 +295,7 @@ func TestIntegrationRepository_Delete(t *testing.T) {
 				}
 
 				if err != tc.err {
-					t.Errorf("repo.DeleteUser(txCtx, %q) = %v, want: %v", tc.userID, err, tc.err)
+					t.Errorf("repo.Delete(txCtx, %q) = %v, want: %v", tc.userID, err, tc.err)
 				}
 			}
 			const query = "SELECT email FROM users WHERE id = $1"

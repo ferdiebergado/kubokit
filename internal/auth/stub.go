@@ -78,7 +78,7 @@ func (s *StubService) RefreshToken(token string) (*AuthData, error) {
 
 func (s *StubService) Logout(token string) error {
 	if s.LogoutFunc == nil {
-		return errors.New("LogoutUser() not implemented by stub")
+		return errors.New("Logout() not implemented by stub")
 	}
 	return s.LogoutFunc(token)
 }

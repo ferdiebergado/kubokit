@@ -23,7 +23,7 @@ const (
 	user1      = "user1@example.com"
 )
 
-func TestService_RegisterUser(t *testing.T) {
+func TestService_Register(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now().Truncate(0)
@@ -166,18 +166,18 @@ func TestService_RegisterUser(t *testing.T) {
 				}
 
 				if !errors.Is(err, tc.err) {
-					t.Errorf("authSvc.RegisterUser(ctx, params) = %v, want: %v", err, tc.err)
+					t.Errorf("authSvc.Register(ctx, params) = %v, want: %v", err, tc.err)
 				}
 			}
 
 			if !reflect.DeepEqual(gotUser, tc.user) {
-				t.Errorf("authSvc.RegisterUser(ctx, params) = %+v, want: %+v", gotUser, tc.user)
+				t.Errorf("authSvc.Register(ctx, params) = %+v, want: %+v", gotUser, tc.user)
 			}
 		})
 	}
 }
 
-func TestService_VerifyUser(t *testing.T) {
+func TestService_Verify(t *testing.T) {
 	t.Parallel()
 
 	errTokenExpired := errors.New("token expired")
@@ -303,7 +303,7 @@ func TestService_VerifyUser(t *testing.T) {
 				}
 
 				if !errors.Is(err, tc.err) {
-					t.Errorf("svc.VerifyUser(ctx, %q) = %v, want: %v", tc.token, err, tc.err)
+					t.Errorf("svc.Verify(ctx, %q) = %v, want: %v", tc.token, err, tc.err)
 				}
 			}
 		})
