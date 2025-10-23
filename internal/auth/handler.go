@@ -189,6 +189,11 @@ func (h *Handler) refreshCookie(token string, maxAge int) *http.Cookie {
 	}
 }
 
+func (h *Handler) clearRefreshCookie(w http.ResponseWriter) {
+	cookie := h.refreshCookie("", -1)
+	http.SetCookie(w, cookie)
+}
+
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	req, err := web.ParamsFromContext[LoginRequest](r.Context())
 	if err != nil {
@@ -347,8 +352,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshCookie := h.refreshCookie("", -1)
-	http.SetCookie(w, refreshCookie)
+	h.clearRefreshCookie(w)
 
 	web.RespondNoContent[any](w, nil, nil)
 }
