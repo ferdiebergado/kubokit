@@ -49,13 +49,13 @@ type Handler struct {
 	cfgCookie *config.Cookie
 }
 
-type RegisterUserRequest struct {
+type RegisterRequest struct {
 	Email           string `json:"email,omitempty" validate:"required,email"`
 	Password        string `json:"password,omitempty" validate:"required"`
 	PasswordConfirm string `json:"password_confirm,omitempty" validate:"required,eqfield=Password"`
 }
 
-func (r *RegisterUserRequest) LogValue() slog.Value {
+func (r *RegisterRequest) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("email", maskChar),
 		slog.String("password", maskChar),
@@ -71,7 +71,8 @@ type RegisterUserResponse struct {
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	req, err := web.ParamsFromContext[RegisterUserRequest](r.Context())
+	ctx := r.Context()
+	req, err := web.ParamsFromContext[RegisterRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
@@ -81,7 +82,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		Email:    req.Email,
 		Password: req.Password,
 	}
-	user, err := h.svc.Register(r.Context(), params)
+	user, err := h.svc.Register(ctx, params)
 	if err != nil {
 		if errors.Is(err, ErrExists) {
 			web.RespondConflict(w, err, "User already exists.", nil)
@@ -107,13 +108,14 @@ type VerifyRequest struct {
 }
 
 func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
-	req, err := web.ParamsFromContext[VerifyRequest](r.Context())
+	ctx := r.Context()
+	req, err := web.ParamsFromContext[VerifyRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	if err := h.svc.Verify(r.Context(), req.Token); err != nil {
+	if err := h.svc.Verify(ctx, req.Token); err != nil {
 		if errors.Is(err, db.ErrQueryFailed) {
 			web.RespondInternalServerError(w, err)
 			return
@@ -132,13 +134,14 @@ type ResendVerifyEmailRequest struct {
 }
 
 func (h *Handler) ResendVerifyEmail(w http.ResponseWriter, r *http.Request) {
-	req, err := web.ParamsFromContext[ResendVerifyEmailRequest](r.Context())
+	ctx := r.Context()
+	req, err := web.ParamsFromContext[ResendVerifyEmailRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	if err := h.svc.ResendVerificationEmail(r.Context(), req.Email); err != nil {
+	if err := h.svc.ResendVerificationEmail(ctx, req.Email); err != nil {
 		if errors.Is(err, db.ErrQueryFailed) {
 			web.RespondInternalServerError(w, err)
 			return
@@ -195,14 +198,15 @@ func (h *Handler) clearRefreshCookie(w http.ResponseWriter) {
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	req, err := web.ParamsFromContext[LoginRequest](r.Context())
+	ctx := r.Context()
+	req, err := web.ParamsFromContext[LoginRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
 	params := LoginUserParams(req)
-	data, err := h.svc.Login(r.Context(), params)
+	data, err := h.svc.Login(ctx, params)
 	if err != nil {
 		if errors.Is(err, ErrNotVerified) {
 			msg := MsgNotVerified
@@ -290,7 +294,7 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	h.svc.SendPasswordReset(req.Email)
 	msg := message.ResetSent
-	web.RespondOK(w, &msg, struct{}{})
+	web.RespondOK[any](w, &msg, nil)
 }
 
 type ChangePasswordRequest struct {
@@ -309,13 +313,15 @@ func (r *ChangePasswordRequest) LogValue() slog.Value {
 }
 
 func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
-	email, err := user.FromContext(r.Context())
+	ctx := r.Context()
+
+	email, err := user.FromContext(ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	req, err := web.ParamsFromContext[ChangePasswordRequest](r.Context())
+	req, err := web.ParamsFromContext[ChangePasswordRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
