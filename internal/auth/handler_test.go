@@ -36,13 +36,13 @@ func TestHandler_Register(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		params      auth.RegisterUserRequest
+		params      auth.RegisterRequest
 		regUserFunc func(ctx context.Context, params auth.RegisterUserParams) (user.User, error)
 		code        int
 		user        *auth.RegisterUserResponse
 	}{
 		{"Successful registration",
-			auth.RegisterUserRequest{Email: testEmail, Password: testPass, PasswordConfirm: testPass},
+			auth.RegisterRequest{Email: testEmail, Password: testPass, PasswordConfirm: testPass},
 			func(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
 				return user.User{
 					Model: model.Model{
@@ -62,7 +62,7 @@ func TestHandler_Register(t *testing.T) {
 			},
 		},
 		{"User already exists",
-			auth.RegisterUserRequest{Email: testEmail, Password: testPass, PasswordConfirm: testPass},
+			auth.RegisterRequest{Email: testEmail, Password: testPass, PasswordConfirm: testPass},
 			func(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
 				return user.User{}, auth.ErrExists
 			},
@@ -358,7 +358,6 @@ func TestHandler_Verify(t *testing.T) {
 		cfgCookie *config.Cookie
 		cfgApp    *config.App
 		signer    jwt.Signer
-		csfrBaker web.Baker
 		code      int
 		token     string
 		request   *auth.VerifyRequest

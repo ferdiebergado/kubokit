@@ -49,8 +49,8 @@ func (a *App) setupRoutes() {
 	// auth routes
 	a.router.Group("/auth", func(gr router.Router) {
 		gr.Post("/register", a.authHandler.Register,
-			middleware.DecodePayload[auth.RegisterUserRequest](maxBodySize),
-			middleware.ValidateInput[auth.RegisterUserRequest](a.validator))
+			middleware.DecodePayload[auth.RegisterRequest](maxBodySize),
+			middleware.ValidateInput[auth.RegisterRequest](a.validator))
 
 		gr.Post("/login", a.authHandler.Login,
 			middleware.DecodePayload[auth.LoginRequest](maxBodySize),
