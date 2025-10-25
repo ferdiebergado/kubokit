@@ -31,10 +31,10 @@ type AuthData struct {
 }
 
 type Service interface {
-	Register(ctx context.Context, params RegisterUserParams) (user.User, error)
+	Register(ctx context.Context, params RegisterParams) (user.User, error)
 	Verify(ctx context.Context, token string) error
 	ResendVerificationEmail(ctx context.Context, email string) error
-	Login(ctx context.Context, params LoginUserParams) (*AuthData, error)
+	Login(ctx context.Context, params LoginParams) (*AuthData, error)
 	SendPasswordReset(email string)
 	ChangePassword(ctx context.Context, params ChangePasswordParams) error
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
@@ -47,6 +47,32 @@ type Handler struct {
 	signer    jwt.Signer
 	cfgJWT    *config.JWT
 	cfgCookie *config.Cookie
+}
+
+type ResetPasswordRequest struct {
+	Email           string `json:"email,omitempty" validate:"required,email"`
+	Password        string `json:"password,omitempty" validate:"required"`
+	PasswordConfirm string `json:"password_confirm,omitempty" validate:"required,eqfield=Password"`
+}
+
+func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	req, err := web.ParamsFromContext[ResetPasswordRequest](ctx)
+	if err != nil {
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		return
+	}
+	params := ResetPasswordParams{
+		Email:    req.Email,
+		Password: req.Password,
+	}
+	if err = h.svc.ResetPassword(ctx, params); err != nil {
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		return
+	}
+
+	msg := MsgPasswordResetSuccess
+	web.RespondOK[any](w, &msg, nil)
 }
 
 type RegisterRequest struct {
@@ -63,7 +89,7 @@ func (r *RegisterRequest) LogValue() slog.Value {
 	)
 }
 
-type RegisterUserResponse struct {
+type RegisterResponse struct {
 	ID        string    `json:"id"`
 	Email     string    `json:"email"`
 	CreatedAt time.Time `json:"created_at"`
@@ -78,7 +104,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params := RegisterUserParams{
+	params := RegisterParams{
 		Email:    req.Email,
 		Password: req.Password,
 	}
@@ -94,7 +120,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := MsgRegisterSuccess
-	data := &RegisterUserResponse{
+	data := &RegisterResponse{
 		ID:        user.ID,
 		Email:     user.Email,
 		CreatedAt: user.CreatedAt,
@@ -205,7 +231,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params := LoginUserParams(req)
+	params := LoginParams(req)
 	data, err := h.svc.Login(ctx, params)
 	if err != nil {
 		if errors.Is(err, ErrNotVerified) {
