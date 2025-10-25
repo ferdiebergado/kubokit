@@ -323,19 +323,14 @@ func TestService_ResetPassword(t *testing.T) {
 		t.Fatalf("Failed to create hasher: %v", err)
 	}
 
-	params := auth.ResetPasswordParams{
-		Email:    "abc@example.com",
-		Password: "abc@123",
-	}
-
-	type TestCase struct {
+	type testCase struct {
 		name           string
 		changePassword func(ctx context.Context, email, newPassword string) error
 		findByEmail    func(ctx context.Context, email string) (*user.User, error)
 		wantErr        error
 	}
 
-	testcases := []TestCase{
+	testcases := []testCase{
 		{
 			name: "user exists",
 			changePassword: func(ctx context.Context, email string, newPassword string) error {
@@ -389,7 +384,10 @@ func TestService_ResetPassword(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to create auth service: %v", err)
 			}
-
+			params := auth.ResetPasswordParams{
+				Email:    "abc@example.com",
+				Password: "abc@123",
+			}
 			if err := svc.ResetPassword(context.Background(), params); !errors.Is(err, tc.wantErr) {
 				t.Errorf("svc.ResetPassword(context.Background(),params) = %+v, want: %+v", err, tc.wantErr)
 			}
