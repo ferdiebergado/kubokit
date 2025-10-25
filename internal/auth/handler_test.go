@@ -35,15 +35,15 @@ func TestHandler_Register(t *testing.T) {
 	now := time.Now().Truncate(0)
 
 	tests := []struct {
-		name        string
-		params      auth.RegisterRequest
-		regUserFunc func(ctx context.Context, params auth.RegisterUserParams) (user.User, error)
-		code        int
-		user        *auth.RegisterUserResponse
+		name     string
+		params   auth.RegisterRequest
+		register func(ctx context.Context, params auth.RegisterParams) (user.User, error)
+		code     int
+		user     *auth.RegisterResponse
 	}{
 		{"Successful registration",
 			auth.RegisterRequest{Email: testEmail, Password: testPass, PasswordConfirm: testPass},
-			func(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
+			func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
 				return user.User{
 					Model: model.Model{
 						ID:        "1",
@@ -54,7 +54,7 @@ func TestHandler_Register(t *testing.T) {
 				}, nil
 			},
 			http.StatusCreated,
-			&auth.RegisterUserResponse{
+			&auth.RegisterResponse{
 				ID:        "1",
 				Email:     testEmail,
 				CreatedAt: now,
@@ -63,7 +63,7 @@ func TestHandler_Register(t *testing.T) {
 		},
 		{"User already exists",
 			auth.RegisterRequest{Email: testEmail, Password: testPass, PasswordConfirm: testPass},
-			func(ctx context.Context, params auth.RegisterUserParams) (user.User, error) {
+			func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
 				return user.User{}, auth.ErrExists
 			},
 			http.StatusConflict,
@@ -75,7 +75,7 @@ func TestHandler_Register(t *testing.T) {
 			t.Parallel()
 
 			svc := &auth.StubService{
-				RegisterFunc: tt.regUserFunc,
+				RegisterFunc: tt.register,
 			}
 
 			cfg := &config.Config{
@@ -124,7 +124,7 @@ func TestHandler_Register(t *testing.T) {
 			}
 
 			if tt.user != nil {
-				var apiRes web.OKResponse[*auth.RegisterUserResponse]
+				var apiRes web.OKResponse[*auth.RegisterResponse]
 				if err := json.NewDecoder(rec.Body).Decode(&apiRes); err != nil {
 					t.Fatal(err)
 				}
@@ -164,8 +164,8 @@ func TestHandler_Login(t *testing.T) {
 		name              string
 		input             auth.LoginRequest
 		code              int
-		loginFunc         func(ctx context.Context, params auth.LoginUserParams) (*auth.AuthData, error)
-		verifyFunc        func(tokenString string) (*jwt.Claims, error)
+		login             func(ctx context.Context, params auth.LoginParams) (*auth.AuthData, error)
+		verify            func(tokenString string) (*jwt.Claims, error)
 		gotBody, wantBody any
 		wantRefreshCookie *http.Cookie
 	}{
@@ -176,7 +176,7 @@ func TestHandler_Login(t *testing.T) {
 				Password: testPass,
 			},
 			code: http.StatusOK,
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.AuthData, error) {
+			login: func(ctx context.Context, params auth.LoginParams) (*auth.AuthData, error) {
 				authData := &auth.AuthData{
 					AccessToken:  mockAuthData.AccessToken,
 					RefreshToken: mockAuthData.RefreshToken,
@@ -185,7 +185,7 @@ func TestHandler_Login(t *testing.T) {
 				}
 				return authData, nil
 			},
-			verifyFunc: func(tokenString string) (*jwt.Claims, error) {
+			verify: func(tokenString string) (*jwt.Claims, error) {
 				return &jwt.Claims{UserID: testEmail}, nil
 			},
 			gotBody: &web.OKResponse[auth.LoginResponse]{},
@@ -214,7 +214,7 @@ func TestHandler_Login(t *testing.T) {
 				Email:    testEmail,
 				Password: testPass,
 			},
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.AuthData, error) {
+			login: func(ctx context.Context, params auth.LoginParams) (*auth.AuthData, error) {
 				return nil, auth.ErrNotVerified
 			},
 			code:    http.StatusUnauthorized,
@@ -230,7 +230,7 @@ func TestHandler_Login(t *testing.T) {
 				Email:    testEmail,
 				Password: testPass,
 			},
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.AuthData, error) {
+			login: func(ctx context.Context, params auth.LoginParams) (*auth.AuthData, error) {
 				return nil, user.ErrNotFound
 			},
 			code:    http.StatusUnauthorized,
@@ -245,7 +245,7 @@ func TestHandler_Login(t *testing.T) {
 				Email:    testEmail,
 				Password: "anotherpass",
 			},
-			loginFunc: func(ctx context.Context, params auth.LoginUserParams) (*auth.AuthData, error) {
+			login: func(ctx context.Context, params auth.LoginParams) (*auth.AuthData, error) {
 				return nil, auth.ErrIncorrectPassword
 			},
 			code:    http.StatusUnauthorized,
@@ -260,11 +260,11 @@ func TestHandler_Login(t *testing.T) {
 			t.Parallel()
 
 			svc := &auth.StubService{
-				LoginUserFunc: tc.loginFunc,
+				LoginFunc: tc.login,
 			}
 
 			signer := &jwt.StubSigner{
-				VerifyFunc: tc.verifyFunc,
+				VerifyFunc: tc.verify,
 			}
 
 			provider := &auth.HandlerProvider{
@@ -841,4 +841,44 @@ func findCookie(t *testing.T, cookies []*http.Cookie, name string) *http.Cookie 
 	}
 
 	return nil
+}
+
+func TestHandler_ResetPassword(t *testing.T) {
+	mockService := &auth.StubService{}
+	mockSigner := &jwt.StubSigner{}
+	provider := &auth.HandlerProvider{
+		CfgJWT:    &config.JWT{},
+		CfgCookie: &config.Cookie{},
+		Signer:    mockSigner,
+	}
+	handler, err := auth.NewHandler(mockService, provider)
+	if err != nil {
+		t.Fatalf("failed to create handler: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/reset-password", http.NoBody)
+	rec := httptest.NewRecorder()
+	handler.ResetPassword(rec, req)
+
+	res := rec.Result()
+	defer res.Body.Close()
+
+	gotStatus, wantStatus := res.StatusCode, http.StatusOK
+	if gotStatus != wantStatus {
+		t.Errorf("res.StatusCode = %d, want: %d", gotStatus, wantStatus)
+	}
+
+	gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
+	if gotContent != wantContent {
+		t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
+	}
+
+	var data web.OKResponse[any]
+	if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
+		t.Fatalf("Failed to decode json response: %v", err)
+	}
+
+	gotMsg, wantMsg := data.Message, auth.MsgPasswordResetSuccess
+	if gotMsg != wantMsg {
+		t.Errorf("data.Message = %q, want: %q", gotMsg, wantMsg)
+	}
 }
