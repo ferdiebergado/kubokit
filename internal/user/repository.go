@@ -15,11 +15,11 @@ type repo struct {
 	db db.Executor
 }
 
-type CreateUserParams struct {
+type CreateParams struct {
 	Email, Password string
 }
 
-func (r *repo) Create(ctx context.Context, params CreateUserParams) (User, error) {
+func (r *repo) Create(ctx context.Context, params CreateParams) (User, error) {
 	const query = `
 	INSERT INTO users (email, password_hash)
 	VALUES ($1, $2)

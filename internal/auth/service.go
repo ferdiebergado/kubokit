@@ -40,12 +40,12 @@ type service struct {
 	txManager db.TxManager
 }
 
-type RegisterUserParams struct {
+type RegisterParams struct {
 	Email    string
 	Password string
 }
 
-func (p *RegisterUserParams) LogValue() slog.Value {
+func (p *RegisterParams) LogValue() slog.Value {
 	return slog.AnyValue(nil)
 }
 
@@ -53,7 +53,7 @@ type HTMLEmail struct {
 	Address, Subject, Title, Template, Link string
 }
 
-func (s *service) Register(ctx context.Context, params RegisterUserParams) (user.User, error) {
+func (s *service) Register(ctx context.Context, params RegisterParams) (user.User, error) {
 	u := user.User{}
 	email := params.Email
 	existing, err := s.userRepo.FindByEmail(ctx, email)
@@ -70,7 +70,7 @@ func (s *service) Register(ctx context.Context, params RegisterUserParams) (user
 		return u, fmt.Errorf("hash password: %w", err)
 	}
 
-	newUser, err := s.userRepo.Create(ctx, user.CreateUserParams{Email: email, Password: hash})
+	newUser, err := s.userRepo.Create(ctx, user.CreateParams{Email: email, Password: hash})
 	if err != nil {
 		return u, fmt.Errorf("create user: %w", err)
 	}
@@ -144,19 +144,19 @@ func (s *service) Verify(ctx context.Context, token string) error {
 	return nil
 }
 
-type LoginUserParams struct {
+type LoginParams struct {
 	Email    string
 	Password string
 }
 
-func (p *LoginUserParams) LogValue() slog.Value {
+func (p *LoginParams) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("email", maskChar),
 		slog.String("password", maskChar),
 	)
 }
 
-func (s *service) Login(ctx context.Context, params LoginUserParams) (*AuthData, error) {
+func (s *service) Login(ctx context.Context, params LoginParams) (*AuthData, error) {
 	u, err := s.userRepo.FindByEmail(ctx, params.Email)
 	if err != nil {
 		return nil, fmt.Errorf(MsgFmtFindUserByEmail, err)

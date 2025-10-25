@@ -8,9 +8,9 @@ import (
 )
 
 type StubService struct {
-	RegisterFunc                func(ctx context.Context, params RegisterUserParams) (user.User, error)
+	RegisterFunc                func(ctx context.Context, params RegisterParams) (user.User, error)
 	VerifyFunc                  func(ctx context.Context, token string) error
-	LoginUserFunc               func(ctx context.Context, params LoginUserParams) (*AuthData, error)
+	LoginFunc                   func(ctx context.Context, params LoginParams) (*AuthData, error)
 	SendPasswordResetFunc       func(email string)
 	ChangePasswordFunc          func(ctx context.Context, params ChangePasswordParams) error
 	ResetPasswordFunc           func(ctx context.Context, params ResetPasswordParams) error
@@ -27,7 +27,7 @@ func (s *StubService) ResendVerificationEmail(ctx context.Context, email string)
 	return s.ResendVerificationEmailFunc(ctx, email)
 }
 
-func (s StubService) Register(ctx context.Context, params RegisterUserParams) (user.User, error) {
+func (s StubService) Register(ctx context.Context, params RegisterParams) (user.User, error) {
 	if s.RegisterFunc == nil {
 		return user.User{}, errors.New("Register() not implemented by stub")
 	}
@@ -41,11 +41,11 @@ func (s *StubService) Verify(ctx context.Context, token string) error {
 	return s.VerifyFunc(ctx, token)
 }
 
-func (s *StubService) Login(ctx context.Context, params LoginUserParams) (*AuthData, error) {
-	if s.LoginUserFunc == nil {
+func (s *StubService) Login(ctx context.Context, params LoginParams) (*AuthData, error) {
+	if s.LoginFunc == nil {
 		return nil, errors.New("Login() not implemented by stub")
 	}
-	return s.LoginUserFunc(ctx, params)
+	return s.LoginFunc(ctx, params)
 }
 
 func (s *StubService) SendPasswordReset(email string) {
@@ -86,20 +86,20 @@ func (s *StubService) Logout(token string) error {
 var _ Service = &StubService{}
 
 type StubRepo struct {
-	RegisterFunc       func(ctx context.Context, params RegisterUserParams) (user.User, error)
-	LoginFunc          func(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error)
+	RegisterFunc       func(ctx context.Context, params RegisterParams) (user.User, error)
+	LoginFunc          func(ctx context.Context, params LoginParams) (accessToken, refreshToken string, err error)
 	VerifyFunc         func(ctx context.Context, userID string) error
 	ChangePasswordFunc func(ctx context.Context, email, newPassword string) error
 }
 
-func (r *StubRepo) Register(ctx context.Context, params RegisterUserParams) (user.User, error) {
+func (r *StubRepo) Register(ctx context.Context, params RegisterParams) (user.User, error) {
 	if r.RegisterFunc == nil {
 		return user.User{}, errors.New("Register() not implemented in stub")
 	}
 	return r.RegisterFunc(ctx, params)
 }
 
-func (r *StubRepo) Login(ctx context.Context, params LoginUserParams) (accessToken, refreshToken string, err error) {
+func (r *StubRepo) Login(ctx context.Context, params LoginParams) (accessToken, refreshToken string, err error) {
 	if r.LoginFunc == nil {
 		return "", "", errors.New("Login() not implemented by stub")
 	}

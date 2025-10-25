@@ -6,7 +6,7 @@ import (
 )
 
 type StubService struct {
-	CreatFunc       func(ctx context.Context, params CreateUserParams) (User, error)
+	CreatFunc       func(ctx context.Context, params CreateParams) (User, error)
 	FindByEmailFunc func(ctx context.Context, email string) (*User, error)
 	ListFunc        func(ctx context.Context) ([]User, error)
 	FindFunc        func(ctx context.Context, userID string) (*User, error)
@@ -23,12 +23,12 @@ var _ Service = &StubService{}
 
 type StubRepo struct {
 	ListFunc        func(ctx context.Context) ([]User, error)
-	CreateFunc      func(ctx context.Context, params CreateUserParams) (User, error)
+	CreateFunc      func(ctx context.Context, params CreateParams) (User, error)
 	FindByEmailFunc func(ctx context.Context, email string) (*User, error)
 	FindUserFunc    func(ctx context.Context, userID string) (*User, error)
 }
 
-func (r *StubRepo) Create(ctx context.Context, params CreateUserParams) (User, error) {
+func (r *StubRepo) Create(ctx context.Context, params CreateParams) (User, error) {
 	if r.CreateFunc == nil {
 		return User{}, errors.New("Create() not implemented by stub")
 	}

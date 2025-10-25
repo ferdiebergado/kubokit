@@ -8,7 +8,7 @@ import (
 
 // Repository is the interface for user management.
 type Repository interface {
-	Create(ctx context.Context, params CreateUserParams) (User, error)
+	Create(ctx context.Context, params CreateParams) (User, error)
 	List(ctx context.Context) ([]User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	Find(ctx context.Context, userID string) (*User, error)

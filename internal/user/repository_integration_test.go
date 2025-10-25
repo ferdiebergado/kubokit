@@ -205,12 +205,12 @@ func TestIntegrationRepository_Create(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		params user.CreateUserParams
+		params user.CreateParams
 		err    error
 	}{
 		{
 			name: "User is available",
-			params: user.CreateUserParams{
+			params: user.CreateParams{
 				Email:    "agnis@example.com",
 				Password: "hashed",
 			},
@@ -218,7 +218,7 @@ func TestIntegrationRepository_Create(t *testing.T) {
 		},
 		{
 			name: "User already exists",
-			params: user.CreateUserParams{
+			params: user.CreateParams{
 				Email:    "agnis@example.com",
 				Password: "hashed",
 			},
