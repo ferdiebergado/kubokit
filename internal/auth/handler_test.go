@@ -34,21 +34,6 @@ func TestHandler_Register(t *testing.T) {
 	t.Parallel()
 
 	timeStamp := time.Now().Truncate(0)
-	mockUser := user.User{
-		Model: model.Model{
-			ID:        "1",
-			CreatedAt: timeStamp,
-			UpdatedAt: timeStamp,
-		},
-		Email:        testEmail,
-		PasswordHash: "hashed",
-	}
-
-	mockRequest := auth.RegisterRequest{
-		Email:           testEmail,
-		Password:        "testpass",
-		PasswordConfirm: "testpass",
-	}
 
 	type testCase struct {
 		name       string
@@ -62,7 +47,15 @@ func TestHandler_Register(t *testing.T) {
 		{
 			name: "user does not exists",
 			register: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
-				return mockUser, nil
+				return user.User{
+					Model: model.Model{
+						ID:        "1",
+						CreatedAt: timeStamp,
+						UpdatedAt: timeStamp,
+					},
+					Email:        testEmail,
+					PasswordHash: "hashed",
+				}, nil
 			},
 			wantStatus: http.StatusCreated,
 			assertBody: func(t *testing.T, res io.ReadCloser) {
@@ -79,10 +72,10 @@ func TestHandler_Register(t *testing.T) {
 				}
 
 				regResponse := auth.RegisterResponse{
-					ID:        mockUser.ID,
-					Email:     mockUser.Email,
-					CreatedAt: mockUser.CreatedAt,
-					UpdatedAt: mockUser.UpdatedAt,
+					ID:        "1",
+					Email:     testEmail,
+					CreatedAt: timeStamp,
+					UpdatedAt: timeStamp,
 				}
 				gotData, wantData := body.Data, regResponse
 				if !reflect.DeepEqual(gotData, wantData) {
@@ -112,7 +105,7 @@ func TestHandler_Register(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			mockService := auth.StubService{
+			mockService := &auth.StubService{
 				RegisterFunc: tc.register,
 			}
 
@@ -120,9 +113,16 @@ func TestHandler_Register(t *testing.T) {
 				CfgJWT:    &config.JWT{},
 				CfgCookie: &config.Cookie{},
 			}
-			handler, err := auth.NewHandler(&mockService, provider)
+
+			handler, err := auth.NewHandler(mockService, provider)
 			if err != nil {
 				t.Fatalf("Failed to create handler: %v", err)
+			}
+
+			mockRequest := auth.RegisterRequest{
+				Email:           testEmail,
+				Password:        "testpass",
+				PasswordConfirm: "testpass",
 			}
 
 			ctx := web.NewContextWithParams(context.Background(), mockRequest)
@@ -133,9 +133,8 @@ func TestHandler_Register(t *testing.T) {
 			res := rec.Result()
 			defer res.Body.Close()
 
-			gotStatus, wantStatus := res.StatusCode, tc.wantStatus
-			if gotStatus != wantStatus {
-				t.Errorf("res.StatusCode = %d, want: %d", gotStatus, wantStatus)
+			if res.StatusCode != tc.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
 			}
 
 			gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
@@ -149,9 +148,8 @@ func TestHandler_Register(t *testing.T) {
 					t.Fatalf("Failed to decode json response: %v", err)
 				}
 
-				gotMsg, wantMsg := body.Message, tc.errMsg
-				if gotMsg != wantMsg {
-					t.Errorf("body.Message = %q, want: %q", gotMsg, wantMsg)
+				if body.Message != tc.errMsg {
+					t.Errorf("body.Message = %q, want: %q", body.Message, tc.errMsg)
 				}
 
 				return
