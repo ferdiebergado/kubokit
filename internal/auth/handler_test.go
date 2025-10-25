@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -32,108 +33,131 @@ var defaultDuration = 30 * timeUnit
 func TestHandler_Register(t *testing.T) {
 	t.Parallel()
 
-	now := time.Now().Truncate(0)
+	timeStamp := time.Now().Truncate(0)
+	mockUser := user.User{
+		Model: model.Model{
+			ID:        "1",
+			CreatedAt: timeStamp,
+			UpdatedAt: timeStamp,
+		},
+		Email:        testEmail,
+		PasswordHash: "hashed",
+	}
 
-	tests := []struct {
-		name     string
-		params   auth.RegisterRequest
-		register func(ctx context.Context, params auth.RegisterParams) (user.User, error)
-		code     int
-		user     *auth.RegisterResponse
-	}{
-		{"Successful registration",
-			auth.RegisterRequest{Email: testEmail, Password: testPass, PasswordConfirm: testPass},
-			func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
-				return user.User{
-					Model: model.Model{
-						ID:        "1",
-						CreatedAt: now,
-						UpdatedAt: now,
-					},
-					Email: testEmail,
-				}, nil
+	mockRequest := auth.RegisterRequest{
+		Email:           testEmail,
+		Password:        "testpass",
+		PasswordConfirm: "testpass",
+	}
+
+	type testCase struct {
+		name       string
+		register   func(ctx context.Context, params auth.RegisterParams) (user.User, error)
+		wantStatus int
+		errMsg     string
+		assertBody func(t *testing.T, body io.ReadCloser)
+	}
+
+	testCases := []testCase{
+		{
+			name: "user does not exists",
+			register: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
+				return mockUser, nil
 			},
-			http.StatusCreated,
-			&auth.RegisterResponse{
-				ID:        "1",
-				Email:     testEmail,
-				CreatedAt: now,
-				UpdatedAt: now,
+			wantStatus: http.StatusCreated,
+			assertBody: func(t *testing.T, res io.ReadCloser) {
+				t.Helper()
+
+				var body web.OKResponse[auth.RegisterResponse]
+				if err := json.NewDecoder(res).Decode(&body); err != nil {
+					t.Fatalf("Failed to decode json response: %v", err)
+				}
+
+				gotMsg, wantMsg := body.Message, auth.MsgRegisterSuccess
+				if gotMsg != wantMsg {
+					t.Errorf("body.Message = %q, want: %q", gotMsg, wantMsg)
+				}
+
+				regResponse := auth.RegisterResponse{
+					ID:        mockUser.ID,
+					Email:     mockUser.Email,
+					CreatedAt: mockUser.CreatedAt,
+					UpdatedAt: mockUser.UpdatedAt,
+				}
+				gotData, wantData := body.Data, regResponse
+				if !reflect.DeepEqual(gotData, wantData) {
+					t.Errorf("body.Data = %+v, want: %+v", gotData, wantData)
+				}
 			},
 		},
-		{"User already exists",
-			auth.RegisterRequest{Email: testEmail, Password: testPass, PasswordConfirm: testPass},
-			func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
+		{
+			name: "user exists",
+			register: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
 				return user.User{}, auth.ErrExists
 			},
-			http.StatusConflict,
-			nil,
+			wantStatus: http.StatusConflict,
+			errMsg:     auth.MsgUserExists,
+		},
+		{
+			name: "db error",
+			register: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
+				return user.User{}, db.ErrQueryFailed
+			},
+			wantStatus: http.StatusInternalServerError,
+			errMsg:     "an unexpected error occurred",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			svc := &auth.StubService{
-				RegisterFunc: tt.register,
-			}
-
-			cfg := &config.Config{
-				JWT: &config.JWT{
-					JTILength:  8,
-					Issuer:     "example.com",
-					TTL:        timex.Duration{Duration: defaultDuration},
-					RefreshTTL: timex.Duration{Duration: defaultDuration},
-				},
-
-				Cookie: &config.Cookie{
-					Name: "refresh_token",
-				},
-			}
-
-			signer := &jwt.StubSigner{
-				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
-					return "1", nil
-				},
+			mockService := auth.StubService{
+				RegisterFunc: tc.register,
 			}
 
 			provider := &auth.HandlerProvider{
-				CfgJWT:    cfg.JWT,
-				CfgCookie: cfg.Cookie,
-				Signer:    signer,
+				CfgJWT:    &config.JWT{},
+				CfgCookie: &config.Cookie{},
 			}
-			authHandler, err := auth.NewHandler(svc, provider)
+			handler, err := auth.NewHandler(&mockService, provider)
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("Failed to create handler: %v", err)
 			}
 
-			paramsCtx := web.NewContextWithParams(context.Background(), tt.params)
-			req := httptest.NewRequestWithContext(paramsCtx, http.MethodPost, "/auth/register", nil)
+			ctx := web.NewContextWithParams(context.Background(), mockRequest)
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/register", http.NoBody)
 			rec := httptest.NewRecorder()
-			authHandler.Register(rec, req)
+			handler.Register(rec, req)
 
-			gotStatus, wantStatus := rec.Code, tt.code
+			res := rec.Result()
+			defer res.Body.Close()
+
+			gotStatus, wantStatus := res.StatusCode, tc.wantStatus
 			if gotStatus != wantStatus {
-				t.Errorf(message.FmtErrStatusCode, gotStatus, wantStatus)
+				t.Errorf("res.StatusCode = %d, want: %d", gotStatus, wantStatus)
 			}
 
-			gotHeader := rec.Header().Get(web.HeaderContentType)
-			wantHeader := web.MimeJSON
-			if gotHeader != wantHeader {
-				t.Errorf("rec.Header().Get(%q) = %q, want: %q", web.HeaderContentType, gotHeader, wantHeader)
+			gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
+			if gotContent != wantContent {
+				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
 			}
 
-			if tt.user != nil {
-				var apiRes web.OKResponse[*auth.RegisterResponse]
-				if err := json.NewDecoder(rec.Body).Decode(&apiRes); err != nil {
-					t.Fatal(err)
+			if tc.errMsg != "" {
+				var body web.ErrorResponse
+				if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+					t.Fatalf("Failed to decode json response: %v", err)
 				}
 
-				gotUser, wantUser := apiRes.Data, tt.user
-				if !reflect.DeepEqual(gotUser, wantUser) {
-					t.Errorf("apiRes.Data = %+v, want: %+v", gotUser, wantUser)
+				gotMsg, wantMsg := body.Message, tc.errMsg
+				if gotMsg != wantMsg {
+					t.Errorf("body.Message = %q, want: %q", gotMsg, wantMsg)
 				}
+
+				return
 			}
+
+			tc.assertBody(t, res.Body)
 		})
 	}
 }
