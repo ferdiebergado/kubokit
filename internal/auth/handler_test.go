@@ -844,41 +844,84 @@ func findCookie(t *testing.T, cookies []*http.Cookie, name string) *http.Cookie 
 }
 
 func TestHandler_ResetPassword(t *testing.T) {
-	mockService := &auth.StubService{}
-	mockSigner := &jwt.StubSigner{}
-	provider := &auth.HandlerProvider{
-		CfgJWT:    &config.JWT{},
-		CfgCookie: &config.Cookie{},
-		Signer:    mockSigner,
-	}
-	handler, err := auth.NewHandler(mockService, provider)
-	if err != nil {
-		t.Fatalf("failed to create handler: %v", err)
-	}
-	req := httptest.NewRequest(http.MethodPost, "/reset-password", http.NoBody)
-	rec := httptest.NewRecorder()
-	handler.ResetPassword(rec, req)
+	t.Parallel()
 
-	res := rec.Result()
-	defer res.Body.Close()
-
-	gotStatus, wantStatus := res.StatusCode, http.StatusOK
-	if gotStatus != wantStatus {
-		t.Errorf("res.StatusCode = %d, want: %d", gotStatus, wantStatus)
+	type testCase struct {
+		name          string
+		resetPassword func(ctx context.Context, params auth.ResetPasswordParams) error
+		wantStatus    int
+		wantMsg       string
 	}
 
-	gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
-	if gotContent != wantContent {
-		t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
+	testcases := []testCase{
+		{
+			name: "user exists",
+			resetPassword: func(ctx context.Context, params auth.ResetPasswordParams) error {
+				return nil
+			},
+			wantStatus: http.StatusOK,
+			wantMsg:    auth.MsgPasswordResetSuccess,
+		},
+		{
+			name: "user does not exists",
+			resetPassword: func(ctx context.Context, params auth.ResetPasswordParams) error {
+				return user.ErrNotFound
+			},
+			wantStatus: http.StatusUnauthorized,
+			wantMsg:    message.InvalidUser,
+		},
 	}
 
-	var data web.OKResponse[any]
-	if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
-		t.Fatalf("Failed to decode json response: %v", err)
-	}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	gotMsg, wantMsg := data.Message, auth.MsgPasswordResetSuccess
-	if gotMsg != wantMsg {
-		t.Errorf("data.Message = %q, want: %q", gotMsg, wantMsg)
+			mockService := &auth.StubService{
+				ResetPasswordFunc: tc.resetPassword,
+			}
+			mockSigner := &jwt.StubSigner{}
+			provider := &auth.HandlerProvider{
+				CfgJWT:    &config.JWT{},
+				CfgCookie: &config.Cookie{},
+				Signer:    mockSigner,
+			}
+			handler, err := auth.NewHandler(mockService, provider)
+			if err != nil {
+				t.Fatalf("failed to create handler: %v", err)
+			}
+
+			resetReq := auth.ResetPasswordRequest{
+				Email:           testEmail,
+				Password:        "testpass",
+				PasswordConfirm: "testpass",
+			}
+			ctx := web.NewContextWithParams(context.Background(), resetReq)
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/reset-password", http.NoBody)
+			rec := httptest.NewRecorder()
+			handler.ResetPassword(rec, req)
+
+			res := rec.Result()
+			defer res.Body.Close()
+
+			gotStatus, wantStatus := res.StatusCode, tc.wantStatus
+			if gotStatus != wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", gotStatus, wantStatus)
+			}
+
+			gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
+			if gotContent != wantContent {
+				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
+			}
+
+			var body map[string]string
+			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+				t.Fatalf("Failed to decode json response: %v", err)
+			}
+
+			gotMsg, wantMsg := body["message"], tc.wantMsg
+			if gotMsg != wantMsg {
+				t.Errorf("body['message'] = %q, want: %q", body, tc.wantMsg)
+			}
+		})
 	}
 }
