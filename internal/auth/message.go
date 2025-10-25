@@ -10,4 +10,5 @@ const (
 	MsgFmtFindUserByEmail   = "find user by email: %w"
 	MsgFmtFindUser          = "find user: %w"
 	MsgPasswordResetSuccess = "Password was reset successfully!"
+	MsgUserExists           = "User already exists."
 )

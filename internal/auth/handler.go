@@ -111,7 +111,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	user, err := h.svc.Register(ctx, params)
 	if err != nil {
 		if errors.Is(err, ErrExists) {
-			web.RespondConflict(w, err, "User already exists.", nil)
+			web.RespondConflict(w, err, MsgUserExists, nil)
 			return
 		}
 
