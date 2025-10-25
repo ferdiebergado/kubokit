@@ -85,7 +85,7 @@ func TestService_Register(t *testing.T) {
 			email:    user1,
 			password: "test",
 			userRepo: &user.StubRepo{
-				CreateFunc: func(ctx context.Context, params user.CreateUserParams) (user.User, error) {
+				CreateFunc: func(ctx context.Context, params user.CreateParams) (user.User, error) {
 					return user.User{
 						Model: model.Model{
 							ID:        "1",
@@ -155,7 +155,7 @@ func TestService_Register(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			params := auth.RegisterUserParams{
+			params := auth.RegisterParams{
 				Email:    tc.email,
 				Password: tc.password,
 			}
@@ -311,47 +311,88 @@ func TestService_Verify(t *testing.T) {
 }
 
 func TestService_ResetPassword(t *testing.T) {
-	repo := &auth.StubRepo{
-		ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
-			return nil
-		},
-	}
+	t.Parallel()
 
 	cfg, err := config.Load(configFile)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Failed to load config file: %v", err)
 	}
 
 	hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	userRepo := &user.StubRepo{
-		FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
-			return &user.User{}, nil
-		},
-	}
-	provider := &auth.ServiceProvider{
-		CfgApp:   &config.App{},
-		CfgJWT:   &config.JWT{},
-		CfgEmail: &config.Email{},
-		Hasher:   hasher,
-		Mailer:   nil,
-		Signer:   nil,
-		Txmgr:    nil,
-		UserRepo: userRepo,
-	}
-	svc, err := auth.NewService(repo, provider)
-	if err != nil {
-		t.Fatalf("Failed to create auth service: %v", err)
+		t.Fatalf("Failed to create hasher: %v", err)
 	}
 
 	params := auth.ResetPasswordParams{
 		Email:    "abc@example.com",
 		Password: "abc@123",
 	}
-	if err := svc.ResetPassword(context.Background(), params); err != nil {
-		t.Errorf("svc.ResetPassword(context.Background(),params) = %v, want: nil", err)
+
+	type TestCase struct {
+		name           string
+		changePassword func(ctx context.Context, email, newPassword string) error
+		findByEmail    func(ctx context.Context, email string) (*user.User, error)
+		wantErr        error
+	}
+
+	testcases := []TestCase{
+		{
+			name: "user exists",
+			changePassword: func(ctx context.Context, email string, newPassword string) error {
+				return nil
+			},
+			findByEmail: func(ctx context.Context, email string) (*user.User, error) {
+				return &user.User{}, nil
+			},
+		},
+		{
+			name: "user does not exists",
+			changePassword: func(ctx context.Context, email string, newPassword string) error {
+				return nil
+			},
+			findByEmail: func(ctx context.Context, email string) (*user.User, error) {
+				return nil, user.ErrNotFound
+			},
+			wantErr: user.ErrNotFound,
+		},
+		{
+			name: "db error",
+			changePassword: func(ctx context.Context, email string, newPassword string) error {
+				return db.ErrQueryFailed
+			},
+			findByEmail: func(ctx context.Context, email string) (*user.User, error) {
+				return &user.User{}, nil
+			},
+			wantErr: db.ErrQueryFailed,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := &auth.StubRepo{
+				ChangePasswordFunc: tc.changePassword,
+			}
+
+			userRepo := &user.StubRepo{
+				FindByEmailFunc: tc.findByEmail,
+			}
+			provider := &auth.ServiceProvider{
+				CfgApp:   cfg.App,
+				CfgJWT:   cfg.JWT,
+				CfgEmail: cfg.Email,
+				Hasher:   hasher,
+				UserRepo: userRepo,
+			}
+			svc, err := auth.NewService(repo, provider)
+			if err != nil {
+				t.Fatalf("Failed to create auth service: %v", err)
+			}
+
+			if err := svc.ResetPassword(context.Background(), params); !errors.Is(err, tc.wantErr) {
+				t.Errorf("svc.ResetPassword(context.Background(),params) = %+v, want: %+v", err, tc.wantErr)
+			}
+		})
 	}
 }
