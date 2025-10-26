@@ -325,128 +325,86 @@ func TestHandler_Login(t *testing.T) {
 func TestHandler_Verify(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name      string
-		userID    string
-		service   auth.Service
-		cfgJWT    *config.JWT
-		cfgCookie *config.Cookie
-		cfgApp    *config.App
-		signer    jwt.Signer
-		code      int
-		token     string
-		request   *auth.VerifyRequest
-	}{
-		{
-			name:   "Email verified successfully",
-			userID: "123",
-			cfgJWT: &config.JWT{
-				JTILength:  8,
-				Issuer:     "example.com",
-				TTL:        timex.Duration{Duration: defaultDuration},
-				RefreshTTL: timex.Duration{Duration: defaultDuration},
-			},
-			cfgApp: &config.App{
-				ClientURL: "http://127.0.0.1:5173",
-			},
-			cfgCookie: &config.Cookie{
-				Name: "refresh_token",
-			},
-			signer: &jwt.StubSigner{
-				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-					return &jwt.Claims{UserID: "123"}, nil
-				},
-			},
-			service: &auth.StubService{
-				VerifyFunc: func(ctx context.Context, token string) error {
-					return nil
-				},
-			},
-			code:    http.StatusOK,
-			token:   "test_token",
-			request: &auth.VerifyRequest{Token: "test_token"},
-		},
-		{
-			name:   "User does not exists",
-			userID: "123",
-			cfgJWT: &config.JWT{
-				JTILength:  8,
-				Issuer:     "example.com",
-				TTL:        timex.Duration{Duration: defaultDuration},
-				RefreshTTL: timex.Duration{Duration: defaultDuration},
-			},
-			cfgApp: &config.App{
-				ClientURL: "http://127.0.0.1:5173",
-			},
-			cfgCookie: &config.Cookie{
-				Name: "refresh_token",
-			},
-			signer: &jwt.StubSigner{
-				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-					return &jwt.Claims{UserID: "123"}, nil
-				},
-			},
-			service: &auth.StubService{
-				VerifyFunc: func(ctx context.Context, token string) error {
-					return user.ErrNotFound
-				},
-			},
-			code:    http.StatusUnauthorized,
-			token:   "test_token",
-			request: &auth.VerifyRequest{Token: "test_token"},
-		},
-		{
-			name:   "Verification failed due to database error",
-			userID: "123",
-			cfgJWT: &config.JWT{
-				JTILength:  8,
-				Issuer:     "example.com",
-				TTL:        timex.Duration{Duration: defaultDuration},
-				RefreshTTL: timex.Duration{Duration: defaultDuration},
-			},
-			cfgApp: &config.App{
-				ClientURL: "http://127.0.0.1:5173",
-			},
-			cfgCookie: &config.Cookie{
-				Name: "refresh_token",
-			},
-			signer: &jwt.StubSigner{
-				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-					return &jwt.Claims{UserID: "123"}, nil
-				},
-			},
-			service: &auth.StubService{
-				VerifyFunc: func(ctx context.Context, token string) error {
-					return db.ErrQueryFailed
-				},
-			},
-			code:    http.StatusInternalServerError,
-			token:   "test_token",
-			request: &auth.VerifyRequest{Token: "test_token"},
-		},
-		// TODO: test cases for expired token, invalid token
+	type testCase struct {
+		name       string
+		verify     func(ctx context.Context, token string) error
+		wantStatus int
+		wantBody   map[string]any
 	}
-	for _, tc := range tests {
+
+	testCases := []testCase{
+		{
+			name: "valid verification token",
+			verify: func(ctx context.Context, token string) error {
+				return nil
+			},
+			wantStatus: http.StatusOK,
+			wantBody: map[string]any{
+				"message": auth.MsgVerifySuccess,
+			},
+		},
+		{
+			name: "invalid verification token",
+			verify: func(ctx context.Context, token string) error {
+				return errors.New("malformed token")
+			},
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": message.InvalidUser,
+			},
+		},
+		{
+			name: "db error",
+			verify: func(ctx context.Context, token string) error {
+				return db.ErrQueryFailed
+			},
+			wantStatus: http.StatusInternalServerError,
+			wantBody: map[string]any{
+				"message": message.UnexpectedErr,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			authHandler, err := auth.NewHandler(tc.service, tc.cfgJWT, tc.cfgCookie)
+			mockService := &auth.StubService{
+				VerifyFunc: tc.verify,
+			}
+			cfgJWT := &config.JWT{}
+			cfgCookie := &config.Cookie{}
+			handler, err := auth.NewHandler(mockService, cfgJWT, cfgCookie)
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("Failed to create the handler: %v", err)
 			}
 
-			ctx := context.Background()
-			if tc.request != nil {
-				ctx = web.NewContextWithParams(ctx, *tc.request)
+			mockRequest := auth.VerifyRequest{
+				Token: "mock_token",
 			}
-
-			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/verify", http.NoBody)
+			ctx := web.NewContextWithParams(context.Background(), mockRequest)
+			userCtx := auth.ContextWithUser(ctx, "1")
+			req := httptest.NewRequestWithContext(userCtx, http.MethodPost, "/verify", http.NoBody)
 			rec := httptest.NewRecorder()
-			authHandler.Verify(rec, req)
+			handler.Verify(rec, req)
 
-			gotCode, wantCode := rec.Code, tc.code
-			if gotCode != wantCode {
-				t.Errorf(message.FmtErrStatusCode, gotCode, wantCode)
+			res := rec.Result()
+			defer res.Body.Close()
+
+			if res.StatusCode != tc.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
+			}
+
+			gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
+			if gotContent != wantContent {
+				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
+			}
+
+			var body map[string]any
+			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+				t.Fatalf("unable to decode json response: %v", err)
+			}
+
+			if !reflect.DeepEqual(body, tc.wantBody) {
+				t.Errorf("body = %v, want: %v", body, tc.wantBody)
 			}
 		})
 	}
