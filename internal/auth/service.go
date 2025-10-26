@@ -214,16 +214,23 @@ func (s *service) generateToken(userID, email string) (*AuthData, error) {
 	return data, nil
 }
 
-func (s *service) SendPasswordReset(email string) {
+func (s *service) SendPasswordReset(ctx context.Context, email string) error {
+	_, err := s.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		return fmt.Errorf("find user by email: %w", err)
+	}
+
 	resetEmail := &HTMLEmail{
 		Address:  email,
 		Subject:  "Reset Your Password",
 		Title:    "Password Reset",
-		Link:     "/auth/reset",
+		Link:     "/auth/reset-password",
 		Template: "reset_password",
 	}
 
 	go s.sendEmail(resetEmail)
+
+	return nil
 }
 
 type ChangePasswordParams struct {

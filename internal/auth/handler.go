@@ -35,7 +35,7 @@ type Service interface {
 	Verify(ctx context.Context, token string) error
 	ResendVerificationEmail(ctx context.Context, email string) error
 	Login(ctx context.Context, params LoginParams) (*AuthData, error)
-	SendPasswordReset(email string)
+	SendPasswordReset(ctx context.Context, email string) error
 	ChangePassword(ctx context.Context, params ChangePasswordParams) error
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
 	RefreshToken(token string) (*AuthData, error)
@@ -316,13 +316,18 @@ func (r *ForgotPasswordRequest) LogValue() slog.Value {
 }
 
 func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
-	req, err := web.ParamsFromContext[ForgotPasswordRequest](r.Context())
+	ctx := r.Context()
+	req, err := web.ParamsFromContext[ForgotPasswordRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, errInvalidParams, message.InvalidUser, nil)
 		return
 	}
 
-	h.svc.SendPasswordReset(req.Email)
+	if err := h.svc.SendPasswordReset(ctx, req.Email); err != nil {
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		return
+	}
+
 	msg := message.ResetSent
 	web.RespondOK[any](w, &msg, nil)
 }
