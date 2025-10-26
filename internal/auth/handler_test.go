@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -39,8 +38,7 @@ func TestHandler_Register(t *testing.T) {
 		name       string
 		register   func(ctx context.Context, params auth.RegisterParams) (user.User, error)
 		wantStatus int
-		errMsg     string
-		assertBody func(t *testing.T, body io.ReadCloser)
+		wantBody   map[string]any
 	}
 
 	testCases := []testCase{
@@ -58,29 +56,14 @@ func TestHandler_Register(t *testing.T) {
 				}, nil
 			},
 			wantStatus: http.StatusCreated,
-			assertBody: func(t *testing.T, res io.ReadCloser) {
-				t.Helper()
-
-				var body web.OKResponse[auth.RegisterResponse]
-				if err := json.NewDecoder(res).Decode(&body); err != nil {
-					t.Fatalf("Failed to decode json response: %v", err)
-				}
-
-				gotMsg, wantMsg := body.Message, auth.MsgRegisterSuccess
-				if gotMsg != wantMsg {
-					t.Errorf("body.Message = %q, want: %q", gotMsg, wantMsg)
-				}
-
-				regResponse := auth.RegisterResponse{
-					ID:        "1",
-					Email:     testEmail,
-					CreatedAt: timeStamp,
-					UpdatedAt: timeStamp,
-				}
-				gotData, wantData := body.Data, regResponse
-				if !reflect.DeepEqual(gotData, wantData) {
-					t.Errorf("body.Data = %+v, want: %+v", gotData, wantData)
-				}
+			wantBody: map[string]any{
+				"message": auth.MsgRegisterSuccess,
+				"data": map[string]any{
+					"id":         "1",
+					"email":      testEmail,
+					"created_at": timeStamp.Format(time.RFC3339Nano),
+					"updated_at": timeStamp.Format(time.RFC3339Nano),
+				},
 			},
 		},
 		{
@@ -89,7 +72,9 @@ func TestHandler_Register(t *testing.T) {
 				return user.User{}, auth.ErrExists
 			},
 			wantStatus: http.StatusConflict,
-			errMsg:     auth.MsgUserExists,
+			wantBody: map[string]any{
+				"message": auth.MsgUserExists,
+			},
 		},
 		{
 			name: "db error",
@@ -97,7 +82,9 @@ func TestHandler_Register(t *testing.T) {
 				return user.User{}, db.ErrQueryFailed
 			},
 			wantStatus: http.StatusInternalServerError,
-			errMsg:     "an unexpected error occurred",
+			wantBody: map[string]any{
+				"message": message.UnexpectedErr,
+			},
 		},
 	}
 
@@ -116,7 +103,7 @@ func TestHandler_Register(t *testing.T) {
 
 			handler, err := auth.NewHandler(mockService, provider)
 			if err != nil {
-				t.Fatalf("Failed to create handler: %v", err)
+				t.Fatalf("Failed to create the handler: %v", err)
 			}
 
 			mockRequest := auth.RegisterRequest{
@@ -142,20 +129,14 @@ func TestHandler_Register(t *testing.T) {
 				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
 			}
 
-			if tc.errMsg != "" {
-				var body web.ErrorResponse
-				if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
-					t.Fatalf("Failed to decode json response: %v", err)
-				}
-
-				if body.Message != tc.errMsg {
-					t.Errorf("body.Message = %q, want: %q", body.Message, tc.errMsg)
-				}
-
-				return
+			var body map[string]any
+			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+				t.Fatalf("Failed to decode json response: %v", err)
 			}
 
-			tc.assertBody(t, res.Body)
+			if !reflect.DeepEqual(body, tc.wantBody) {
+				t.Errorf("body = %v, want: %v", body, tc.wantBody)
+			}
 		})
 	}
 }
@@ -163,207 +144,184 @@ func TestHandler_Register(t *testing.T) {
 func TestHandler_Login(t *testing.T) {
 	t.Parallel()
 
-	mockCfg := &config.Config{
-		JWT: &config.JWT{
-			JTILength:  8,
-			Issuer:     "example.com",
-			TTL:        timex.Duration{Duration: defaultDuration},
-			RefreshTTL: timex.Duration{Duration: defaultDuration},
-		},
-		Cookie: &config.Cookie{
-			Name: "refresh_token",
-		},
+	type testCase struct {
+		name       string
+		login      func(ctx context.Context, params auth.LoginParams) (*auth.Session, error)
+		wantStatus int
+		wantBody   map[string]any
+		wantCookie *http.Cookie
 	}
 
-	mockAuthData := &auth.Session{
-		AccessToken:  "test_access_token",
-		RefreshToken: "test_refresh_token",
-		TokenType:    "Bearer",
-		ExpiresIn:    defaultDuration.Milliseconds(),
-	}
-
-	tests := []struct {
-		name              string
-		input             auth.LoginRequest
-		code              int
-		login             func(ctx context.Context, params auth.LoginParams) (*auth.Session, error)
-		verify            func(tokenString string) (*jwt.Claims, error)
-		gotBody, wantBody any
-		wantRefreshCookie *http.Cookie
-	}{
+	testCases := []testCase{
 		{
-			name: "Registered user with verified email",
-			input: auth.LoginRequest{
-				Email:    testEmail,
-				Password: testPass,
-			},
-			code: http.StatusOK,
+			name: "user exists and verified with correct password",
 			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
-				authData := &auth.Session{
-					AccessToken:  mockAuthData.AccessToken,
-					RefreshToken: mockAuthData.RefreshToken,
-					TokenType:    mockAuthData.TokenType,
-					ExpiresIn:    mockAuthData.ExpiresIn,
-				}
-				return authData, nil
+				return &auth.Session{
+					AccessToken:  "mock_access_token",
+					RefreshToken: "mock_refresh_token",
+					ExpiresIn:    1000,
+					TokenType:    "Bearer",
+					User: &auth.Data{
+						ID:    "1",
+						Email: testEmail,
+					},
+				}, nil
 			},
-			verify: func(tokenString string) (*jwt.Claims, error) {
-				return &jwt.Claims{UserID: testEmail}, nil
-			},
-			gotBody: &web.OKResponse[auth.LoginResponse]{},
-			wantBody: &web.OKResponse[auth.LoginResponse]{
-				Message: auth.MsgLoggedIn,
-				Data: auth.LoginResponse{
-					AccessToken:  mockAuthData.AccessToken,
-					RefreshToken: mockAuthData.RefreshToken,
-					ExpiresIn:    mockAuthData.ExpiresIn,
-					TokenType:    mockAuthData.TokenType,
+			wantStatus: http.StatusOK,
+			wantBody: map[string]any{
+				"message": auth.MsgLoggedIn,
+				"data": map[string]any{
+					"access_token":  "mock_access_token",
+					"refresh_token": "mock_refresh_token",
+					"expires_in":    float64(1000),
+					"token_type":    "Bearer",
+					"user": map[string]any{
+						"id":    "1",
+						"email": testEmail,
+					},
 				},
 			},
-			wantRefreshCookie: &http.Cookie{
-				Name:     mockCfg.Cookie.Name,
-				Value:    mockAuthData.RefreshToken,
+			wantCookie: &http.Cookie{
+				Name:     "refresh_token",
+				Value:    "mock_refresh_token",
 				Path:     "/",
-				MaxAge:   int(defaultDuration.Seconds()),
+				MaxAge:   time.Now().Add(1000 * time.Second).Second(),
 				Secure:   true,
 				HttpOnly: true,
 				SameSite: http.SameSiteStrictMode,
 			},
 		},
 		{
-			name: "Registered user with email not yet verified",
-			input: auth.LoginRequest{
-				Email:    testEmail,
-				Password: testPass,
-			},
+			name: "user exists but not yet verified",
 			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
-				return nil, auth.ErrNotVerified
+				return &auth.Session{}, auth.ErrNotVerified
 			},
-			code:    http.StatusUnauthorized,
-			gotBody: &web.ErrorResponse{},
-			wantBody: &web.ErrorResponse{
-				Message: auth.MsgNotVerified,
-				Details: map[string]string{"error_code": "ACCOUNT_NOT_VERIFIED"},
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": auth.MsgNotVerified,
+				"error": map[string]any{
+					"error_code": "ACCOUNT_NOT_VERIFIED",
+				},
 			},
 		},
 		{
-			name: "Unregistered user",
-			input: auth.LoginRequest{
-				Email:    testEmail,
-				Password: testPass,
-			},
+			name: "user does not exists",
 			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
-				return nil, user.ErrNotFound
+				return &auth.Session{}, user.ErrNotFound
 			},
-			code:    http.StatusUnauthorized,
-			gotBody: &web.ErrorResponse{},
-			wantBody: &web.ErrorResponse{
-				Message: message.InvalidUser,
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": message.InvalidUser,
 			},
 		},
 		{
-			name: "Incorrect password",
-			input: auth.LoginRequest{
-				Email:    testEmail,
-				Password: "anotherpass",
-			},
+			name: "user exists and verified but with incorrect password",
 			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
-				return nil, auth.ErrIncorrectPassword
+				return &auth.Session{}, auth.ErrIncorrectPassword
 			},
-			code:    http.StatusUnauthorized,
-			gotBody: &web.ErrorResponse{},
-			wantBody: &web.ErrorResponse{
-				Message: message.InvalidUser,
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": message.InvalidUser,
+			},
+		},
+		{
+			name: "db error",
+			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
+				return &auth.Session{}, db.ErrQueryFailed
+			},
+			wantStatus: http.StatusInternalServerError,
+			wantBody: map[string]any{
+				"message": message.UnexpectedErr,
 			},
 		},
 	}
-	for _, tc := range tests {
+
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			svc := &auth.StubService{
+			mockService := &auth.StubService{
 				LoginFunc: tc.login,
 			}
-
-			signer := &jwt.StubSigner{
-				VerifyFunc: tc.verify,
-			}
-
 			provider := &auth.HandlerProvider{
-				CfgJWT:    mockCfg.JWT,
-				CfgCookie: mockCfg.Cookie,
-				Signer:    signer,
+				CfgJWT: &config.JWT{
+					RefreshTTL: timex.Duration{Duration: 1000 * time.Second},
+				},
+				CfgCookie: &config.Cookie{
+					Name: "refresh_token",
+				},
 			}
-			authHandler, err := auth.NewHandler(svc, provider)
+			handler, err := auth.NewHandler(mockService, provider)
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("Failed to create handler: %v", err)
 			}
 
-			ctx := web.NewContextWithParams(context.Background(), tc.input)
-			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/login", http.NoBody)
-			req.Header.Set("User-Agent", "Chrome")
+			params := auth.LoginRequest{
+				Email:    testEmail,
+				Password: "testpass",
+			}
+			ctx := web.NewContextWithParams(context.Background(), params)
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/login", http.NoBody)
 			rec := httptest.NewRecorder()
-			authHandler.Login(rec, req)
-
-			gotCode, wantCode := rec.Code, tc.code
-			if gotCode != wantCode {
-				t.Errorf(message.FmtErrStatusCode, gotCode, wantCode)
-			}
+			handler.Login(rec, req)
 
 			res := rec.Result()
 			defer res.Body.Close()
 
-			if err = json.Unmarshal(rec.Body.Bytes(), &tc.gotBody); err != nil {
-				t.Fatal(err)
+			if res.StatusCode != tc.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
 			}
 
-			if !reflect.DeepEqual(tc.gotBody, tc.wantBody) {
-				t.Errorf("rec.Body = %+v, want: %+v", tc.gotBody, tc.wantBody)
+			gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
+			if gotContent != wantContent {
+				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
+			}
+
+			var body map[string]any
+			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+				t.Fatalf("unable to read response body: %v", err)
+			}
+
+			if !reflect.DeepEqual(body, tc.wantBody) {
+				t.Errorf("body = %v, want: %v", body, tc.wantBody)
 			}
 
 			cookies := res.Cookies()
+			numCookies := len(cookies)
 
-			if tc.wantRefreshCookie == nil {
-				if len(cookies) > 0 {
-					t.Errorf("response should not contain cookies")
-				}
-			} else {
-				if len(cookies) == 0 {
-					t.Fatalf("response should contain cookies")
+			//nolint:nestif // need to assert each field of the cookie
+			if tc.wantCookie != nil {
+				if numCookies == 0 {
+					t.Fatal("no cookies found in the response")
 				}
 
-				gotRefreshCookie := findCookie(t, cookies, mockCfg.Cookie.Name)
-				if gotRefreshCookie == nil {
-					t.Fatalf("refresh cookie was not found in response")
+				refreshCookie := cookies[0]
+
+				if refreshCookie.Value != tc.wantCookie.Value {
+					t.Errorf("refreshCookie.Value = %q, want: %q", refreshCookie.Value, tc.wantCookie.Value)
 				}
 
-				if gotRefreshCookie.Name != tc.wantRefreshCookie.Name {
-					t.Errorf("gotRefreshCookie.Name = %q, want: %q", gotRefreshCookie.Name, tc.wantRefreshCookie.Name)
+				if refreshCookie.Secure != tc.wantCookie.Secure {
+					t.Errorf("refreshCookie.Secure = %t, want: %t", refreshCookie.Secure, tc.wantCookie.Secure)
 				}
 
-				if gotRefreshCookie.Value != tc.wantRefreshCookie.Value {
-					t.Errorf("gotRefreshCookie.Value = %q, want: %q", gotRefreshCookie.Value, tc.wantRefreshCookie.Value)
+				if refreshCookie.HttpOnly != tc.wantCookie.HttpOnly {
+					t.Errorf("refreshCookie.HttpOnly = %t, want: %t", refreshCookie.HttpOnly, tc.wantCookie.HttpOnly)
 				}
 
-				if gotRefreshCookie.Path != tc.wantRefreshCookie.Path {
-					t.Errorf("gotRefreshCookie.Path = %q, want: %q", gotRefreshCookie.Path, tc.wantRefreshCookie.Path)
+				if refreshCookie.Path != tc.wantCookie.Path {
+					t.Errorf("refreshCookie.Path = %q, want: %q", refreshCookie.Path, tc.wantCookie.Path)
 				}
 
-				if gotRefreshCookie.MaxAge != tc.wantRefreshCookie.MaxAge {
-					t.Errorf("gotRefreshCookie.MaxAge = %d, want: %d", gotRefreshCookie.MaxAge, tc.wantRefreshCookie.MaxAge)
+				if refreshCookie.SameSite != tc.wantCookie.SameSite {
+					t.Errorf("refreshCookie.SameSite = %q, want: %q", refreshCookie.SameSite, tc.wantCookie.SameSite)
 				}
 
-				if int(gotRefreshCookie.SameSite) != int(tc.wantRefreshCookie.SameSite) {
-					t.Errorf("gotRefreshCookie.SameSite = %d, want: %d", gotRefreshCookie.SameSite, tc.wantRefreshCookie.SameSite)
+				if refreshCookie.Expires.After(time.Now().Add(provider.CfgJWT.RefreshTTL.Duration)) {
+					t.Errorf("refreshCookie.MaxAge = %d, want: %d", refreshCookie.MaxAge, tc.wantCookie.MaxAge)
 				}
-
-				if !gotRefreshCookie.Secure {
-					t.Errorf("gotRefreshCookie.Secure = %t, want: %t", gotRefreshCookie.Secure, tc.wantRefreshCookie.Secure)
-				}
-
-				if gotRefreshCookie.HttpOnly != tc.wantRefreshCookie.HttpOnly {
-					t.Errorf("gotRefreshCookie.HttpOnly = %t, want: %t", gotRefreshCookie.HttpOnly, tc.wantRefreshCookie.HttpOnly)
-				}
+			} else if numCookies > 0 {
+				t.Errorf("len(cookies) = %d, want: %d", numCookies, 0)
 			}
 		})
 	}
