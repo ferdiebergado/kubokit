@@ -496,7 +496,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 				},
 			},
 			code: http.StatusOK,
-			ctx:  user.NewContextWithUser(context.Background(), "123"),
+			ctx:  auth.ContextWithUser(context.Background(), "123"),
 			params: auth.ChangePasswordRequest{
 				CurrentPassword: "oldtest",
 				NewPassword:     "test",
@@ -847,7 +847,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 				PasswordConfirm: testPass,
 			}
 			ctx := web.NewContextWithParams(context.Background(), resetReq)
-			userCtx := user.NewContextWithUser(ctx, "1")
+			userCtx := auth.ContextWithUser(ctx, "1")
 			req := httptest.NewRequestWithContext(userCtx, http.MethodPost, "/reset-password", http.NoBody)
 			rec := httptest.NewRecorder()
 			handler.ResetPassword(rec, req)

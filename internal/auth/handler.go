@@ -68,7 +68,7 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
-	userID, err := user.FromContext(ctx)
+	userID, err := UserFromContext(ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
@@ -357,7 +357,7 @@ func (r *ChangePasswordRequest) LogValue() slog.Value {
 func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	email, err := user.FromContext(ctx)
+	email, err := UserFromContext(ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return

@@ -9,7 +9,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
-	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 var ErrInvalidToken = errors.New("invalid token")
@@ -30,7 +29,7 @@ func VerifyToken(signer jwt.Signer) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := user.NewContextWithUser(r.Context(), claims.UserID)
+			ctx := ContextWithUser(r.Context(), claims.UserID)
 			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)
 		})
@@ -54,7 +53,7 @@ func RequireToken(signer jwt.Signer) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := user.NewContextWithUser(r.Context(), claims.UserID)
+			ctx := ContextWithUser(r.Context(), claims.UserID)
 			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)
 		})
