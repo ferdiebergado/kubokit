@@ -163,7 +163,7 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := MsgVerifySuccess
-	web.RespondOK(w, &msg, struct{}{})
+	web.RespondOK[any](w, &msg, nil)
 }
 
 type ResendVerifyEmailRequest struct {
