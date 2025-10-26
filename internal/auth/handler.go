@@ -54,6 +54,13 @@ type ResetPasswordRequest struct {
 	PasswordConfirm string `json:"password_confirm,omitempty" validate:"required,eqfield=Password"`
 }
 
+func (r *ResetPasswordRequest) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("password", maskChar),
+		slog.String("password_confirm", maskChar),
+	)
+}
+
 func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	req, err := web.ParamsFromContext[ResetPasswordRequest](ctx)
