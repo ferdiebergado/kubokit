@@ -77,11 +77,7 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 		t.Fatalf("failed to create new auth service: %v", err)
 	}
 
-	authHandlerProvider := &auth.HandlerProvider{
-		CfgJWT:    cfg.JWT,
-		CfgCookie: cfg.Cookie,
-	}
-	authHandler, err := auth.NewHandler(authSvc, authHandlerProvider)
+	authHandler, err := auth.NewHandler(authSvc, cfg.JWT, cfg.Cookie)
 	if err != nil {
 		t.Fatalf("failed to create new auth handler: %v", err)
 	}

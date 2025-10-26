@@ -96,12 +96,7 @@ func TestHandler_Register(t *testing.T) {
 				RegisterFunc: tc.register,
 			}
 
-			provider := &auth.HandlerProvider{
-				CfgJWT:    &config.JWT{},
-				CfgCookie: &config.Cookie{},
-			}
-
-			handler, err := auth.NewHandler(mockService, provider)
+			handler, err := auth.NewHandler(mockService, &config.JWT{}, &config.Cookie{})
 			if err != nil {
 				t.Fatalf("Failed to create the handler: %v", err)
 			}
@@ -243,15 +238,14 @@ func TestHandler_Login(t *testing.T) {
 			mockService := &auth.StubService{
 				LoginFunc: tc.login,
 			}
-			provider := &auth.HandlerProvider{
-				CfgJWT: &config.JWT{
-					RefreshTTL: timex.Duration{Duration: 1000 * time.Second},
-				},
-				CfgCookie: &config.Cookie{
-					Name: "refresh_token",
-				},
+			cfgJWT := &config.JWT{
+				RefreshTTL: timex.Duration{Duration: 1000 * time.Second},
 			}
-			handler, err := auth.NewHandler(mockService, provider)
+			cfgCookie := &config.Cookie{
+				Name: "refresh_token",
+			}
+
+			handler, err := auth.NewHandler(mockService, cfgJWT, cfgCookie)
 			if err != nil {
 				t.Fatalf("Failed to create handler: %v", err)
 			}
@@ -317,7 +311,7 @@ func TestHandler_Login(t *testing.T) {
 					t.Errorf("refreshCookie.SameSite = %q, want: %q", refreshCookie.SameSite, tc.wantCookie.SameSite)
 				}
 
-				expiry := time.Now().Add(provider.CfgJWT.RefreshTTL.Duration)
+				expiry := time.Now().Add(cfgJWT.RefreshTTL.Duration)
 				if refreshCookie.Expires.After(expiry) {
 					t.Errorf("refreshCookie.Expires = %v, want: %v", refreshCookie.Expires, expiry)
 				}
@@ -436,11 +430,7 @@ func TestHandler_Verify(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			provider := &auth.HandlerProvider{
-				CfgJWT:    tc.cfgJWT,
-				CfgCookie: tc.cfgCookie,
-			}
-			authHandler, err := auth.NewHandler(tc.service, provider)
+			authHandler, err := auth.NewHandler(tc.service, tc.cfgJWT, tc.cfgCookie)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -518,11 +508,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			provider := &auth.HandlerProvider{
-				CfgJWT:    tc.cfgJWT,
-				CfgCookie: tc.cfgCookie,
-			}
-			authHandler, err := auth.NewHandler(tc.service, provider)
+			authHandler, err := auth.NewHandler(tc.service, tc.cfgJWT, tc.cfgCookie)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -648,11 +634,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			provider := &auth.HandlerProvider{
-				CfgJWT:    cfg.JWT,
-				CfgCookie: cfg.Cookie,
-			}
-			authHandler, err := auth.NewHandler(tc.service, provider)
+			authHandler, err := auth.NewHandler(tc.service, cfg.JWT, cfg.Cookie)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -709,14 +691,12 @@ func TestHandler_Logout(t *testing.T) {
 			svc := &auth.StubService{
 				LogoutFunc: tc.logoutFunc,
 			}
-			provider := &auth.HandlerProvider{
-				CfgJWT: &config.JWT{},
-				CfgCookie: &config.Cookie{
-					Name: "refresh_token",
-				},
+
+			cfgCookie := &config.Cookie{
+				Name: "refresh_token",
 			}
 
-			authHandler, err := auth.NewHandler(svc, provider)
+			authHandler, err := auth.NewHandler(svc, &config.JWT{}, cfgCookie)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -856,11 +836,8 @@ func TestHandler_ResetPassword(t *testing.T) {
 			mockService := &auth.StubService{
 				ResetPasswordFunc: tc.resetPassword,
 			}
-			provider := &auth.HandlerProvider{
-				CfgJWT:    &config.JWT{},
-				CfgCookie: &config.Cookie{},
-			}
-			handler, err := auth.NewHandler(mockService, provider)
+
+			handler, err := auth.NewHandler(mockService, &config.JWT{}, &config.Cookie{})
 			if err != nil {
 				t.Fatalf("failed to create handler: %v", err)
 			}

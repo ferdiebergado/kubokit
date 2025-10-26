@@ -405,26 +405,15 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	web.RespondNoContent[any](w, nil, nil)
 }
 
-type HandlerProvider struct {
-	CfgJWT    *config.JWT
-	CfgCookie *config.Cookie
-}
-
-func NewHandler(svc Service, provider *HandlerProvider) (*Handler, error) {
+func NewHandler(svc Service, cfgJWT *config.JWT, cfgCookie *config.Cookie) (*Handler, error) {
 	if svc == nil {
 		return nil, errors.New("service should not be nil")
 	}
 
-	if provider == nil {
-		return nil, errors.New("provider should not be nil")
-	}
-
-	cfgJWT := provider.CfgJWT
 	if cfgJWT == nil {
 		return nil, errors.New("JWT config should not be nil")
 	}
 
-	cfgCookie := provider.CfgCookie
 	if cfgCookie == nil {
 		return nil, errors.New("cookie config should not be nil")
 	}

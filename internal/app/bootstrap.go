@@ -100,11 +100,7 @@ func Run() error {
 		return fmt.Errorf("new service: %w", err)
 	}
 
-	authHandlerProvider := &auth.HandlerProvider{
-		CfgJWT:    cfg.JWT,
-		CfgCookie: cfg.Cookie,
-	}
-	authHandler, err := auth.NewHandler(authService, authHandlerProvider)
+	authHandler, err := auth.NewHandler(authService, cfg.JWT, cfg.Cookie)
 	if err != nil {
 		return fmt.Errorf("new auth handler: %w", err)
 	}
