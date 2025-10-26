@@ -3,6 +3,8 @@ package web
 import (
 	"log/slog"
 	"net/http"
+
+	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 )
 
 // OKResponse represents the structure of a JSON-encoded success response.
@@ -105,5 +107,5 @@ func RespondUnprocessableEntity(w http.ResponseWriter, err error, clientMsg stri
 
 // RespondInternalServerError sends a 500 Internal Server error.
 func RespondInternalServerError(w http.ResponseWriter, err error) {
-	RespondError(w, http.StatusInternalServerError, err, "an unexpected error occurred", nil)
+	RespondError(w, http.StatusInternalServerError, err, message.UnexpectedErr, nil)
 }
