@@ -14,13 +14,16 @@ func NewContextWithParams(baseCtx context.Context, params any) context.Context {
 	return context.WithValue(baseCtx, paramsCtxKey, params)
 }
 
-// nolint: ireturn //This is a generic function.
 func ParamsFromContext[T any](ctx context.Context) (T, error) {
+	var t T
 	val := ctx.Value(paramsCtxKey)
+	if val == nil {
+		return t, fmt.Errorf("no params in context")
+	}
+
 	params, ok := val.(T)
 	if !ok {
-		var t T
-		return t, fmt.Errorf("params: %v is not a %T", val, t)
+		return t, fmt.Errorf("params is not the specified type: %T", val)
 	}
 	return params, nil
 }
