@@ -108,8 +108,8 @@ func TestHandler_Register(t *testing.T) {
 
 			mockRequest := auth.RegisterRequest{
 				Email:           testEmail,
-				Password:        "testpass",
-				PasswordConfirm: "testpass",
+				Password:        testPass,
+				PasswordConfirm: testPass,
 			}
 
 			ctx := web.NewContextWithParams(context.Background(), mockRequest)
@@ -258,7 +258,7 @@ func TestHandler_Login(t *testing.T) {
 
 			params := auth.LoginRequest{
 				Email:    testEmail,
-				Password: "testpass",
+				Password: testPass,
 			}
 			ctx := web.NewContextWithParams(context.Background(), params)
 			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/login", http.NoBody)
@@ -871,8 +871,8 @@ func TestHandler_ResetPassword(t *testing.T) {
 			}
 
 			resetReq := auth.ResetPasswordRequest{
-				Password:        "testpass",
-				PasswordConfirm: "testpass",
+				Password:        testPass,
+				PasswordConfirm: testPass,
 			}
 			ctx := web.NewContextWithParams(context.Background(), resetReq)
 			userCtx := user.NewContextWithUser(ctx, "1")
