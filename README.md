@@ -8,7 +8,7 @@ A REST API starter kit with straightforward approach and minimal dependencies.
 ## Requirements
 
 -   Go 1.23 or higher
--   docker or podman
+-   `docker` or `podman`
 
 ## Quick Start
 
@@ -18,7 +18,7 @@ A REST API starter kit with straightforward approach and minimal dependencies.
 gh repo create my-rest-api --template ferdiebergado/kubokit --public --clone
 ```
 
-2. Rename .env.example to .env and update the values based on your environment.
+2. Rename `.env.example` to `.env` and update the values based on your environment.
 
 ```bash
 mv .env.example .env
@@ -44,7 +44,7 @@ curl -X POST -H 'Content-Type: application/json' -d '{"email": "abc@example.com"
 
 ## Running Tests
 
-Create a .env.testing file by copying .env.
+Create a `.env.testing` file by copying `.env`.
 
 ```bash
 cp .env .env.testing
@@ -70,7 +70,7 @@ make test-integration ENV=testing
 
 ## Tasks
 
-Common development tasks are captured in the Makefile. To view those tasks, run the following command:
+Common development tasks are captured in the `Makefile`. To view those tasks, run the following command:
 
 ```bash
 make
