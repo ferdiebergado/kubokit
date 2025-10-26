@@ -408,10 +408,17 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 type HandlerProvider struct {
 	CfgJWT    *config.JWT
 	CfgCookie *config.Cookie
-	Signer    jwt.Signer
 }
 
 func NewHandler(svc Service, provider *HandlerProvider) (*Handler, error) {
+	if svc == nil {
+		return nil, errors.New("service should not be nil")
+	}
+
+	if provider == nil {
+		return nil, errors.New("provider should not be nil")
+	}
+
 	cfgJWT := provider.CfgJWT
 	if cfgJWT == nil {
 		return nil, errors.New("JWT config should not be nil")
@@ -426,7 +433,6 @@ func NewHandler(svc Service, provider *HandlerProvider) (*Handler, error) {
 		svc:       svc,
 		cfgJWT:    cfgJWT,
 		cfgCookie: cfgCookie,
-		signer:    provider.Signer,
 	}
 
 	return handler, nil

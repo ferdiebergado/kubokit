@@ -439,7 +439,6 @@ func TestHandler_Verify(t *testing.T) {
 			provider := &auth.HandlerProvider{
 				CfgJWT:    tc.cfgJWT,
 				CfgCookie: tc.cfgCookie,
-				Signer:    tc.signer,
 			}
 			authHandler, err := auth.NewHandler(tc.service, provider)
 			if err != nil {
@@ -522,7 +521,6 @@ func TestHandler_ChangePassword(t *testing.T) {
 			provider := &auth.HandlerProvider{
 				CfgJWT:    tc.cfgJWT,
 				CfgCookie: tc.cfgCookie,
-				Signer:    tc.signer,
 			}
 			authHandler, err := auth.NewHandler(tc.service, provider)
 			if err != nil {
@@ -653,7 +651,6 @@ func TestHandler_RefreshToken(t *testing.T) {
 			provider := &auth.HandlerProvider{
 				CfgJWT:    cfg.JWT,
 				CfgCookie: cfg.Cookie,
-				Signer:    tc.signer,
 			}
 			authHandler, err := auth.NewHandler(tc.service, provider)
 			if err != nil {
@@ -717,7 +714,6 @@ func TestHandler_Logout(t *testing.T) {
 				CfgCookie: &config.Cookie{
 					Name: "refresh_token",
 				},
-				Signer: &jwt.StubSigner{},
 			}
 
 			authHandler, err := auth.NewHandler(svc, provider)
@@ -860,11 +856,9 @@ func TestHandler_ResetPassword(t *testing.T) {
 			mockService := &auth.StubService{
 				ResetPasswordFunc: tc.resetPassword,
 			}
-			mockSigner := &jwt.StubSigner{}
 			provider := &auth.HandlerProvider{
 				CfgJWT:    &config.JWT{},
 				CfgCookie: &config.Cookie{},
-				Signer:    mockSigner,
 			}
 			handler, err := auth.NewHandler(mockService, provider)
 			if err != nil {

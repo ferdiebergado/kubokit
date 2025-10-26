@@ -103,7 +103,6 @@ func Run() error {
 	authHandlerProvider := &auth.HandlerProvider{
 		CfgJWT:    cfg.JWT,
 		CfgCookie: cfg.Cookie,
-		Signer:    signer,
 	}
 	authHandler, err := auth.NewHandler(authService, authHandlerProvider)
 	if err != nil {

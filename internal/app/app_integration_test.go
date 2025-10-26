@@ -80,7 +80,6 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 	authHandlerProvider := &auth.HandlerProvider{
 		CfgJWT:    cfg.JWT,
 		CfgCookie: cfg.Cookie,
-		Signer:    signer,
 	}
 	authHandler, err := auth.NewHandler(authSvc, authHandlerProvider)
 	if err != nil {
