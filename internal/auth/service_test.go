@@ -326,7 +326,7 @@ func TestService_ResetPassword(t *testing.T) {
 	type testCase struct {
 		name           string
 		changePassword func(ctx context.Context, email, newPassword string) error
-		findByEmail    func(ctx context.Context, email string) (*user.User, error)
+		find           func(ctx context.Context, userID string) (*user.User, error)
 		wantErr        error
 	}
 
@@ -336,7 +336,7 @@ func TestService_ResetPassword(t *testing.T) {
 			changePassword: func(ctx context.Context, email string, newPassword string) error {
 				return nil
 			},
-			findByEmail: func(ctx context.Context, email string) (*user.User, error) {
+			find: func(ctx context.Context, userID string) (*user.User, error) {
 				return &user.User{}, nil
 			},
 		},
@@ -345,7 +345,7 @@ func TestService_ResetPassword(t *testing.T) {
 			changePassword: func(ctx context.Context, email string, newPassword string) error {
 				return nil
 			},
-			findByEmail: func(ctx context.Context, email string) (*user.User, error) {
+			find: func(ctx context.Context, userID string) (*user.User, error) {
 				return nil, user.ErrNotFound
 			},
 			wantErr: user.ErrNotFound,
@@ -355,7 +355,7 @@ func TestService_ResetPassword(t *testing.T) {
 			changePassword: func(ctx context.Context, email string, newPassword string) error {
 				return db.ErrQueryFailed
 			},
-			findByEmail: func(ctx context.Context, email string) (*user.User, error) {
+			find: func(ctx context.Context, userID string) (*user.User, error) {
 				return &user.User{}, nil
 			},
 			wantErr: db.ErrQueryFailed,
@@ -371,7 +371,7 @@ func TestService_ResetPassword(t *testing.T) {
 			}
 
 			userRepo := &user.StubRepo{
-				FindByEmailFunc: tc.findByEmail,
+				FindUserFunc: tc.find,
 			}
 			provider := &auth.ServiceProvider{
 				CfgApp:   cfg.App,
@@ -385,7 +385,7 @@ func TestService_ResetPassword(t *testing.T) {
 				t.Fatalf("Failed to create auth service: %v", err)
 			}
 			params := auth.ResetPasswordParams{
-				Email:    "abc@example.com",
+				UserID:   "1",
 				Password: "abc@123",
 			}
 			if err := svc.ResetPassword(context.Background(), params); !errors.Is(err, tc.wantErr) {

@@ -50,7 +50,6 @@ type Handler struct {
 }
 
 type ResetPasswordRequest struct {
-	Email           string `json:"email,omitempty" validate:"required,email"`
 	Password        string `json:"password,omitempty" validate:"required"`
 	PasswordConfirm string `json:"password_confirm,omitempty" validate:"required,eqfield=Password"`
 }
@@ -62,8 +61,13 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
+	userID, err := user.FromContext(ctx)
+	if err != nil {
+		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		return
+	}
 	params := ResetPasswordParams{
-		Email:    req.Email,
+		UserID:   userID,
 		Password: req.Password,
 	}
 	if err = h.svc.ResetPassword(ctx, params); err != nil {

@@ -303,11 +303,11 @@ func (s *service) Logout(token string) error {
 }
 
 type ResetPasswordParams struct {
-	Email, Password string
+	UserID, Password string
 }
 
 func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
-	_, err := s.userRepo.FindByEmail(ctx, params.Email)
+	user, err := s.userRepo.Find(ctx, params.UserID)
 	if err != nil {
 		return fmt.Errorf(MsgFmtFindUser, err)
 	}
@@ -317,7 +317,7 @@ func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 		return fmt.Errorf("hash new password: %w", err)
 	}
 
-	if err := s.repo.ChangePassword(ctx, params.Email, hashed); err != nil {
+	if err := s.repo.ChangePassword(ctx, user.Email, hashed); err != nil {
 		return fmt.Errorf("change password: %w", err)
 	}
 

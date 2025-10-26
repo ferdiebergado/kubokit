@@ -913,12 +913,12 @@ func TestHandler_ResetPassword(t *testing.T) {
 			}
 
 			resetReq := auth.ResetPasswordRequest{
-				Email:           testEmail,
 				Password:        "testpass",
 				PasswordConfirm: "testpass",
 			}
 			ctx := web.NewContextWithParams(context.Background(), resetReq)
-			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/reset-password", http.NoBody)
+			userCtx := user.NewContextWithUser(ctx, "1")
+			req := httptest.NewRequestWithContext(userCtx, http.MethodPost, "/reset-password", http.NoBody)
 			rec := httptest.NewRecorder()
 			handler.ResetPassword(rec, req)
 
