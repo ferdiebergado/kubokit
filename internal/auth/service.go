@@ -198,7 +198,7 @@ func (s *service) generateToken(userID, email string) (*Session, error) {
 
 	expiresIn := ttl / int64(time.Millisecond)
 
-	userData := &Data{
+	userData := &UserInfo{
 		ID:    userID,
 		Email: email,
 	}

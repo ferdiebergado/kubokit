@@ -161,7 +161,7 @@ func TestHandler_Login(t *testing.T) {
 					RefreshToken: "mock_refresh_token",
 					ExpiresIn:    1000,
 					TokenType:    "Bearer",
-					User: &auth.Data{
+					User: &auth.UserInfo{
 						ID:    "1",
 						Email: testEmail,
 					},

@@ -27,7 +27,7 @@ type Session struct {
 	RefreshToken string
 	ExpiresIn    int64
 	TokenType    string
-	User         *Data
+	User         *UserInfo
 }
 
 type Service interface {
@@ -204,17 +204,17 @@ func (r *LoginRequest) LogValue() slog.Value {
 	)
 }
 
-type Data struct {
+type UserInfo struct {
 	ID    string `json:"id,omitempty"`
 	Email string `json:"email,omitempty"`
 }
 
 type LoginResponse struct {
-	AccessToken  string `json:"access_token,omitempty"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	TokenType    string `json:"token_type,omitempty"`
-	ExpiresIn    int64  `json:"expires_in,omitempty"`
-	User         *Data  `json:"user,omitempty"`
+	AccessToken  string    `json:"access_token,omitempty"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
+	TokenType    string    `json:"token_type,omitempty"`
+	ExpiresIn    int64     `json:"expires_in,omitempty"`
+	User         *UserInfo `json:"user,omitempty"`
 }
 
 func (h *Handler) refreshCookie(token string, maxAge int) *http.Cookie {
