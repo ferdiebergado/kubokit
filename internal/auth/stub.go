@@ -10,11 +10,11 @@ import (
 type StubService struct {
 	RegisterFunc                func(ctx context.Context, params RegisterParams) (user.User, error)
 	VerifyFunc                  func(ctx context.Context, token string) error
-	LoginFunc                   func(ctx context.Context, params LoginParams) (*AuthData, error)
+	LoginFunc                   func(ctx context.Context, params LoginParams) (*Session, error)
 	SendPasswordResetFunc       func(ctx context.Context, email string) error
 	ChangePasswordFunc          func(ctx context.Context, params ChangePasswordParams) error
 	ResetPasswordFunc           func(ctx context.Context, params ResetPasswordParams) error
-	RefreshTokenFunc            func(token string) (*AuthData, error)
+	RefreshTokenFunc            func(token string) (*Session, error)
 	ResendVerificationEmailFunc func(ctx context.Context, email string) error
 	LogoutFunc                  func(token string) error
 }
@@ -41,7 +41,7 @@ func (s *StubService) Verify(ctx context.Context, token string) error {
 	return s.VerifyFunc(ctx, token)
 }
 
-func (s *StubService) Login(ctx context.Context, params LoginParams) (*AuthData, error) {
+func (s *StubService) Login(ctx context.Context, params LoginParams) (*Session, error) {
 	if s.LoginFunc == nil {
 		return nil, errors.New("Login() not implemented by stub")
 	}
@@ -69,7 +69,7 @@ func (s *StubService) ResetPassword(ctx context.Context, params ResetPasswordPar
 	return s.ResetPasswordFunc(ctx, params)
 }
 
-func (s *StubService) RefreshToken(token string) (*AuthData, error) {
+func (s *StubService) RefreshToken(token string) (*Session, error) {
 	if s.RefreshTokenFunc == nil {
 		return nil, errors.New("RefreshToken() not implemented by stub")
 	}

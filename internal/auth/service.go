@@ -156,7 +156,7 @@ func (p *LoginParams) LogValue() slog.Value {
 	)
 }
 
-func (s *service) Login(ctx context.Context, params LoginParams) (*AuthData, error) {
+func (s *service) Login(ctx context.Context, params LoginParams) (*Session, error) {
 	u, err := s.userRepo.FindByEmail(ctx, params.Email)
 	if err != nil {
 		return nil, fmt.Errorf(MsgFmtFindUserByEmail, err)
@@ -183,7 +183,7 @@ func (s *service) Login(ctx context.Context, params LoginParams) (*AuthData, err
 	return authData, nil
 }
 
-func (s *service) generateToken(userID, email string) (*AuthData, error) {
+func (s *service) generateToken(userID, email string) (*Session, error) {
 	jwtConfig := s.cfgJWT
 	ttl := time.Now().Add(jwtConfig.TTL.Duration).UnixNano()
 	accessToken, err := s.signer.Sign(userID, []string{jwtConfig.Issuer}, time.Duration(ttl))
@@ -203,7 +203,7 @@ func (s *service) generateToken(userID, email string) (*AuthData, error) {
 		Email: email,
 	}
 
-	data := &AuthData{
+	data := &Session{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    expiresIn,
@@ -279,7 +279,7 @@ func (s *service) PerformAtomicOperation(ctx context.Context, userID string) err
 	})
 }
 
-func (s *service) RefreshToken(token string) (*AuthData, error) {
+func (s *service) RefreshToken(token string) (*Session, error) {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
 		return nil, fmt.Errorf("verify refresh token: %w", err)

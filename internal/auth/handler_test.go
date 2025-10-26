@@ -175,7 +175,7 @@ func TestHandler_Login(t *testing.T) {
 		},
 	}
 
-	mockAuthData := &auth.AuthData{
+	mockAuthData := &auth.Session{
 		AccessToken:  "test_access_token",
 		RefreshToken: "test_refresh_token",
 		TokenType:    "Bearer",
@@ -186,7 +186,7 @@ func TestHandler_Login(t *testing.T) {
 		name              string
 		input             auth.LoginRequest
 		code              int
-		login             func(ctx context.Context, params auth.LoginParams) (*auth.AuthData, error)
+		login             func(ctx context.Context, params auth.LoginParams) (*auth.Session, error)
 		verify            func(tokenString string) (*jwt.Claims, error)
 		gotBody, wantBody any
 		wantRefreshCookie *http.Cookie
@@ -198,8 +198,8 @@ func TestHandler_Login(t *testing.T) {
 				Password: testPass,
 			},
 			code: http.StatusOK,
-			login: func(ctx context.Context, params auth.LoginParams) (*auth.AuthData, error) {
-				authData := &auth.AuthData{
+			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
+				authData := &auth.Session{
 					AccessToken:  mockAuthData.AccessToken,
 					RefreshToken: mockAuthData.RefreshToken,
 					TokenType:    mockAuthData.TokenType,
@@ -236,7 +236,7 @@ func TestHandler_Login(t *testing.T) {
 				Email:    testEmail,
 				Password: testPass,
 			},
-			login: func(ctx context.Context, params auth.LoginParams) (*auth.AuthData, error) {
+			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 				return nil, auth.ErrNotVerified
 			},
 			code:    http.StatusUnauthorized,
@@ -252,7 +252,7 @@ func TestHandler_Login(t *testing.T) {
 				Email:    testEmail,
 				Password: testPass,
 			},
-			login: func(ctx context.Context, params auth.LoginParams) (*auth.AuthData, error) {
+			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 				return nil, user.ErrNotFound
 			},
 			code:    http.StatusUnauthorized,
@@ -267,7 +267,7 @@ func TestHandler_Login(t *testing.T) {
 				Email:    testEmail,
 				Password: "anotherpass",
 			},
-			login: func(ctx context.Context, params auth.LoginParams) (*auth.AuthData, error) {
+			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 				return nil, auth.ErrIncorrectPassword
 			},
 			code:    http.StatusUnauthorized,
@@ -628,8 +628,8 @@ func TestHandler_RefreshToken(t *testing.T) {
 				},
 			},
 			service: &auth.StubService{
-				RefreshTokenFunc: func(token string) (*auth.AuthData, error) {
-					secret := &auth.AuthData{
+				RefreshTokenFunc: func(token string) (*auth.Session, error) {
+					secret := &auth.Session{
 						AccessToken:  "new_access_token",
 						RefreshToken: "new_refresh_token",
 						TokenType:    "Bearer",
@@ -676,7 +676,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 				},
 			},
 			service: &auth.StubService{
-				RefreshTokenFunc: func(token string) (*auth.AuthData, error) {
+				RefreshTokenFunc: func(token string) (*auth.Session, error) {
 					return nil, auth.ErrInvalidToken
 				},
 			},

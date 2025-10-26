@@ -22,7 +22,7 @@ const (
 
 var errInvalidParams = errors.New("invalid request params")
 
-type AuthData struct {
+type Session struct {
 	AccessToken  string
 	RefreshToken string
 	ExpiresIn    int64
@@ -34,11 +34,11 @@ type Service interface {
 	Register(ctx context.Context, params RegisterParams) (user.User, error)
 	Verify(ctx context.Context, token string) error
 	ResendVerificationEmail(ctx context.Context, email string) error
-	Login(ctx context.Context, params LoginParams) (*AuthData, error)
+	Login(ctx context.Context, params LoginParams) (*Session, error)
 	SendPasswordReset(ctx context.Context, email string) error
 	ChangePassword(ctx context.Context, params ChangePasswordParams) error
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
-	RefreshToken(token string) (*AuthData, error)
+	RefreshToken(token string) (*Session, error)
 	Logout(token string) error
 }
 
