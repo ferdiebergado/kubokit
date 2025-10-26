@@ -317,8 +317,9 @@ func TestHandler_Login(t *testing.T) {
 					t.Errorf("refreshCookie.SameSite = %q, want: %q", refreshCookie.SameSite, tc.wantCookie.SameSite)
 				}
 
-				if refreshCookie.Expires.After(time.Now().Add(provider.CfgJWT.RefreshTTL.Duration)) {
-					t.Errorf("refreshCookie.MaxAge = %d, want: %d", refreshCookie.MaxAge, tc.wantCookie.MaxAge)
+				expiry := time.Now().Add(provider.CfgJWT.RefreshTTL.Duration)
+				if refreshCookie.Expires.After(expiry) {
+					t.Errorf("refreshCookie.Expires = %v, want: %v", refreshCookie.Expires, expiry)
 				}
 			} else if numCookies > 0 {
 				t.Errorf("len(cookies) = %d, want: %d", numCookies, 0)
