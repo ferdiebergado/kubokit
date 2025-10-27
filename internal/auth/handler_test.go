@@ -425,71 +425,116 @@ func TestHandler_Verify(t *testing.T) {
 func TestHandler_ChangePassword(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name      string
-		userID    string
-		signer    jwt.Signer
-		cfgJWT    *config.JWT
-		cfgApp    *config.App
-		cfgCookie *config.Cookie
-		service   auth.Service
-		code      int
-		ctx       context.Context
-		params    auth.ChangePasswordRequest
-	}{
+	type testCase struct {
+		name       string
+		service    auth.Service
+		userID     string
+		wantStatus int
+		wantBody   map[string]any
+	}
+
+	testCases := []testCase{
 		{
-			name:   "Password was changed successfully",
-			userID: "123",
-			cfgJWT: &config.JWT{
-				JTILength:  8,
-				Issuer:     "example.com",
-				TTL:        timex.Duration{Duration: defaultDuration},
-				RefreshTTL: timex.Duration{Duration: defaultDuration},
-			},
-			cfgApp: &config.App{
-				ClientURL: "http://127.0.0.1:5173",
-			},
-			cfgCookie: &config.Cookie{
-				Name: "refresh_token",
-			},
-			signer: &jwt.StubSigner{
-				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-					return &jwt.Claims{UserID: "1"}, nil
-				},
-				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
-					return "xyz", nil
-				},
-			},
+			name: "password change success",
 			service: &auth.StubService{
 				ChangePasswordFunc: func(ctx context.Context, params auth.ChangePasswordParams) error {
 					return nil
 				},
 			},
-			code: http.StatusOK,
-			ctx:  auth.ContextWithUser(context.Background(), "123"),
-			params: auth.ChangePasswordRequest{
-				CurrentPassword: "oldtest",
-				NewPassword:     "test",
-				RepeatPassword:  "test",
+			userID:     "1",
+			wantStatus: http.StatusOK,
+			wantBody: map[string]any{
+				"message": auth.MsgSuccessPasswordChanged,
+			},
+		},
+		{
+			name:       "user is not authenticated",
+			service:    &auth.StubService{},
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": message.InvalidUser,
+			},
+		},
+		{
+			name: "user does not exists",
+			service: &auth.StubService{
+				ChangePasswordFunc: func(ctx context.Context, params auth.ChangePasswordParams) error {
+					return user.ErrNotFound
+				},
+			},
+			userID:     "1",
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": message.InvalidUser,
+			},
+		},
+		{
+			name: "current password is incorrect",
+			service: &auth.StubService{
+				ChangePasswordFunc: func(ctx context.Context, params auth.ChangePasswordParams) error {
+					return auth.ErrIncorrectPassword
+				},
+			},
+			userID:     "1",
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": message.InvalidUser,
+			},
+		},
+		{
+			name: "db error",
+			service: &auth.StubService{
+				ChangePasswordFunc: func(ctx context.Context, params auth.ChangePasswordParams) error {
+					return db.ErrQueryFailed
+				},
+			},
+			userID:     "1",
+			wantStatus: http.StatusInternalServerError,
+			wantBody: map[string]any{
+				"message": message.UnexpectedErr,
 			},
 		},
 	}
-	for _, tc := range tests {
+
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			authHandler, err := auth.NewHandler(tc.service, tc.cfgJWT, tc.cfgCookie)
+			handler, err := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("Failed to create the handler: %v", err)
 			}
-			ctx := web.NewContextWithParams(tc.ctx, tc.params)
-			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/change-password", http.NoBody)
-			rec := httptest.NewRecorder()
-			authHandler.ChangePassword(rec, req)
 
-			gotCode, wantCode := rec.Code, tc.code
-			if gotCode != wantCode {
-				t.Errorf(message.FmtErrStatusCode, gotCode, wantCode)
+			params := auth.ChangePasswordRequest{
+				CurrentPassword: "mock_current_password",
+				NewPassword:     "mock_new_password",
+				RepeatPassword:  "mock_new_password",
+			}
+			ctx := web.NewContextWithParams(context.Background(), params)
+			ctx = auth.ContextWithUser(ctx, tc.userID)
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/change-password", http.NoBody)
+			rec := httptest.NewRecorder()
+			handler.ChangePassword(rec, req)
+
+			res := rec.Result()
+			defer res.Body.Close()
+
+			if res.StatusCode != tc.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
+			}
+
+			gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
+			if gotContent != wantContent {
+				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
+			}
+
+			var body map[string]any
+			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+				t.Fatalf("unable to decode json response: %v", err)
+			}
+
+			if !reflect.DeepEqual(body, tc.wantBody) {
+				t.Errorf("body = %v, want: %v", body, tc.wantBody)
 			}
 		})
 	}
