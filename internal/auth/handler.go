@@ -357,9 +357,14 @@ func (r *ChangePasswordRequest) LogValue() slog.Value {
 func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	email, err := UserFromContext(ctx)
+	userID, err := UserFromContext(ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		return
+	}
+
+	if userID == "" {
+		web.RespondUnauthorized(w, errors.New("user ID is empty"), message.InvalidUser, nil)
 		return
 	}
 
@@ -370,18 +375,22 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := ChangePasswordParams{
-		email:           email,
+		userID:          userID,
 		currentPassword: req.CurrentPassword,
 		newPassword:     req.NewPassword,
 	}
 
 	if err := h.svc.ChangePassword(r.Context(), params); err != nil {
+		if errors.Is(err, db.ErrQueryFailed) {
+			web.RespondInternalServerError(w, err)
+			return
+		}
 		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
 		return
 	}
 
-	msg := message.ResetSuccess
-	web.RespondOK(w, &msg, struct{}{})
+	msg := MsgSuccessPasswordChanged
+	web.RespondOK[any](w, &msg, nil)
 }
 
 type LogoutRequest struct {
