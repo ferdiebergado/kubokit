@@ -234,13 +234,13 @@ func (s *service) SendPasswordReset(ctx context.Context, email string) error {
 }
 
 type ChangePasswordParams struct {
-	email, currentPassword, newPassword string
+	userID, currentPassword, newPassword string
 }
 
 func (s *service) ChangePassword(ctx context.Context, params ChangePasswordParams) error {
-	u, err := s.userRepo.FindByEmail(ctx, params.email)
+	u, err := s.userRepo.Find(ctx, params.userID)
 	if err != nil {
-		return fmt.Errorf(MsgFmtFindUserByEmail, err)
+		return fmt.Errorf(MsgFmtFindUser, err)
 	}
 
 	ok, err := s.hasher.Verify(params.currentPassword, u.PasswordHash)
