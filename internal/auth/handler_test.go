@@ -36,7 +36,7 @@ func TestHandler_Register(t *testing.T) {
 
 	type testCase struct {
 		name       string
-		register   func(ctx context.Context, params auth.RegisterParams) (user.User, error)
+		service    auth.Service
 		wantStatus int
 		wantBody   map[string]any
 	}
@@ -44,16 +44,18 @@ func TestHandler_Register(t *testing.T) {
 	testCases := []testCase{
 		{
 			name: "user does not exists",
-			register: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
-				return user.User{
-					Model: model.Model{
-						ID:        "1",
-						CreatedAt: timeStamp,
-						UpdatedAt: timeStamp,
-					},
-					Email:        testEmail,
-					PasswordHash: "hashed",
-				}, nil
+			service: &auth.StubService{
+				RegisterFunc: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
+					return user.User{
+						Model: model.Model{
+							ID:        "1",
+							CreatedAt: timeStamp,
+							UpdatedAt: timeStamp,
+						},
+						Email:        testEmail,
+						PasswordHash: "hashed",
+					}, nil
+				},
 			},
 			wantStatus: http.StatusCreated,
 			wantBody: map[string]any{
@@ -68,8 +70,10 @@ func TestHandler_Register(t *testing.T) {
 		},
 		{
 			name: "user exists",
-			register: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
-				return user.User{}, auth.ErrExists
+			service: &auth.StubService{
+				RegisterFunc: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
+					return user.User{}, auth.ErrExists
+				},
 			},
 			wantStatus: http.StatusConflict,
 			wantBody: map[string]any{
@@ -78,8 +82,10 @@ func TestHandler_Register(t *testing.T) {
 		},
 		{
 			name: "db error",
-			register: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
-				return user.User{}, db.ErrQueryFailed
+			service: &auth.StubService{
+				RegisterFunc: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
+					return user.User{}, db.ErrQueryFailed
+				},
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantBody: map[string]any{
@@ -92,11 +98,7 @@ func TestHandler_Register(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			mockService := &auth.StubService{
-				RegisterFunc: tc.register,
-			}
-
-			handler, err := auth.NewHandler(mockService, &config.JWT{}, &config.Cookie{})
+			handler, err := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
 			if err != nil {
 				t.Fatalf("Failed to create the handler: %v", err)
 			}
@@ -141,7 +143,7 @@ func TestHandler_Login(t *testing.T) {
 
 	type testCase struct {
 		name       string
-		login      func(ctx context.Context, params auth.LoginParams) (*auth.Session, error)
+		service    auth.Service
 		wantStatus int
 		wantBody   map[string]any
 		wantCookie *http.Cookie
@@ -150,17 +152,19 @@ func TestHandler_Login(t *testing.T) {
 	testCases := []testCase{
 		{
 			name: "user exists and verified with correct password",
-			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
-				return &auth.Session{
-					AccessToken:  "mock_access_token",
-					RefreshToken: "mock_refresh_token",
-					ExpiresIn:    1000,
-					TokenType:    "Bearer",
-					User: &auth.UserInfo{
-						ID:    "1",
-						Email: testEmail,
-					},
-				}, nil
+			service: &auth.StubService{
+				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
+					return &auth.Session{
+						AccessToken:  "mock_access_token",
+						RefreshToken: "mock_refresh_token",
+						ExpiresIn:    1000,
+						TokenType:    "Bearer",
+						User: &auth.UserInfo{
+							ID:    "1",
+							Email: testEmail,
+						},
+					}, nil
+				},
 			},
 			wantStatus: http.StatusOK,
 			wantBody: map[string]any{
@@ -188,8 +192,10 @@ func TestHandler_Login(t *testing.T) {
 		},
 		{
 			name: "user exists but not yet verified",
-			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
-				return &auth.Session{}, auth.ErrNotVerified
+			service: &auth.StubService{
+				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
+					return &auth.Session{}, auth.ErrNotVerified
+				},
 			},
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
@@ -201,8 +207,10 @@ func TestHandler_Login(t *testing.T) {
 		},
 		{
 			name: "user does not exists",
-			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
-				return &auth.Session{}, user.ErrNotFound
+			service: &auth.StubService{
+				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
+					return &auth.Session{}, user.ErrNotFound
+				},
 			},
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
@@ -211,8 +219,10 @@ func TestHandler_Login(t *testing.T) {
 		},
 		{
 			name: "user exists and verified but with incorrect password",
-			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
-				return &auth.Session{}, auth.ErrIncorrectPassword
+			service: &auth.StubService{
+				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
+					return &auth.Session{}, auth.ErrIncorrectPassword
+				},
 			},
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
@@ -221,8 +231,10 @@ func TestHandler_Login(t *testing.T) {
 		},
 		{
 			name: "db error",
-			login: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
-				return &auth.Session{}, db.ErrQueryFailed
+			service: &auth.StubService{
+				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
+					return &auth.Session{}, db.ErrQueryFailed
+				},
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantBody: map[string]any{
@@ -235,9 +247,6 @@ func TestHandler_Login(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			mockService := &auth.StubService{
-				LoginFunc: tc.login,
-			}
 			cfgJWT := &config.JWT{
 				RefreshTTL: timex.Duration{Duration: 1000 * time.Second},
 			}
@@ -245,7 +254,7 @@ func TestHandler_Login(t *testing.T) {
 				Name: "refresh_token",
 			}
 
-			handler, err := auth.NewHandler(mockService, cfgJWT, cfgCookie)
+			handler, err := auth.NewHandler(tc.service, cfgJWT, cfgCookie)
 			if err != nil {
 				t.Fatalf("Failed to create handler: %v", err)
 			}
@@ -327,7 +336,7 @@ func TestHandler_Verify(t *testing.T) {
 
 	type testCase struct {
 		name       string
-		verify     func(ctx context.Context, token string) error
+		service    auth.Service
 		wantStatus int
 		wantBody   map[string]any
 	}
@@ -335,8 +344,10 @@ func TestHandler_Verify(t *testing.T) {
 	testCases := []testCase{
 		{
 			name: "valid verification token",
-			verify: func(ctx context.Context, token string) error {
-				return nil
+			service: &auth.StubService{
+				VerifyFunc: func(ctx context.Context, token string) error {
+					return nil
+				},
 			},
 			wantStatus: http.StatusOK,
 			wantBody: map[string]any{
@@ -345,8 +356,10 @@ func TestHandler_Verify(t *testing.T) {
 		},
 		{
 			name: "invalid verification token",
-			verify: func(ctx context.Context, token string) error {
-				return errors.New("malformed token")
+			service: &auth.StubService{
+				VerifyFunc: func(ctx context.Context, token string) error {
+					return errors.New("malformed token")
+				},
 			},
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
@@ -355,8 +368,10 @@ func TestHandler_Verify(t *testing.T) {
 		},
 		{
 			name: "db error",
-			verify: func(ctx context.Context, token string) error {
-				return db.ErrQueryFailed
+			service: &auth.StubService{
+				VerifyFunc: func(ctx context.Context, token string) error {
+					return db.ErrQueryFailed
+				},
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantBody: map[string]any{
@@ -367,12 +382,9 @@ func TestHandler_Verify(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockService := &auth.StubService{
-				VerifyFunc: tc.verify,
-			}
 			cfgJWT := &config.JWT{}
 			cfgCookie := &config.Cookie{}
-			handler, err := auth.NewHandler(mockService, cfgJWT, cfgCookie)
+			handler, err := auth.NewHandler(tc.service, cfgJWT, cfgCookie)
 			if err != nil {
 				t.Fatalf("Failed to create the handler: %v", err)
 			}
