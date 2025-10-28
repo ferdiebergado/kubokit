@@ -141,6 +141,13 @@ func TestHandler_Register(t *testing.T) {
 func TestHandler_Login(t *testing.T) {
 	t.Parallel()
 
+	const (
+		cookieName   = "refresh_token"
+		maxAge       = 1000
+		accessToken  = "mock_access_token"
+		refreshToken = "mock_refresh_token"
+	)
+
 	type testCase struct {
 		name       string
 		service    auth.Service
@@ -155,9 +162,9 @@ func TestHandler_Login(t *testing.T) {
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 					return &auth.Session{
-						AccessToken:  "mock_access_token",
-						RefreshToken: "mock_refresh_token",
-						ExpiresIn:    1000,
+						AccessToken:  accessToken,
+						RefreshToken: refreshToken,
+						ExpiresIn:    maxAge,
 						TokenType:    "Bearer",
 						User: &auth.UserInfo{
 							ID:    "1",
@@ -181,10 +188,10 @@ func TestHandler_Login(t *testing.T) {
 				},
 			},
 			wantCookie: &http.Cookie{
-				Name:     "refresh_token",
-				Value:    "mock_refresh_token",
+				Name:     cookieName,
+				Value:    refreshToken,
 				Path:     "/",
-				MaxAge:   time.Now().Add(1000 * time.Second).Second(),
+				MaxAge:   maxAge,
 				Secure:   true,
 				HttpOnly: true,
 				SameSite: http.SameSiteStrictMode,
@@ -248,10 +255,10 @@ func TestHandler_Login(t *testing.T) {
 			t.Parallel()
 
 			cfgJWT := &config.JWT{
-				RefreshTTL: timex.Duration{Duration: 1000 * time.Second},
+				RefreshTTL: timex.Duration{Duration: maxAge * time.Second},
 			}
 			cfgCookie := &config.Cookie{
-				Name: "refresh_token",
+				Name: cookieName,
 			}
 
 			handler, err := auth.NewHandler(tc.service, cfgJWT, cfgCookie)
