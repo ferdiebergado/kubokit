@@ -65,12 +65,12 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	req, err := web.ParamsFromContext[ResetPasswordRequest](ctx)
 	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 	userID, err := UserFromContext(ctx)
 	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 	params := ResetPasswordParams{
@@ -78,7 +78,7 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	}
 	if err = h.svc.ResetPassword(ctx, params); err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
@@ -111,7 +111,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	req, err := web.ParamsFromContext[RegisterRequest](ctx)
 	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
@@ -148,7 +148,7 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	req, err := web.ParamsFromContext[VerifyRequest](ctx)
 	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
@@ -158,7 +158,7 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
@@ -174,7 +174,7 @@ func (h *Handler) ResendVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	req, err := web.ParamsFromContext[ResendVerifyEmailRequest](ctx)
 	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
@@ -184,7 +184,7 @@ func (h *Handler) ResendVerifyEmail(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
@@ -238,7 +238,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	req, err := web.ParamsFromContext[LoginRequest](ctx)
 	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
@@ -255,7 +255,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if errors.Is(err, user.ErrNotFound) || errors.Is(err, ErrIncorrectPassword) {
-			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 			return
 		}
 
@@ -282,14 +282,14 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(h.cfgCookie.Name)
 
 	if err != nil || cookie.Value == "" {
-		web.RespondUnauthorized(w, errors.New("missing refresh cookie"), message.InvalidUser, nil)
+		web.RespondUnauthorized(w, errors.New("missing refresh cookie"), MsgInvalidUser, nil)
 		return
 	}
 
 	data, err := h.svc.RefreshToken(cookie.Value)
 	if err != nil {
 		if errors.Is(err, ErrInvalidToken) {
-			web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 			return
 		}
 
@@ -326,12 +326,12 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	req, err := web.ParamsFromContext[ForgotPasswordRequest](ctx)
 	if err != nil {
-		web.RespondUnauthorized(w, errInvalidParams, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, errInvalidParams, MsgInvalidUser, nil)
 		return
 	}
 
 	if err := h.svc.SendPasswordReset(ctx, req.Email); err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
@@ -359,18 +359,18 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := UserFromContext(ctx)
 	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
 	if userID == "" {
-		web.RespondUnauthorized(w, errors.New("user ID is empty"), message.InvalidUser, nil)
+		web.RespondUnauthorized(w, errors.New("user ID is empty"), MsgInvalidUser, nil)
 		return
 	}
 
 	req, err := web.ParamsFromContext[ChangePasswordRequest](ctx)
 	if err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
@@ -385,7 +385,7 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 			web.RespondInternalServerError(w, err)
 			return
 		}
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
@@ -405,7 +405,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = h.svc.Logout(params.AccessToken); err != nil {
-		web.RespondUnauthorized(w, err, message.InvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 

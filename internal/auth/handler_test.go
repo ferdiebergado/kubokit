@@ -214,7 +214,7 @@ func TestHandler_Login(t *testing.T) {
 			},
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
-				"message": message.InvalidUser,
+				"message": auth.MsgInvalidUser,
 			},
 		},
 		{
@@ -226,7 +226,7 @@ func TestHandler_Login(t *testing.T) {
 			},
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
-				"message": message.InvalidUser,
+				"message": auth.MsgInvalidUser,
 			},
 		},
 		{
@@ -363,7 +363,7 @@ func TestHandler_Verify(t *testing.T) {
 			},
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
-				"message": message.InvalidUser,
+				"message": auth.MsgInvalidUser,
 			},
 		},
 		{
@@ -449,7 +449,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 			service:    &auth.StubService{},
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
-				"message": message.InvalidUser,
+				"message": auth.MsgInvalidUser,
 			},
 		},
 		{
@@ -462,7 +462,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 			userID:     "1",
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
-				"message": message.InvalidUser,
+				"message": auth.MsgInvalidUser,
 			},
 		},
 		{
@@ -475,7 +475,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 			userID:     "1",
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
-				"message": message.InvalidUser,
+				"message": auth.MsgInvalidUser,
 			},
 		},
 		{
@@ -611,7 +611,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			code:    http.StatusUnauthorized,
 			gotBody: &web.ErrorResponse{},
 			wantBody: &web.ErrorResponse{
-				Message: message.InvalidUser,
+				Message: auth.MsgInvalidUser,
 			},
 			signer: &jwt.StubSigner{},
 		},
@@ -638,7 +638,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			code:    http.StatusUnauthorized,
 			gotBody: &web.ErrorResponse{},
 			wantBody: &web.ErrorResponse{
-				Message: message.InvalidUser,
+				Message: auth.MsgInvalidUser,
 			},
 		},
 	}
@@ -694,7 +694,7 @@ func TestHandler_Logout(t *testing.T) {
 			name:       "should return 401 when token is invalid",
 			logoutFunc: func(s string) error { return auth.ErrInvalidToken },
 			code:       http.StatusUnauthorized,
-			message:    message.InvalidUser,
+			message:    auth.MsgInvalidUser,
 		},
 	}
 
@@ -837,7 +837,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 				return user.ErrNotFound
 			},
 			wantStatus: http.StatusUnauthorized,
-			wantMsg:    message.InvalidUser,
+			wantMsg:    auth.MsgInvalidUser,
 		},
 	}
 

@@ -12,4 +12,5 @@ const (
 	MsgPasswordResetSuccess   = "Password was reset successfully!"
 	MsgUserExists             = "User already exists."
 	MsgSuccessPasswordChanged = "Password changed successfully!"
+	MsgInvalidUser            = "Invalid username/password."
 )
