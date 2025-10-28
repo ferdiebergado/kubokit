@@ -382,9 +382,7 @@ func TestHandler_Verify(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cfgJWT := &config.JWT{}
-			cfgCookie := &config.Cookie{}
-			handler, err := auth.NewHandler(tc.service, cfgJWT, cfgCookie)
+			handler, err := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
 			if err != nil {
 				t.Fatalf("Failed to create the handler: %v", err)
 			}
@@ -393,8 +391,7 @@ func TestHandler_Verify(t *testing.T) {
 				Token: "mock_token",
 			}
 			ctx := web.NewContextWithParams(context.Background(), mockRequest)
-			userCtx := auth.ContextWithUser(ctx, "1")
-			req := httptest.NewRequestWithContext(userCtx, http.MethodPost, "/verify", http.NoBody)
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/verify", http.NoBody)
 			rec := httptest.NewRecorder()
 			handler.Verify(rec, req)
 
