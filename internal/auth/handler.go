@@ -189,7 +189,7 @@ func (h *Handler) ResendVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := MsgReVerifySuccess
-	web.RespondOK(w, &msg, struct{}{})
+	web.RespondOK[any](w, &msg, nil)
 }
 
 type LoginRequest struct {
