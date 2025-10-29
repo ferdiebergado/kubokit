@@ -285,33 +285,12 @@ func TestHandler_Login(t *testing.T) {
 			cookies := res.Cookies()
 			numCookies := len(cookies)
 
-			//nolint:nestif // need to assert each field of the cookie
 			if tc.wantCookie != nil {
 				if numCookies == 0 {
 					t.Fatal("no cookies found in the response")
 				}
 
-				refreshCookie := cookies[0]
-
-				if refreshCookie.Value != tc.wantCookie.Value {
-					t.Errorf("refreshCookie.Value = %q, want: %q", refreshCookie.Value, tc.wantCookie.Value)
-				}
-
-				if refreshCookie.Secure != tc.wantCookie.Secure {
-					t.Errorf("refreshCookie.Secure = %t, want: %t", refreshCookie.Secure, tc.wantCookie.Secure)
-				}
-
-				if refreshCookie.HttpOnly != tc.wantCookie.HttpOnly {
-					t.Errorf("refreshCookie.HttpOnly = %t, want: %t", refreshCookie.HttpOnly, tc.wantCookie.HttpOnly)
-				}
-
-				if refreshCookie.Path != tc.wantCookie.Path {
-					t.Errorf("refreshCookie.Path = %q, want: %q", refreshCookie.Path, tc.wantCookie.Path)
-				}
-
-				if refreshCookie.SameSite != tc.wantCookie.SameSite {
-					t.Errorf("refreshCookie.SameSite = %q, want: %q", refreshCookie.SameSite, tc.wantCookie.SameSite)
-				}
+				assertCookie(t, cookies[0], tc.wantCookie)
 			} else if numCookies > 0 {
 				t.Errorf("len(cookies) = %d, want: %d", numCookies, 0)
 			}
@@ -858,5 +837,29 @@ func TestHandler_ResetPassword(t *testing.T) {
 				t.Errorf("body['message'] = %q, want: %q", body, tc.wantMsg)
 			}
 		})
+	}
+}
+
+func assertCookie(t *testing.T, responseCookie, wantCookie *http.Cookie) {
+	t.Helper()
+
+	if responseCookie.Value != wantCookie.Value {
+		t.Errorf("responseCookie.Value = %q, want: %q", responseCookie.Value, wantCookie.Value)
+	}
+
+	if responseCookie.Secure != wantCookie.Secure {
+		t.Errorf("responseCookie.Secure = %t, want: %t", responseCookie.Secure, wantCookie.Secure)
+	}
+
+	if responseCookie.HttpOnly != wantCookie.HttpOnly {
+		t.Errorf("responseCookie.HttpOnly = %t, want: %t", responseCookie.HttpOnly, wantCookie.HttpOnly)
+	}
+
+	if responseCookie.Path != wantCookie.Path {
+		t.Errorf("responseCookie.Path = %q, want: %q", responseCookie.Path, wantCookie.Path)
+	}
+
+	if responseCookie.SameSite != wantCookie.SameSite {
+		t.Errorf("responseCookie.SameSite = %q, want: %q", responseCookie.SameSite, wantCookie.SameSite)
 	}
 }
