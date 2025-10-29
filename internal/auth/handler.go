@@ -38,7 +38,7 @@ type Service interface {
 	ChangePassword(ctx context.Context, params ChangePasswordParams) error
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
 	RefreshToken(token string) (*Session, error)
-	Logout(token string) error
+	Logout(ctx context.Context, token string) error
 }
 
 type Handler struct {
@@ -418,7 +418,8 @@ type LogoutRequest struct {
 }
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	params, err := web.ParamsFromContext[LogoutRequest](r.Context())
+	ctx := r.Context()
+	params, err := web.ParamsFromContext[LogoutRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
@@ -429,7 +430,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.svc.Logout(params.AccessToken); err != nil {
+	if err = h.svc.Logout(ctx, params.AccessToken); err != nil {
 		var svcErr *ServiceFailureError
 		if errors.As(err, &svcErr) {
 			web.RespondInternalServerError(w, err)

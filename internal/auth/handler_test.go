@@ -698,7 +698,7 @@ func TestHandler_Logout(t *testing.T) {
 		{
 			name: "valid access token",
 			service: &auth.StubService{
-				LogoutFunc: func(token string) error {
+				LogoutFunc: func(ctx context.Context, token string) error {
 					return nil
 				},
 			},
@@ -729,7 +729,7 @@ func TestHandler_Logout(t *testing.T) {
 		{
 			name: "malformed access token",
 			service: &auth.StubService{
-				LogoutFunc: func(token string) error {
+				LogoutFunc: func(ctx context.Context, token string) error {
 					return errors.New("malformed token")
 				},
 			},
@@ -744,7 +744,7 @@ func TestHandler_Logout(t *testing.T) {
 		{
 			name: "user does not exists",
 			service: &auth.StubService{
-				LogoutFunc: func(token string) error {
+				LogoutFunc: func(ctx context.Context, token string) error {
 					return user.ErrNotFound
 				},
 			},
@@ -759,7 +759,7 @@ func TestHandler_Logout(t *testing.T) {
 		{
 			name: "service failure",
 			service: &auth.StubService{
-				LogoutFunc: func(token string) error {
+				LogoutFunc: func(ctx context.Context, token string) error {
 					return &auth.ServiceFailureError{Err: errors.New("query failed")}
 				},
 			},

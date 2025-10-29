@@ -313,14 +313,14 @@ func (s *service) RefreshToken(token string) (*Session, error) {
 	return s.generateToken(userID, u.Email)
 }
 
-func (s *service) Logout(token string) error {
+func (s *service) Logout(ctx context.Context, token string) error {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
 		return fmt.Errorf("verify access token: %w", err)
 	}
 
 	userID := claims.UserID
-	_, err = s.userRepo.Find(context.Background(), userID)
+	_, err = s.userRepo.Find(ctx, userID)
 	if err != nil {
 		svcErr := fmt.Errorf("service find user by id: %w", err)
 		if errors.Is(err, user.ErrNotFound) {
