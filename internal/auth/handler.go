@@ -49,6 +49,28 @@ type Handler struct {
 	cfgCookie *config.Cookie
 }
 
+func NewHandler(svc Service, cfgJWT *config.JWT, cfgCookie *config.Cookie) (*Handler, error) {
+	if svc == nil {
+		return nil, errors.New("service should not be nil")
+	}
+
+	if cfgJWT == nil {
+		return nil, errors.New("JWT config should not be nil")
+	}
+
+	if cfgCookie == nil {
+		return nil, errors.New("cookie config should not be nil")
+	}
+
+	handler := &Handler{
+		svc:       svc,
+		cfgJWT:    cfgJWT,
+		cfgCookie: cfgCookie,
+	}
+
+	return handler, nil
+}
+
 type ResetPasswordRequest struct {
 	Password        string `json:"password,omitempty" validate:"required"`
 	PasswordConfirm string `json:"password_confirm,omitempty" validate:"required,eqfield=Password"`
@@ -412,26 +434,4 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	h.clearRefreshCookie(w)
 
 	web.RespondNoContent[any](w, nil, nil)
-}
-
-func NewHandler(svc Service, cfgJWT *config.JWT, cfgCookie *config.Cookie) (*Handler, error) {
-	if svc == nil {
-		return nil, errors.New("service should not be nil")
-	}
-
-	if cfgJWT == nil {
-		return nil, errors.New("JWT config should not be nil")
-	}
-
-	if cfgCookie == nil {
-		return nil, errors.New("cookie config should not be nil")
-	}
-
-	handler := &Handler{
-		svc:       svc,
-		cfgJWT:    cfgJWT,
-		cfgCookie: cfgCookie,
-	}
-
-	return handler, nil
 }
