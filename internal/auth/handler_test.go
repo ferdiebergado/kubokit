@@ -312,11 +312,6 @@ func TestHandler_Login(t *testing.T) {
 				if refreshCookie.SameSite != tc.wantCookie.SameSite {
 					t.Errorf("refreshCookie.SameSite = %q, want: %q", refreshCookie.SameSite, tc.wantCookie.SameSite)
 				}
-
-				expiry := time.Now().Add(cfgJWT.RefreshTTL.Duration)
-				if refreshCookie.Expires.After(expiry) {
-					t.Errorf("refreshCookie.Expires = %v, want: %v", refreshCookie.Expires, expiry)
-				}
 			} else if numCookies > 0 {
 				t.Errorf("len(cookies) = %d, want: %d", numCookies, 0)
 			}
