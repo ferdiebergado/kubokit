@@ -35,7 +35,7 @@ func (r *repo) Create(ctx context.Context, params CreateParams) (User, error) {
 		if db.IsUniqueConstraintViolation(err) {
 			return u, db.ErrUniqueConstraintViolation
 		}
-		return u, fmt.Errorf("query to create user: %w", err)
+		return u, fmt.Errorf("repo create user: %w", err)
 	}
 	return u, nil
 }
@@ -56,7 +56,7 @@ func (r *repo) FindByEmail(ctx context.Context, email string) (*User, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("query to find user by email: %w", err)
+		return nil, fmt.Errorf("repo find user by email: %w", err)
 	}
 	return &u, nil
 }
@@ -70,7 +70,7 @@ func (r *repo) List(ctx context.Context) ([]User, error) {
 	}
 	rows, err := executor.QueryContext(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("query to list all users: %w", err)
+		return nil, fmt.Errorf("repo list all users: %w", err)
 	}
 	defer rows.Close()
 
@@ -108,7 +108,7 @@ func (r *repo) Find(ctx context.Context, userID string) (*User, error) {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("query to find user with id %s: %w", userID, err)
+		return nil, fmt.Errorf("repo find user with id %s: %w", userID, err)
 	}
 	return &u, nil
 }
@@ -122,7 +122,7 @@ func (r *repo) Delete(ctx context.Context, userID string) error {
 	}
 	res, err := executor.ExecContext(ctx, query, userID)
 	if err != nil {
-		return fmt.Errorf("query to delete user: %w", err)
+		return fmt.Errorf("repo delete user: %w", err)
 	}
 
 	numRows, err := res.RowsAffected()
@@ -152,7 +152,7 @@ func (r *repo) Update(ctx context.Context, updates *User, userID string) error {
 	}
 	res, err := executor.ExecContext(ctx, query, updates.PasswordHash, updates.VerifiedAt, userID)
 	if err != nil {
-		return fmt.Errorf("query to update user: %w", err)
+		return fmt.Errorf("repo update user: %w", err)
 	}
 
 	numRows, err := res.RowsAffected()
