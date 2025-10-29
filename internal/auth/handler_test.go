@@ -677,141 +677,148 @@ func TestHandler_RefreshToken(t *testing.T) {
 }
 
 func TestHandler_Logout(t *testing.T) {
+	t.Parallel()
+
+	const (
+		cookieName   = "refresh_token"
+		accessToken  = "mock_access_token"
+		refreshToken = "mock_refresh_token"
+	)
+
 	type testCase struct {
-		name        string
-		withCookies bool
-		logoutFunc  func(string) error
-		code        int
-		message     string
+		name       string
+		service    auth.Service
+		params     *auth.LogoutRequest
+		wantStatus int
+		wantBody   map[string]any
+		wantCookie *http.Cookie
 	}
 
 	testCases := []testCase{
 		{
-			name:        "should return 204 and delete cookies when token is valid",
-			withCookies: true,
-			logoutFunc:  func(s string) error { return nil },
-			code:        http.StatusNoContent,
+			name: "valid access token",
+			service: &auth.StubService{
+				LogoutFunc: func(token string) error {
+					return nil
+				},
+			},
+			params: &auth.LogoutRequest{
+				AccessToken: accessToken,
+			},
+			wantStatus: http.StatusNoContent,
+			wantBody:   map[string]any{},
+			wantCookie: &http.Cookie{
+				Name:     cookieName,
+				Value:    "",
+				Path:     "/",
+				MaxAge:   -1,
+				Secure:   true,
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			},
 		},
 		{
-			name:       "should return 401 when token is invalid",
-			logoutFunc: func(s string) error { return auth.ErrInvalidToken },
-			code:       http.StatusUnauthorized,
-			message:    auth.MsgInvalidUser,
+			name:       "empty access token",
+			service:    &auth.StubService{},
+			params:     &auth.LogoutRequest{},
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": auth.MsgInvalidUser,
+			},
+		},
+		{
+			name: "malformed access token",
+			service: &auth.StubService{
+				LogoutFunc: func(token string) error {
+					return errors.New("malformed token")
+				},
+			},
+			params: &auth.LogoutRequest{
+				AccessToken: accessToken,
+			},
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": auth.MsgInvalidUser,
+			},
+		},
+		{
+			name: "user does not exists",
+			service: &auth.StubService{
+				LogoutFunc: func(token string) error {
+					return user.ErrNotFound
+				},
+			},
+			params: &auth.LogoutRequest{
+				AccessToken: accessToken,
+			},
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": auth.MsgInvalidUser,
+			},
+		},
+		{
+			name: "service failure",
+			service: &auth.StubService{
+				LogoutFunc: func(token string) error {
+					return &auth.ServiceFailureError{Err: errors.New("query failed")}
+				},
+			},
+			params: &auth.LogoutRequest{
+				AccessToken: accessToken,
+			},
+			wantStatus: http.StatusInternalServerError,
+			wantBody: map[string]any{
+				"message": message.UnexpectedErr,
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := &auth.StubService{
-				LogoutFunc: tc.logoutFunc,
-			}
+			t.Parallel()
 
 			cfgCookie := &config.Cookie{
-				Name: "refresh_token",
+				Name: cookieName,
 			}
-
-			authHandler, err := auth.NewHandler(svc, &config.JWT{}, cfgCookie)
+			handler, err := auth.NewHandler(tc.service, &config.JWT{}, cfgCookie)
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("failed to create auth handler: %v", err)
 			}
 
-			logoutRequest := auth.LogoutRequest{
-				AccessToken: "123",
+			ctx := context.Background()
+			if tc.params != nil {
+				ctx = web.NewContextWithParams(ctx, *tc.params)
 			}
-
-			ctx := web.NewContextWithParams(context.Background(), logoutRequest)
-			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/auth/logout", http.NoBody)
-
-			if tc.withCookies {
-				refreshCookie := &http.Cookie{
-					Name:     "refresh_token",
-					Value:    "123",
-					Path:     "/",
-					MaxAge:   36000,
-					HttpOnly: true,
-					SameSite: http.SameSiteStrictMode,
-				}
-				req.AddCookie(refreshCookie)
-			}
-
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/logout", http.NoBody)
 			rec := httptest.NewRecorder()
-			authHandler.Logout(rec, req)
+			handler.Logout(rec, req)
 
-			wantCode, gotCode := tc.code, rec.Code
-			if gotCode != wantCode {
-				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
+			res := rec.Result()
+			defer res.Body.Close()
+
+			if res.StatusCode != tc.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
 			}
 
-			result := rec.Result()
+			web.AssertContentType(t, res)
 
-			defer result.Body.Close()
-
-			var body map[string]string
-			err = json.Unmarshal(rec.Body.Bytes(), &body)
-			if err != nil {
-				t.Fatal(err)
+			body := web.DecodeJSONResponse(t, res)
+			if !reflect.DeepEqual(body, tc.wantBody) {
+				t.Errorf("body = %+v, want: %+v", body, tc.wantBody)
 			}
 
-			wantMsg, gotMsg := tc.message, body["message"]
-			if gotMsg != wantMsg {
-				t.Errorf("rec.Body.String() = %q, want: %q", gotMsg, wantMsg)
-			}
-
-			cookies := result.Cookies()
-
-			if tc.withCookies {
-				if len(cookies) != 1 {
-					t.Fatal("there should be 2 cookies in the response")
+			cookies := res.Cookies()
+			numCookies := len(cookies)
+			if tc.wantCookie != nil {
+				if numCookies == 0 {
+					t.Fatal("there should be cookies in the response")
 				}
-
-				wantRefreshCookie := &http.Cookie{
-					Name:     "refresh_token",
-					Value:    "",
-					Path:     "/",
-					MaxAge:   -1,
-					SameSite: http.SameSiteStrictMode,
-					HttpOnly: true,
-				}
-				gotRefreshCookie := findCookie(t, cookies, "refresh_token")
-
-				if gotRefreshCookie.Name != wantRefreshCookie.Name {
-					t.Errorf("gotRefreshCookie.Name = %q, want: %q", gotRefreshCookie.Name, wantRefreshCookie.Name)
-				}
-
-				if gotRefreshCookie.Value != wantRefreshCookie.Value {
-					t.Errorf("gotRefreshCookie.Value = %q, want: %q", gotRefreshCookie.Value, wantRefreshCookie.Value)
-				}
-
-				if gotRefreshCookie.Path != wantRefreshCookie.Path {
-					t.Errorf("gotRefreshCookie.Path = %q, want: %q", gotRefreshCookie.Path, wantRefreshCookie.Path)
-				}
-
-				if gotRefreshCookie.MaxAge != wantRefreshCookie.MaxAge {
-					t.Errorf("gotRefreshCookie.MaxAge = %d, want: %d", gotRefreshCookie.MaxAge, wantRefreshCookie.MaxAge)
-				}
-
-				if int(gotRefreshCookie.SameSite) != int(wantRefreshCookie.SameSite) {
-					t.Errorf("gotRefreshCookie.SameSite = %d, want: %d", gotRefreshCookie.SameSite, wantRefreshCookie.SameSite)
-				}
-
-				if gotRefreshCookie.HttpOnly != wantRefreshCookie.HttpOnly {
-					t.Errorf("gotRefreshCookie.HttpOnly = %t, want: %t", gotRefreshCookie.HttpOnly, wantRefreshCookie.HttpOnly)
-				}
+				assertCookies(t, cookies[0], tc.wantCookie)
+			} else if numCookies > 0 {
+				t.Fatal("there should be no cookies in the response")
 			}
 		})
 	}
-}
-
-func findCookie(t *testing.T, cookies []*http.Cookie, name string) *http.Cookie {
-	t.Helper()
-
-	for _, cookie := range cookies {
-		if cookie.Name == name {
-			return cookie
-		}
-	}
-
-	return nil
 }
 
 func TestHandler_ResetPassword(t *testing.T) {
