@@ -105,6 +105,9 @@ func (r *repo) Find(ctx context.Context, userID string) (*User, error) {
 	row := executor.QueryRowContext(ctx, query, userID)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("query to find user with id %s: %w", userID, err)
 	}
 	return &u, nil
