@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"strings"
+	"testing"
 )
 
 func IsBrowser(r *http.Request) bool {
@@ -27,4 +28,13 @@ func IsBrowser(r *http.Request) bool {
 	}
 
 	return isBrowser
+}
+
+func AssertContentType(t *testing.T, res *http.Response) {
+	t.Helper()
+
+	gotContent := res.Header.Get(HeaderContentType)
+	if !strings.HasPrefix(gotContent, MimeJSON) {
+		t.Errorf("res.Header.Get(%q) = %q, want: %q", HeaderContentType, gotContent, MimeJSON)
+	}
 }

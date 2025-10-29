@@ -121,10 +121,7 @@ func TestHandler_Register(t *testing.T) {
 				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
 			}
 
-			gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
-			if gotContent != wantContent {
-				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
-			}
+			web.AssertContentType(t, res)
 
 			body := web.DecodeJSONResponse(t, res)
 			if !reflect.DeepEqual(body, tc.wantBody) {
@@ -278,10 +275,7 @@ func TestHandler_Login(t *testing.T) {
 				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
 			}
 
-			gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
-			if gotContent != wantContent {
-				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
-			}
+			web.AssertContentType(t, res)
 
 			body := web.DecodeJSONResponse(t, res)
 			if !reflect.DeepEqual(body, tc.wantBody) {
@@ -401,10 +395,7 @@ func TestHandler_Verify(t *testing.T) {
 				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
 			}
 
-			gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
-			if gotContent != wantContent {
-				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
-			}
+			web.AssertContentType(t, res)
 
 			body := web.DecodeJSONResponse(t, res)
 			if !reflect.DeepEqual(body, tc.wantBody) {
@@ -515,10 +506,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
 			}
 
-			gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
-			if gotContent != wantContent {
-				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
-			}
+			web.AssertContentType(t, res)
 
 			body := web.DecodeJSONResponse(t, res)
 			if !reflect.DeepEqual(body, tc.wantBody) {
@@ -863,10 +851,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 				t.Errorf("res.StatusCode = %d, want: %d", gotStatus, wantStatus)
 			}
 
-			gotContent, wantContent := res.Header.Get(web.HeaderContentType), web.MimeJSON
-			if gotContent != wantContent {
-				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
-			}
+			web.AssertContentType(t, res)
 
 			var body map[string]string
 			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
