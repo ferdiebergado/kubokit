@@ -20,7 +20,16 @@ var (
 	ErrNotVerified       = errors.New("email not verified")
 	ErrExists            = errors.New("user already exists")
 	ErrIncorrectPassword = errors.New("incorrect password")
+	ErrServiceFailed     = errors.New("auth service was unable to complete the operation")
 )
+
+type ServiceFailureError struct {
+	Err error
+}
+
+func (e *ServiceFailureError) Error() string {
+	return e.Err.Error()
+}
 
 type Repository interface {
 	Verify(ctx context.Context, userID string) error
@@ -313,7 +322,11 @@ func (s *service) Logout(token string) error {
 	userID := claims.UserID
 	_, err = s.userRepo.Find(context.Background(), userID)
 	if err != nil {
-		return fmt.Errorf("find user by id: %w", err)
+		svcErr := fmt.Errorf("service find user by id: %w", err)
+		if errors.Is(err, user.ErrNotFound) {
+			return svcErr
+		}
+		return &ServiceFailureError{Err: svcErr}
 	}
 
 	return nil

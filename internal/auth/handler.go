@@ -420,11 +420,21 @@ type LogoutRequest struct {
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	params, err := web.ParamsFromContext[LogoutRequest](r.Context())
 	if err != nil {
-		web.RespondBadRequest(w, err, message.InvalidInput, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
+		return
+	}
+
+	if params.AccessToken == "" {
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
 	if err = h.svc.Logout(params.AccessToken); err != nil {
+		var svcErr *ServiceFailureError
+		if errors.As(err, &svcErr) {
+			web.RespondInternalServerError(w, err)
+			return
+		}
 		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
