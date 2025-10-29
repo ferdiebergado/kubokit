@@ -49,15 +49,15 @@ type Handler struct {
 
 func NewHandler(svc Service, cfgJWT *config.JWT, cfgCookie *config.Cookie) (*Handler, error) {
 	if svc == nil {
-		return nil, errors.New("service should not be nil")
+		return nil, errors.New("create auth handler: service is required")
 	}
 
 	if cfgJWT == nil {
-		return nil, errors.New("JWT config should not be nil")
+		return nil, errors.New("create auth handler: jwt config is required")
 	}
 
 	if cfgCookie == nil {
-		return nil, errors.New("cookie config should not be nil")
+		return nil, errors.New("create auth handler: cookie config is required")
 	}
 
 	handler := &Handler{
