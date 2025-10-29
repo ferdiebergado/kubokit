@@ -126,11 +126,7 @@ func TestHandler_Register(t *testing.T) {
 				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
 			}
 
-			var body map[string]any
-			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
-				t.Fatalf("Failed to decode json response: %v", err)
-			}
-
+			body := web.DecodeJSONResponse(t, res)
 			if !reflect.DeepEqual(body, tc.wantBody) {
 				t.Errorf("body = %v, want: %v", body, tc.wantBody)
 			}
@@ -287,11 +283,7 @@ func TestHandler_Login(t *testing.T) {
 				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
 			}
 
-			var body map[string]any
-			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
-				t.Fatalf("unable to read response body: %v", err)
-			}
-
+			body := web.DecodeJSONResponse(t, res)
 			if !reflect.DeepEqual(body, tc.wantBody) {
 				t.Errorf("body = %v, want: %v", body, tc.wantBody)
 			}
@@ -414,11 +406,7 @@ func TestHandler_Verify(t *testing.T) {
 				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
 			}
 
-			var body map[string]any
-			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
-				t.Fatalf("unable to decode json response: %v", err)
-			}
-
+			body := web.DecodeJSONResponse(t, res)
 			if !reflect.DeepEqual(body, tc.wantBody) {
 				t.Errorf("body = %v, want: %v", body, tc.wantBody)
 			}
@@ -532,11 +520,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 				t.Errorf("res.Header.Get(%q) = %q, want: %q", web.HeaderContentType, gotContent, wantContent)
 			}
 
-			var body map[string]any
-			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
-				t.Fatalf("unable to decode json response: %v", err)
-			}
-
+			body := web.DecodeJSONResponse(t, res)
 			if !reflect.DeepEqual(body, tc.wantBody) {
 				t.Errorf("body = %v, want: %v", body, tc.wantBody)
 			}
