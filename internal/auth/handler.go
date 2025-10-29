@@ -11,7 +11,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
-	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -44,7 +43,6 @@ type Service interface {
 
 type Handler struct {
 	svc       Service
-	signer    jwt.Signer
 	cfgJWT    *config.JWT
 	cfgCookie *config.Cookie
 }
