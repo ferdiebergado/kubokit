@@ -519,8 +519,8 @@ func TestHandler_RefreshToken(t *testing.T) {
 			service: &auth.StubService{
 				RefreshTokenFunc: func(token string) (*auth.Session, error) {
 					return &auth.Session{
-						AccessToken:  "new_mock_access_token",
-						RefreshToken: "new_mock_refresh_token",
+						AccessToken:  accessToken,
+						RefreshToken: refreshToken,
 						ExpiresIn:    maxAge,
 						TokenType:    tokenType,
 						User: &auth.UserInfo{
@@ -532,7 +532,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			},
 			refreshCookie: &http.Cookie{
 				Name:     cookieName,
-				Value:    refreshToken,
+				Value:    "current_refresh_token",
 				Path:     "/",
 				MaxAge:   maxAge,
 				Secure:   true,
@@ -543,8 +543,8 @@ func TestHandler_RefreshToken(t *testing.T) {
 			wantBody: map[string]any{
 				"message": auth.MsgRefreshed,
 				"data": map[string]any{
-					"access_token":  "new_mock_access_token",
-					"refresh_token": "new_mock_refresh_token",
+					"access_token":  accessToken,
+					"refresh_token": refreshToken,
 					"token_type":    tokenType,
 					"expires_in":    float64(maxAge),
 					"user": map[string]any{
@@ -555,7 +555,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			},
 			wantCookie: &http.Cookie{
 				Name:     cookieName,
-				Value:    "new_mock_refresh_token",
+				Value:    refreshToken,
 				Path:     "/",
 				MaxAge:   maxAge,
 				Secure:   true,
@@ -565,6 +565,14 @@ func TestHandler_RefreshToken(t *testing.T) {
 		},
 		{
 			name:       "missing refresh cookie",
+			service:    &auth.StubService{},
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": auth.MsgInvalidUser,
+			},
+		},
+		{
+			name:       "empty refresh cookie value",
 			service:    &auth.StubService{},
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
