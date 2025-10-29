@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/golang-jwt/jwt/v5"
 )
-
-var _ Signer = &GolangJWTSigner{}
 
 // CustomClaims represents JWT with custom claims.
 type CustomClaims struct {
@@ -23,6 +22,22 @@ type GolangJWTSigner struct {
 	key    string
 	jtiLen uint32
 	issuer string
+}
+
+// NewGolangJWTSigner creates a new GolangJWTSigner with the provided JWT config and signing key.
+func NewGolangJWTSigner(cfg *config.JWT, key string) (*GolangJWTSigner, error) {
+	if cfg == nil || key == "" {
+		return nil, errors.New("config or key should not be nil or empty")
+	}
+
+	signer := &GolangJWTSigner{
+		method: jwt.SigningMethodHS256,
+		key:    key,
+		jtiLen: cfg.JTILength,
+		issuer: cfg.Issuer,
+	}
+
+	return signer, nil
 }
 
 // Sign generates a signed JWT token with the given subject, audience, and duration.
@@ -51,7 +66,7 @@ func (s *GolangJWTSigner) Sign(sub string, audience []string, duration time.Dura
 }
 
 // Verify parses and validates a JWT token string and returns the associated Claims if valid.
-func (s *GolangJWTSigner) Verify(tokenString string) (*Claims, error) {
+func (s *GolangJWTSigner) Verify(tokenString string) (*auth.Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(_ *jwt.Token) (any, error) {
 		return []byte(s.key), nil
 	}, jwt.WithValidMethods([]string{s.method.Alg()}))
@@ -64,25 +79,11 @@ func (s *GolangJWTSigner) Verify(tokenString string) (*Claims, error) {
 		return nil, fmt.Errorf("unknown claims type: %T", token.Claims)
 	}
 
-	claims := &Claims{
+	claims := &auth.Claims{
 		UserID: customClaims.Subject,
 	}
 
 	return claims, nil
 }
 
-// NewGolangJWTSigner creates a new GolangJWTSigner with the provided JWT config and signing key.
-func NewGolangJWTSigner(cfg *config.JWT, key string) (*GolangJWTSigner, error) {
-	if cfg == nil || key == "" {
-		return nil, errors.New("config or key should not be nil or empty")
-	}
-
-	signer := &GolangJWTSigner{
-		method: jwt.SigningMethodHS256,
-		key:    key,
-		jtiLen: cfg.JTILength,
-		issuer: cfg.Issuer,
-	}
-
-	return signer, nil
-}
+var _ auth.Signer = &GolangJWTSigner{}

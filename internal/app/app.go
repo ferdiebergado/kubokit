@@ -12,7 +12,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/middleware"
-	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/platform/router"
 	"github.com/ferdiebergado/kubokit/internal/platform/validation"
 	"github.com/ferdiebergado/kubokit/internal/user"
@@ -24,7 +23,7 @@ type App struct {
 	stop            context.CancelFunc
 	shutdownTimeout time.Duration
 	cfgServer       *config.Server
-	signer          jwt.Signer
+	signer          auth.Signer
 	validator       validation.Validator
 	router          router.Router
 	userHandler     *user.Handler
@@ -126,7 +125,7 @@ func (a *App) Shutdown() error {
 type Provider struct {
 	CfgServer *config.Server
 	Router    router.Router
-	Signer    jwt.Signer
+	Signer    auth.Signer
 	Validator validation.Validator
 }
 

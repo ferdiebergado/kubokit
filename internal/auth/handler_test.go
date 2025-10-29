@@ -17,7 +17,6 @@ import (
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
-	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -512,7 +511,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 		name          string
 		refreshCookie *http.Cookie
 		service       auth.Service
-		signer        jwt.Signer
+		signer        auth.Signer
 		code          int
 		gotBody       any
 		wantBody      any
@@ -527,9 +526,9 @@ func TestHandler_RefreshToken(t *testing.T) {
 				HttpOnly: true,
 				SameSite: http.SameSiteNoneMode,
 			},
-			signer: &jwt.StubSigner{
-				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-					return &jwt.Claims{UserID: "1"}, nil
+			signer: &auth.StubSigner{
+				VerifyFunc: func(tokenString string) (*auth.Claims, error) {
+					return &auth.Claims{UserID: "1"}, nil
 				},
 				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
 					return "access_token", nil
@@ -566,7 +565,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			wantBody: &web.ErrorResponse{
 				Message: auth.MsgInvalidUser,
 			},
-			signer: &jwt.StubSigner{},
+			signer: &auth.StubSigner{},
 		},
 		{
 			name: "Expired refresh token",
@@ -578,8 +577,8 @@ func TestHandler_RefreshToken(t *testing.T) {
 				HttpOnly: true,
 				SameSite: http.SameSiteNoneMode,
 			},
-			signer: &jwt.StubSigner{
-				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+			signer: &auth.StubSigner{
+				VerifyFunc: func(tokenString string) (*auth.Claims, error) {
 					return nil, errors.New("token is expired")
 				},
 			},

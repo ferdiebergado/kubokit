@@ -14,7 +14,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
-	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -76,7 +75,7 @@ func TestService_Register(t *testing.T) {
 	tests := []struct {
 		name, email, password string
 		userRepo              user.Repository
-		signer                jwt.Signer
+		signer                auth.Signer
 		user                  user.User
 		err                   error
 	}{
@@ -100,7 +99,7 @@ func TestService_Register(t *testing.T) {
 				},
 			},
 
-			signer: &jwt.StubSigner{
+			signer: &auth.StubSigner{
 				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
 					return "1", nil
 				},
@@ -130,7 +129,7 @@ func TestService_Register(t *testing.T) {
 					}, nil
 				},
 			},
-			signer: &jwt.StubSigner{},
+			signer: &auth.StubSigner{},
 			user:   user.User{},
 			err:    auth.ErrExists,
 		},
@@ -221,7 +220,7 @@ func TestService_Verify(t *testing.T) {
 	type TestCase struct {
 		name             string
 		repoVerifyFunc   func(ctx context.Context, userID string) error
-		signerVerifyFunc func(tokenString string) (*jwt.Claims, error)
+		signerVerifyFunc func(tokenString string) (*auth.Claims, error)
 		token            string
 		err              error
 	}
@@ -232,8 +231,8 @@ func TestService_Verify(t *testing.T) {
 			repoVerifyFunc: func(ctx context.Context, userID string) error {
 				return nil
 			},
-			signerVerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-				return &jwt.Claims{UserID: "1"}, nil
+			signerVerifyFunc: func(tokenString string) (*auth.Claims, error) {
+				return &auth.Claims{UserID: "1"}, nil
 			},
 			token: "verification_token",
 		},
@@ -242,7 +241,7 @@ func TestService_Verify(t *testing.T) {
 			repoVerifyFunc: func(ctx context.Context, userID string) error {
 				return nil
 			},
-			signerVerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+			signerVerifyFunc: func(tokenString string) (*auth.Claims, error) {
 				return nil, errTokenExpired
 			},
 			token: "verification_token",
@@ -253,8 +252,8 @@ func TestService_Verify(t *testing.T) {
 			repoVerifyFunc: func(ctx context.Context, userID string) error {
 				return db.ErrQueryFailed
 			},
-			signerVerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-				return &jwt.Claims{UserID: "1"}, nil
+			signerVerifyFunc: func(tokenString string) (*auth.Claims, error) {
+				return &auth.Claims{UserID: "1"}, nil
 			},
 			token: "verification_token",
 			err:   db.ErrQueryFailed,
@@ -265,7 +264,7 @@ func TestService_Verify(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			signer := &jwt.StubSigner{
+			signer := &auth.StubSigner{
 				VerifyFunc: tc.signerVerifyFunc,
 			}
 			txMgr := &db.StubTxManager{}

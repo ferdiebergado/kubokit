@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
@@ -60,7 +61,7 @@ func TestGolangJWTSigner_Verify(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	wantClaims := &jwt.Claims{
+	wantClaims := &auth.Claims{
 		UserID: userID,
 	}
 

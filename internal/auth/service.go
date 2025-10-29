@@ -11,7 +11,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/email"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
-	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -28,11 +27,22 @@ type Repository interface {
 	ChangePassword(ctx context.Context, email, newPassword string) error
 }
 
+// Claims represents the JWT claims that are processed for authentication.
+type Claims struct {
+	UserID string
+}
+
+// Signer defines methods for signing and verifying JWT tokens.
+type Signer interface {
+	Sign(subject string, audience []string, duration time.Duration) (string, error)
+	Verify(tokenString string) (*Claims, error)
+}
+
 type service struct {
 	repo      Repository
 	userRepo  user.Repository
 	hasher    *security.Argon2Hasher
-	signer    jwt.Signer
+	signer    Signer
 	mailer    *email.SMTPMailer
 	cfgJWT    *config.JWT
 	cfgEmail  *config.Email
@@ -337,7 +347,7 @@ type ServiceProvider struct {
 	CfgEmail *config.Email
 	Hasher   *security.Argon2Hasher
 	Mailer   *email.SMTPMailer
-	Signer   jwt.Signer
+	Signer   Signer
 	Txmgr    db.TxManager
 	UserRepo user.Repository
 }

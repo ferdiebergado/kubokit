@@ -7,13 +7,12 @@ import (
 
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
-	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 )
 
 var ErrInvalidToken = errors.New("invalid token")
 
 // VerifyToken verifies if the token in the url query string is valid.
-func VerifyToken(signer jwt.Signer) func(http.Handler) http.Handler {
+func VerifyToken(signer Signer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token := r.URL.Query().Get("token")
@@ -35,7 +34,7 @@ func VerifyToken(signer jwt.Signer) func(http.Handler) http.Handler {
 	}
 }
 
-func RequireToken(signer jwt.Signer) func(http.Handler) http.Handler {
+func RequireToken(signer Signer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			slog.Info("Verifying access token...")
