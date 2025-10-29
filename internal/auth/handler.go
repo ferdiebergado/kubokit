@@ -308,7 +308,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.svc.RefreshToken(cookie.Value)
 	if err != nil {
-		if errors.Is(err, ErrInvalidToken) {
+		if errors.Is(err, ErrInvalidToken) || errors.Is(err, user.ErrNotFound) {
 			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 			return
 		}
