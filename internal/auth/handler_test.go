@@ -289,7 +289,7 @@ func TestHandler_Login(t *testing.T) {
 					t.Fatal("no cookies found in the response")
 				}
 
-				assertCookie(t, cookies[0], tc.wantCookie)
+				assertCookies(t, cookies[0], tc.wantCookie)
 			} else if numCookies > 0 {
 				t.Errorf("len(cookies) = %d, want: %d", numCookies, 0)
 			}
@@ -348,6 +348,8 @@ func TestHandler_Verify(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			handler, err := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
 			if err != nil {
 				t.Fatalf("Failed to create the handler: %v", err)
@@ -492,135 +494,175 @@ func TestHandler_ChangePassword(t *testing.T) {
 func TestHandler_RefreshToken(t *testing.T) {
 	t.Parallel()
 
-	cfg := &config.Config{
-		JWT: &config.JWT{
-			JTILength:  8,
-			Issuer:     "test@example.com",
-			TTL:        timex.Duration{Duration: defaultDuration},
-			RefreshTTL: timex.Duration{Duration: defaultDuration},
-		},
-		App: &config.App{
-			ClientURL: "http://127.0.0.1:5173",
-		},
-		Cookie: &config.Cookie{
-			Name: "refresh_token",
-		},
+	const (
+		accessToken  = "mock_access_token"
+		refreshToken = "mock_refresh_token"
+		tokenType    = "Bearer"
+		maxAge       = 1000
+		userID       = "1"
+		userEmail    = "abc@example.com"
+		cookieName   = "refresh_token"
+	)
+
+	type testCase struct {
+		name          string
+		service       auth.Service
+		refreshCookie *http.Cookie
+		wantStatus    int
+		wantBody      map[string]any
+		wantCookie    *http.Cookie
 	}
 
-	tests := []struct {
-		name          string
-		refreshCookie *http.Cookie
-		service       auth.Service
-		signer        auth.Signer
-		code          int
-		gotBody       any
-		wantBody      any
-	}{
+	testCases := []testCase{
 		{
-			name: "With valid refresh token",
-			refreshCookie: &http.Cookie{
-				Name:     "refresh_token",
-				Value:    "abc123",
-				Secure:   true,
-				MaxAge:   int(defaultDuration.Milliseconds()),
-				HttpOnly: true,
-				SameSite: http.SameSiteNoneMode,
-			},
-			signer: &auth.StubSigner{
-				VerifyFunc: func(tokenString string) (*auth.Claims, error) {
-					return &auth.Claims{UserID: "1"}, nil
-				},
-				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
-					return "access_token", nil
-				},
-			},
+			name: "valid refresh cookie",
 			service: &auth.StubService{
 				RefreshTokenFunc: func(token string) (*auth.Session, error) {
-					secret := &auth.Session{
-						AccessToken:  "new_access_token",
-						RefreshToken: "new_refresh_token",
-						TokenType:    "Bearer",
-						ExpiresIn:    defaultDuration.Milliseconds(),
-					}
-					return secret, nil
+					return &auth.Session{
+						AccessToken:  "new_mock_access_token",
+						RefreshToken: "new_mock_refresh_token",
+						ExpiresIn:    maxAge,
+						TokenType:    tokenType,
+						User: &auth.UserInfo{
+							ID:    userID,
+							Email: userEmail,
+						},
+					}, nil
 				},
 			},
-			code:    http.StatusOK,
-			gotBody: &web.OKResponse[auth.LoginResponse]{},
-			wantBody: &web.OKResponse[auth.LoginResponse]{
-				Message: "Token refreshed.",
-				Data: auth.LoginResponse{
-					AccessToken:  "new_access_token",
-					RefreshToken: "new_refresh_token",
-					TokenType:    "Bearer",
-					ExpiresIn:    defaultDuration.Milliseconds(),
-				},
-			},
-		},
-		{
-			name:    "Missing refresh token",
-			service: &auth.StubService{},
-			code:    http.StatusUnauthorized,
-			gotBody: &web.ErrorResponse{},
-			wantBody: &web.ErrorResponse{
-				Message: auth.MsgInvalidUser,
-			},
-			signer: &auth.StubSigner{},
-		},
-		{
-			name: "Expired refresh token",
 			refreshCookie: &http.Cookie{
-				Name:     "refresh_token",
-				Value:    "abc123",
+				Name:     cookieName,
+				Value:    refreshToken,
+				Path:     "/",
+				MaxAge:   maxAge,
 				Secure:   true,
-				MaxAge:   -1,
 				HttpOnly: true,
-				SameSite: http.SameSiteNoneMode,
+				SameSite: http.SameSiteStrictMode,
 			},
-			signer: &auth.StubSigner{
-				VerifyFunc: func(tokenString string) (*auth.Claims, error) {
-					return nil, errors.New("token is expired")
+			wantStatus: http.StatusOK,
+			wantBody: map[string]any{
+				"message": auth.MsgRefreshed,
+				"data": map[string]any{
+					"access_token":  "new_mock_access_token",
+					"refresh_token": "new_mock_refresh_token",
+					"token_type":    tokenType,
+					"expires_in":    float64(maxAge),
+					"user": map[string]any{
+						"id":    userID,
+						"email": userEmail,
+					},
 				},
 			},
+			wantCookie: &http.Cookie{
+				Name:     cookieName,
+				Value:    "new_mock_refresh_token",
+				Path:     "/",
+				MaxAge:   maxAge,
+				Secure:   true,
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			},
+		},
+		{
+			name:       "missing refresh cookie",
+			service:    &auth.StubService{},
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": auth.MsgInvalidUser,
+			},
+		},
+		{
+			name: "invalid refresh token",
 			service: &auth.StubService{
 				RefreshTokenFunc: func(token string) (*auth.Session, error) {
 					return nil, auth.ErrInvalidToken
 				},
 			},
-			code:    http.StatusUnauthorized,
-			gotBody: &web.ErrorResponse{},
-			wantBody: &web.ErrorResponse{
-				Message: auth.MsgInvalidUser,
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": auth.MsgInvalidUser,
+			},
+		},
+		{
+			name: "user does not exists",
+			service: &auth.StubService{
+				RefreshTokenFunc: func(token string) (*auth.Session, error) {
+					return nil, user.ErrNotFound
+				},
+			},
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": auth.MsgInvalidUser,
+			},
+		},
+		{
+			name: "db error",
+			service: &auth.StubService{
+				RefreshTokenFunc: func(token string) (*auth.Session, error) {
+					return nil, errors.New("query error")
+				},
+			},
+			refreshCookie: &http.Cookie{
+				Name:     cookieName,
+				Value:    refreshToken,
+				Path:     "/",
+				MaxAge:   maxAge,
+				Secure:   true,
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			},
+			wantStatus: http.StatusInternalServerError,
+			wantBody: map[string]any{
+				"message": message.UnexpectedErr,
 			},
 		},
 	}
-	for _, tc := range tests {
+
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			authHandler, err := auth.NewHandler(tc.service, cfg.JWT, cfg.Cookie)
+			cfgJWT := &config.JWT{
+				RefreshTTL: timex.Duration{Duration: maxAge * time.Second},
+			}
+			cfgCookie := &config.Cookie{
+				Name: cookieName,
+			}
+			handler, err := auth.NewHandler(tc.service, cfgJWT, cfgCookie)
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("Failed to create auth handler: %v", err)
 			}
 
-			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", http.NoBody)
+			req := httptest.NewRequest(http.MethodPost, "/refresh", http.NoBody)
 			if tc.refreshCookie != nil {
 				req.AddCookie(tc.refreshCookie)
 			}
 			rec := httptest.NewRecorder()
-			authHandler.RefreshToken(rec, req)
+			handler.RefreshToken(rec, req)
 
-			gotCode, wantCode := rec.Code, tc.code
-			if gotCode != wantCode {
-				t.Errorf(message.FmtErrStatusCode, gotCode, wantCode)
+			res := rec.Result()
+			defer res.Body.Close()
+
+			if res.StatusCode != tc.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
 			}
 
-			if err := json.Unmarshal(rec.Body.Bytes(), &tc.gotBody); err != nil {
-				t.Fatal(err)
+			web.AssertContentType(t, res)
+
+			body := web.DecodeJSONResponse(t, res)
+			if !reflect.DeepEqual(body, tc.wantBody) {
+				t.Errorf("body = %v, want: %v", body, tc.wantBody)
 			}
 
-			if !reflect.DeepEqual(tc.gotBody, tc.wantBody) {
-				t.Errorf("rec.Body = %+v, want: %+v", tc.gotBody, tc.wantBody)
+			cookies := res.Cookies()
+			numCookies := len(cookies)
+			if tc.wantCookie != nil {
+				if numCookies == 0 {
+					t.Fatal("there should be cookies in the response")
+				}
+				assertCookies(t, cookies[0], tc.wantCookie)
+			} else if numCookies > 0 {
+				t.Fatal("there should be no cookies in the response")
 			}
 		})
 	}
@@ -839,7 +881,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 	}
 }
 
-func assertCookie(t *testing.T, responseCookie, wantCookie *http.Cookie) {
+func assertCookies(t *testing.T, responseCookie, wantCookie *http.Cookie) {
 	t.Helper()
 
 	if responseCookie.Value != wantCookie.Value {
