@@ -298,14 +298,14 @@ func (s *service) PerformAtomicOperation(ctx context.Context, userID string) err
 	})
 }
 
-func (s *service) RefreshToken(token string) (*Session, error) {
+func (s *service) RefreshToken(ctx context.Context, token string) (*Session, error) {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
 		return nil, fmt.Errorf("verify refresh token: %w", err)
 	}
 
 	userID := claims.UserID
-	u, err := s.userRepo.Find(context.Background(), userID)
+	u, err := s.userRepo.Find(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("find user by id: %w", err)
 	}

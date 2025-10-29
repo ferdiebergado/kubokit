@@ -37,7 +37,7 @@ type Service interface {
 	SendPasswordReset(ctx context.Context, email string) error
 	ChangePassword(ctx context.Context, params ChangePasswordParams) error
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
-	RefreshToken(token string) (*Session, error)
+	RefreshToken(ctx context.Context, token string) (*Session, error)
 	Logout(ctx context.Context, token string) error
 }
 
@@ -306,7 +306,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := h.svc.RefreshToken(cookie.Value)
+	data, err := h.svc.RefreshToken(r.Context(), cookie.Value)
 	if err != nil {
 		if errors.Is(err, ErrInvalidToken) || errors.Is(err, user.ErrNotFound) {
 			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)

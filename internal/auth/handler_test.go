@@ -517,7 +517,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 		{
 			name: "valid refresh cookie",
 			service: &auth.StubService{
-				RefreshTokenFunc: func(token string) (*auth.Session, error) {
+				RefreshTokenFunc: func(ctx context.Context, token string) (*auth.Session, error) {
 					return &auth.Session{
 						AccessToken:  accessToken,
 						RefreshToken: refreshToken,
@@ -582,7 +582,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 		{
 			name: "invalid refresh token",
 			service: &auth.StubService{
-				RefreshTokenFunc: func(token string) (*auth.Session, error) {
+				RefreshTokenFunc: func(ctx context.Context, token string) (*auth.Session, error) {
 					return nil, auth.ErrInvalidToken
 				},
 			},
@@ -594,7 +594,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 		{
 			name: "user does not exists",
 			service: &auth.StubService{
-				RefreshTokenFunc: func(token string) (*auth.Session, error) {
+				RefreshTokenFunc: func(ctx context.Context, token string) (*auth.Session, error) {
 					return nil, user.ErrNotFound
 				},
 			},
@@ -606,7 +606,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 		{
 			name: "db error",
 			service: &auth.StubService{
-				RefreshTokenFunc: func(token string) (*auth.Session, error) {
+				RefreshTokenFunc: func(ctx context.Context, token string) (*auth.Session, error) {
 					return nil, errors.New("query error")
 				},
 			},

@@ -15,7 +15,7 @@ type StubService struct {
 	SendPasswordResetFunc       func(ctx context.Context, email string) error
 	ChangePasswordFunc          func(ctx context.Context, params ChangePasswordParams) error
 	ResetPasswordFunc           func(ctx context.Context, params ResetPasswordParams) error
-	RefreshTokenFunc            func(token string) (*Session, error)
+	RefreshTokenFunc            func(ctx context.Context, token string) (*Session, error)
 	ResendVerificationEmailFunc func(ctx context.Context, email string) error
 	LogoutFunc                  func(ctx context.Context, token string) error
 }
@@ -70,11 +70,11 @@ func (s *StubService) ResetPassword(ctx context.Context, params ResetPasswordPar
 	return s.ResetPasswordFunc(ctx, params)
 }
 
-func (s *StubService) RefreshToken(token string) (*Session, error) {
+func (s *StubService) RefreshToken(ctx context.Context, token string) (*Session, error) {
 	if s.RefreshTokenFunc == nil {
 		return nil, errors.New("RefreshToken() not implemented by stub")
 	}
-	return s.RefreshTokenFunc(token)
+	return s.RefreshTokenFunc(ctx, token)
 }
 
 func (s *StubService) Logout(ctx context.Context, token string) error {
