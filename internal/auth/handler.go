@@ -217,7 +217,7 @@ type LoginResponse struct {
 	User         *UserInfo `json:"user,omitempty"`
 }
 
-func (h *Handler) refreshCookie(token string, maxAge int) *http.Cookie {
+func (h *Handler) newRefreshCookie(token string, maxAge int) *http.Cookie {
 	return &http.Cookie{
 		Name:     h.cfgCookie.Name,
 		Value:    token,
@@ -230,7 +230,7 @@ func (h *Handler) refreshCookie(token string, maxAge int) *http.Cookie {
 }
 
 func (h *Handler) clearRefreshCookie(w http.ResponseWriter) {
-	cookie := h.refreshCookie("", -1)
+	cookie := h.newRefreshCookie("", -1)
 	http.SetCookie(w, cookie)
 }
 
@@ -263,7 +263,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshCookie := h.refreshCookie(data.RefreshToken, int(h.cfgJWT.RefreshTTL.Duration.Seconds()))
+	refreshCookie := h.newRefreshCookie(data.RefreshToken, int(h.cfgJWT.RefreshTTL.Duration.Seconds()))
 	http.SetCookie(w, refreshCookie)
 
 	msg := MsgLoggedIn
@@ -297,7 +297,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshCookie := h.refreshCookie(data.RefreshToken, int(h.cfgJWT.RefreshTTL.Duration.Seconds()))
+	refreshCookie := h.newRefreshCookie(data.RefreshToken, int(h.cfgJWT.RefreshTTL.Duration.Seconds()))
 	http.SetCookie(w, refreshCookie)
 
 	msg := MsgRefreshed
