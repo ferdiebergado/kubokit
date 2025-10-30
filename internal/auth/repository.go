@@ -9,9 +9,23 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
+type RepositoryError struct {
+	Err error
+}
+
+func (e *RepositoryError) Error() string {
+	return fmt.Sprintf("auth repo: %v", e.Err)
+}
+
 type repo struct {
 	db db.Executor
 }
+
+func NewRepository(db *sql.DB) *repo {
+	return &repo{db}
+}
+
+var _ Repository = &repo{}
 
 func (r *repo) Verify(ctx context.Context, userID string) error {
 	const query = "UPDATE users SET verified_at = NOW() WHERE id = $1 AND verified_at IS NULL"
@@ -23,16 +37,16 @@ func (r *repo) Verify(ctx context.Context, userID string) error {
 
 	res, err := executor.ExecContext(ctx, query, userID)
 	if err != nil {
-		return fmt.Errorf("query to verify user with ID %s: %w: %w", userID, db.ErrQueryFailed, err)
+		return &RepositoryError{Err: fmt.Errorf("verify user by ID: %w", err)}
 	}
 
 	numRows, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("get rows affected by verification of user with ID %s: %w: %w", userID, db.ErrQueryFailed, err)
+		return &RepositoryError{Err: fmt.Errorf("get rows affected by verification of user by ID: %w", err)}
 	}
 
 	if numRows == 0 {
-		return fmt.Errorf("user with ID %s not found or user is already verified: %w", userID, user.ErrNotFound)
+		return fmt.Errorf("user by ID not found or user is already verified: %w", user.ErrNotFound)
 	}
 
 	return nil
@@ -62,9 +76,3 @@ func (r *repo) ChangePassword(ctx context.Context, email, passwordHash string) e
 
 	return nil
 }
-
-func NewRepository(db *sql.DB) *repo {
-	return &repo{db}
-}
-
-var _ Repository = &repo{}

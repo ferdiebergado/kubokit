@@ -28,7 +28,7 @@ type ServiceError struct {
 }
 
 func (e *ServiceError) Error() string {
-	return fmt.Sprintf("%v", e.Err)
+	return fmt.Sprintf("auth service: %v", e.Err)
 }
 
 type Repository interface {
@@ -127,14 +127,13 @@ func (s *service) sendVerificationEmail(email, userID string) error {
 func (s *service) ResendVerificationEmail(ctx context.Context, email string) error {
 	u, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
-		return fmt.Errorf("find unverified user: %w", err)
+		if !errors.Is(err, user.ErrNotFound) {
+			return &ServiceError{Err: fmt.Errorf("find unverified user: %w", err)}
+		}
+		return fmt.Errorf("auth service: find unverified user: %w", err)
 	}
 
-	if err := s.sendVerificationEmail(u.Email, u.ID); err != nil {
-		return err
-	}
-
-	return nil
+	return s.sendVerificationEmail(u.Email, u.ID)
 }
 
 func (s *service) sendEmail(email *HTMLEmail) {
@@ -154,11 +153,15 @@ func (s *service) sendEmail(email *HTMLEmail) {
 func (s *service) Verify(ctx context.Context, token string) error {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
-		return fmt.Errorf("check verification token: %w", err)
+		return fmt.Errorf("auth service: check verification token: %w", err)
 	}
 
 	if err := s.repo.Verify(ctx, claims.UserID); err != nil {
-		return fmt.Errorf("verify user: %w", err)
+		var repoErr *RepositoryError
+		if errors.As(err, &repoErr) {
+			return &ServiceError{Err: fmt.Errorf("verify user: %w", err)}
+		}
+		return fmt.Errorf("auth service: verify user: %w", err)
 	}
 	return nil
 }
