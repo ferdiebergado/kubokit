@@ -131,7 +131,7 @@ func TestService_Register(t *testing.T) {
 			},
 			signer: &auth.StubSigner{},
 			user:   user.User{},
-			err:    auth.ErrExists,
+			err:    user.ErrDuplicate,
 		},
 	}
 	for _, tc := range tests {

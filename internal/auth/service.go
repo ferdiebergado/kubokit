@@ -18,17 +18,17 @@ const verificationPath = "/account/verify"
 
 var (
 	ErrNotVerified       = errors.New("email not verified")
-	ErrExists            = errors.New("user already exists")
 	ErrIncorrectPassword = errors.New("incorrect password")
 	ErrServiceFailed     = errors.New("auth service was unable to complete the operation")
 )
 
 type ServiceError struct {
+	Op  string
 	Err error
 }
 
 func (e *ServiceError) Error() string {
-	return fmt.Sprintf("auth service: %v", e.Err)
+	return e.Op + ": " + e.Err.Error()
 }
 
 type Repository interface {
@@ -73,17 +73,17 @@ type ServiceProvider struct {
 func NewService(repo Repository, provider *ServiceProvider) (Service, error) {
 	cfgApp := provider.CfgApp
 	if cfgApp == nil {
-		return nil, errors.New("app config should not be nil")
+		return nil, errors.New("app config is required")
 	}
 
 	cfgEmail := provider.CfgEmail
 	if cfgEmail == nil {
-		return nil, errors.New("email config should not be nil")
+		return nil, errors.New("email config is required")
 	}
 
 	cfgJWT := provider.CfgJWT
 	if cfgJWT == nil {
-		return nil, errors.New("jwt config should not be nil")
+		return nil, errors.New("jwt config is required")
 	}
 
 	clientURL := cfgApp.ClientURL
@@ -114,37 +114,36 @@ func (p *RegisterParams) LogValue() slog.Value {
 	return slog.AnyValue(nil)
 }
 
-type HTMLEmail struct {
-	Address, Subject, Title, Template, Link string
-}
-
 func (s *service) Register(ctx context.Context, params RegisterParams) (user.User, error) {
-	u := user.User{}
 	email := params.Email
 	existing, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil && !errors.Is(err, user.ErrNotFound) {
-		return u, fmt.Errorf(MsgFmtFindUserByEmail, err)
+		return user.User{}, fmt.Errorf(MsgFmtFindUserByEmail, err)
 	}
 
 	if existing != nil {
-		return u, ErrExists
+		return user.User{}, user.ErrDuplicate
 	}
 
 	hash, err := s.hasher.Hash(params.Password)
 	if err != nil {
-		return u, fmt.Errorf("hash password: %w", err)
+		return user.User{}, fmt.Errorf("hash password: %w", err)
 	}
 
 	newUser, err := s.userRepo.Create(ctx, user.CreateParams{Email: email, Password: hash})
 	if err != nil {
-		return u, fmt.Errorf("create user: %w", err)
+		return user.User{}, fmt.Errorf("create user: %w", err)
 	}
 
 	if err := s.sendVerificationEmail(newUser.Email, newUser.ID); err != nil {
-		return u, err
+		return user.User{}, fmt.Errorf("send verification email: %w", err)
 	}
 
 	return newUser, nil
+}
+
+type HTMLEmail struct {
+	Address, Subject, Title, Template, Link string
 }
 
 func (s *service) sendVerificationEmail(email, userID string) error {
@@ -173,10 +172,10 @@ func (s *service) sendVerificationEmail(email, userID string) error {
 func (s *service) ResendVerificationEmail(ctx context.Context, email string) error {
 	u, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
-		if !errors.Is(err, user.ErrNotFound) {
-			return &ServiceError{Err: fmt.Errorf("find unverified user: %w", err)}
+		if errors.Is(err, user.ErrNotFound) {
+			return fmt.Errorf(MsgFmtFindUserByEmail, err)
 		}
-		return fmt.Errorf("auth service: find unverified user: %w", err)
+		return &ServiceError{Op: "find user by email", Err: err}
 	}
 
 	return s.sendVerificationEmail(u.Email, u.ID)
@@ -203,11 +202,12 @@ func (s *service) Verify(ctx context.Context, token string) error {
 	}
 
 	if err := s.repo.Verify(ctx, claims.UserID); err != nil {
+		const op = "verify user"
 		var repoErr *RepositoryError
 		if errors.As(err, &repoErr) {
-			return &ServiceError{Err: fmt.Errorf("verify user: %w", err)}
+			return &ServiceError{Op: op, Err: err}
 		}
-		return fmt.Errorf("auth service: verify user: %w", err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 	return nil
 }
@@ -371,11 +371,10 @@ func (s *service) Logout(ctx context.Context, token string) error {
 	userID := claims.UserID
 	_, err = s.userRepo.Find(ctx, userID)
 	if err != nil {
-		svcErr := fmt.Errorf("service find user by id: %w", err)
 		if errors.Is(err, user.ErrNotFound) {
-			return svcErr
+			return fmt.Errorf(MsgFmtFindUser, err)
 		}
-		return &ServiceError{Err: svcErr}
+		return &ServiceError{Op: "find user", Err: err}
 	}
 
 	return nil

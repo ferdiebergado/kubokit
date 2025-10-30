@@ -67,7 +67,7 @@ func TestHandler_Register(t *testing.T) {
 			name: "user exists",
 			service: &auth.StubService{
 				RegisterFunc: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
-					return user.User{}, auth.ErrExists
+					return user.User{}, user.ErrDuplicate
 				},
 			},
 			wantStatus: http.StatusConflict,

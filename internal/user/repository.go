@@ -9,7 +9,10 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 )
 
-var ErrNotFound = errors.New("user not found")
+var (
+	ErrNotFound  = errors.New("user not found")
+	ErrDuplicate = errors.New("user already exists")
+)
 
 type repo struct {
 	db db.Executor
@@ -38,10 +41,11 @@ func (r *repo) Create(ctx context.Context, params CreateParams) (User, error) {
 	row := executor.QueryRowContext(ctx, query, params.Email, params.Password)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		const errFmt = "execute query: %w"
 		if db.IsUniqueConstraintViolation(err) {
-			return u, db.ErrUniqueConstraintViolation
+			return User{}, fmt.Errorf(errFmt, ErrDuplicate)
 		}
-		return u, fmt.Errorf("repo create user: %w", err)
+		return User{}, fmt.Errorf(errFmt, err)
 	}
 	return u, nil
 }
@@ -62,7 +66,7 @@ func (r *repo) FindByEmail(ctx context.Context, email string) (*User, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("repo find user by email: %w", err)
+		return nil, fmt.Errorf("execute query: %w", err)
 	}
 	return &u, nil
 }
@@ -85,17 +89,17 @@ func (r *repo) List(ctx context.Context) ([]User, error) {
 	for rows.Next() {
 		var u User
 		if err := rows.Scan(&u.ID, &u.Email, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan row to list users: %w", err)
+			return nil, fmt.Errorf("execute query: %w", err)
 		}
 		users = append(users, u)
 	}
 
 	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("close rows to list users: %w", err)
+		return nil, fmt.Errorf("close rows: %w", err)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate rows to list users: %w", err)
+		return nil, fmt.Errorf("get iteration error: %w", err)
 	}
 
 	return users, nil
@@ -111,10 +115,10 @@ func (r *repo) Find(ctx context.Context, userID string) (*User, error) {
 	row := executor.QueryRowContext(ctx, query, userID)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("repo find user with id %s: %w", userID, err)
+		return nil, fmt.Errorf("execute query: %w", err)
 	}
 	return &u, nil
 }
@@ -128,7 +132,7 @@ func (r *repo) Delete(ctx context.Context, userID string) error {
 	}
 	res, err := executor.ExecContext(ctx, query, userID)
 	if err != nil {
-		return fmt.Errorf("repo delete user: %w", err)
+		return fmt.Errorf("execute query: %w", err)
 	}
 
 	numRows, err := res.RowsAffected()
@@ -158,7 +162,7 @@ func (r *repo) Update(ctx context.Context, updates *User, userID string) error {
 	}
 	res, err := executor.ExecContext(ctx, query, updates.PasswordHash, updates.VerifiedAt, userID)
 	if err != nil {
-		return fmt.Errorf("repo update user: %w", err)
+		return fmt.Errorf("execute query: %w", err)
 	}
 
 	numRows, err := res.RowsAffected()

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -138,23 +139,25 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		Email:    req.Email,
 		Password: req.Password,
 	}
-	user, err := h.svc.Register(ctx, params)
+	u, err := h.svc.Register(ctx, params)
 	if err != nil {
-		if errors.Is(err, ErrExists) {
-			web.RespondConflict(w, err, MsgUserExists, nil)
+		regErr := fmt.Errorf("register user: %w", err)
+
+		if errors.Is(err, user.ErrDuplicate) {
+			web.RespondConflict(w, regErr, MsgUserExists, nil)
 			return
 		}
 
-		web.RespondInternalServerError(w, err)
+		web.RespondInternalServerError(w, regErr)
 		return
 	}
 
 	msg := MsgRegisterSuccess
 	data := &RegisterResponse{
-		ID:        user.ID,
-		Email:     user.Email,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+		ID:        u.ID,
+		Email:     u.Email,
+		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
 	}
 	web.RespondCreated(w, &msg, data)
 }
