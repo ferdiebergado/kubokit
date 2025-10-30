@@ -760,7 +760,7 @@ func TestHandler_Logout(t *testing.T) {
 			name: "service failure",
 			service: &auth.StubService{
 				LogoutFunc: func(ctx context.Context, token string) error {
-					return &auth.ServiceFailureError{Err: errors.New("query failed")}
+					return &auth.ServiceError{Err: errors.New("query failed")}
 				},
 			},
 			params: &auth.LogoutRequest{

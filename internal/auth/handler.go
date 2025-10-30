@@ -431,7 +431,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = h.svc.Logout(ctx, params.AccessToken); err != nil {
-		var svcErr *ServiceFailureError
+		var svcErr *ServiceError
 		if errors.As(err, &svcErr) {
 			web.RespondInternalServerError(w, err)
 			return

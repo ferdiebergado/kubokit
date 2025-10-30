@@ -23,12 +23,12 @@ var (
 	ErrServiceFailed     = errors.New("auth service was unable to complete the operation")
 )
 
-type ServiceFailureError struct {
+type ServiceError struct {
 	Err error
 }
 
-func (e *ServiceFailureError) Error() string {
-	return e.Err.Error()
+func (e *ServiceError) Error() string {
+	return fmt.Sprintf("%v", e.Err)
 }
 
 type Repository interface {
@@ -326,7 +326,7 @@ func (s *service) Logout(ctx context.Context, token string) error {
 		if errors.Is(err, user.ErrNotFound) {
 			return svcErr
 		}
-		return &ServiceFailureError{Err: svcErr}
+		return &ServiceError{Err: svcErr}
 	}
 
 	return nil
