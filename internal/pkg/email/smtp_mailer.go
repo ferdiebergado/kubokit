@@ -26,6 +26,27 @@ type SMTPMailer struct {
 	templates templateMap
 }
 
+func NewSMTPMailer(smtpCfg *config.SMTP, emailCfg *config.Email) (*SMTPMailer, error) {
+	if smtpCfg == nil || emailCfg == nil {
+		return nil, errors.New("smtp and email config should not be nil")
+	}
+	path := emailCfg.Templates
+	layoutFile := filepath.Join(path, emailCfg.Layout)
+	tmplMap, err := parsePages(path, layoutFile)
+	if err != nil {
+		return nil, fmt.Errorf("parse pages at path %q and layout file %q: %w", path, layoutFile, err)
+	}
+
+	return &SMTPMailer{
+		from:      smtpCfg.User,
+		pass:      smtpCfg.Password,
+		host:      smtpCfg.Host,
+		port:      smtpCfg.Port,
+		sender:    emailCfg.Sender,
+		templates: tmplMap,
+	}, nil
+}
+
 func (e *SMTPMailer) send(to []string, subject, body, contentType string) error {
 	from := e.from
 	host := e.host
@@ -82,27 +103,6 @@ func (e *SMTPMailer) SendHTML(to []string, subject string, tmplName string, data
 
 func (e *SMTPMailer) SendPlain(to []string, subject string, body string) error {
 	return e.send(to, subject, body, "text/plain")
-}
-
-func NewSMTPMailer(smtpCfg *config.SMTP, emailCfg *config.Email) (*SMTPMailer, error) {
-	if smtpCfg == nil || emailCfg == nil {
-		return nil, errors.New("smtp and email config should not be nil")
-	}
-	path := emailCfg.Templates
-	layoutFile := filepath.Join(path, emailCfg.Layout)
-	tmplMap, err := parsePages(path, layoutFile)
-	if err != nil {
-		return nil, fmt.Errorf("parse pages at path %q and layout file %q: %w", path, layoutFile, err)
-	}
-
-	return &SMTPMailer{
-		from:      smtpCfg.User,
-		pass:      smtpCfg.Password,
-		host:      smtpCfg.Host,
-		port:      smtpCfg.Port,
-		sender:    emailCfg.Sender,
-		templates: tmplMap,
-	}, nil
 }
 
 func parsePages(templateDir, layoutFile string) (templateMap, error) {

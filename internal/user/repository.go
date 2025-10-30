@@ -15,6 +15,12 @@ type repo struct {
 	db db.Executor
 }
 
+func NewRepository(db *sql.DB) *repo {
+	return &repo{db}
+}
+
+var _ Repository = &repo{}
+
 type CreateParams struct {
 	Email, Password string
 }
@@ -166,9 +172,3 @@ func (r *repo) Update(ctx context.Context, updates *User, userID string) error {
 
 	return nil
 }
-
-func NewRepository(db *sql.DB) *repo {
-	return &repo{db}
-}
-
-var _ Repository = &repo{}

@@ -59,6 +59,52 @@ type service struct {
 	txManager db.TxManager
 }
 
+type ServiceProvider struct {
+	CfgApp   *config.App
+	CfgJWT   *config.JWT
+	CfgEmail *config.Email
+	Hasher   *security.Argon2Hasher
+	Mailer   *email.SMTPMailer
+	Signer   Signer
+	Txmgr    db.TxManager
+	UserRepo user.Repository
+}
+
+func NewService(repo Repository, provider *ServiceProvider) (Service, error) {
+	cfgApp := provider.CfgApp
+	if cfgApp == nil {
+		return nil, errors.New("app config should not be nil")
+	}
+
+	cfgEmail := provider.CfgEmail
+	if cfgEmail == nil {
+		return nil, errors.New("email config should not be nil")
+	}
+
+	cfgJWT := provider.CfgJWT
+	if cfgJWT == nil {
+		return nil, errors.New("jwt config should not be nil")
+	}
+
+	clientURL := cfgApp.ClientURL
+
+	svc := &service{
+		repo:      repo,
+		userRepo:  provider.UserRepo,
+		hasher:    provider.Hasher,
+		mailer:    provider.Mailer,
+		signer:    provider.Signer,
+		txManager: provider.Txmgr,
+		clientURL: clientURL,
+		cfgJWT:    cfgJWT,
+		cfgEmail:  cfgEmail,
+	}
+
+	return svc, nil
+}
+
+var _ Service = &service{}
+
 type RegisterParams struct {
 	Email    string
 	Password string
@@ -356,49 +402,3 @@ func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 
 	return nil
 }
-
-type ServiceProvider struct {
-	CfgApp   *config.App
-	CfgJWT   *config.JWT
-	CfgEmail *config.Email
-	Hasher   *security.Argon2Hasher
-	Mailer   *email.SMTPMailer
-	Signer   Signer
-	Txmgr    db.TxManager
-	UserRepo user.Repository
-}
-
-func NewService(repo Repository, provider *ServiceProvider) (*service, error) {
-	cfgApp := provider.CfgApp
-	if cfgApp == nil {
-		return nil, errors.New("app config should not be nil")
-	}
-
-	cfgEmail := provider.CfgEmail
-	if cfgEmail == nil {
-		return nil, errors.New("email config should not be nil")
-	}
-
-	cfgJWT := provider.CfgJWT
-	if cfgJWT == nil {
-		return nil, errors.New("jwt config should not be nil")
-	}
-
-	clientURL := cfgApp.ClientURL
-
-	svc := &service{
-		repo:      repo,
-		userRepo:  provider.UserRepo,
-		hasher:    provider.Hasher,
-		mailer:    provider.Mailer,
-		signer:    provider.Signer,
-		txManager: provider.Txmgr,
-		clientURL: clientURL,
-		cfgJWT:    cfgJWT,
-		cfgEmail:  cfgEmail,
-	}
-
-	return svc, nil
-}
-
-var _ Service = &service{}

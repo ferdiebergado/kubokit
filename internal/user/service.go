@@ -20,14 +20,6 @@ type service struct {
 	hasher *security.Argon2Hasher
 }
 
-func (s *service) List(ctx context.Context) ([]User, error) {
-	users, err := s.repo.List(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return users, nil
-}
-
 func NewService(repo Repository, hasher *security.Argon2Hasher) *service {
 	return &service{
 		repo:   repo,
@@ -36,3 +28,11 @@ func NewService(repo Repository, hasher *security.Argon2Hasher) *service {
 }
 
 var _ Service = &service{}
+
+func (s *service) List(ctx context.Context) ([]User, error) {
+	users, err := s.repo.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}

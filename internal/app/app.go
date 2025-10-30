@@ -30,6 +30,44 @@ type App struct {
 	authHandler     *auth.Handler
 }
 
+type Provider struct {
+	CfgServer *config.Server
+	Router    router.Router
+	Signer    auth.Signer
+	Validator validation.Validator
+}
+
+func New(provider *Provider, middlewares []func(http.Handler) http.Handler, authHandler *auth.Handler, userHandler *user.Handler) (*App, error) {
+	cfgServer := provider.CfgServer
+	router := provider.Router
+	serverCtx, stop := context.WithCancel(context.Background())
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%d", cfgServer.Port),
+		Handler: router,
+		BaseContext: func(_ net.Listener) context.Context {
+			return serverCtx
+		},
+		ReadTimeout:  cfgServer.ReadTimeout.Duration,
+		WriteTimeout: cfgServer.WriteTimeout.Duration,
+		IdleTimeout:  cfgServer.IdleTimeout.Duration,
+	}
+
+	api := &App{
+		server:          server,
+		middlewares:     middlewares,
+		stop:            stop,
+		shutdownTimeout: cfgServer.ShutdownTimeout.Duration,
+		cfgServer:       cfgServer,
+		signer:          provider.Signer,
+		validator:       provider.Validator,
+		router:          router,
+		userHandler:     userHandler,
+		authHandler:     authHandler,
+	}
+
+	return api, nil
+}
+
 func (a *App) registerMiddlewares() {
 	if len(a.middlewares) == 0 {
 		slog.Warn("No middlewares registered")
@@ -120,42 +158,4 @@ func (a *App) Shutdown() error {
 		return fmt.Errorf("shutdown server: %w", err)
 	}
 	return nil
-}
-
-type Provider struct {
-	CfgServer *config.Server
-	Router    router.Router
-	Signer    auth.Signer
-	Validator validation.Validator
-}
-
-func New(provider *Provider, middlewares []func(http.Handler) http.Handler, authHandler *auth.Handler, userHandler *user.Handler) (*App, error) {
-	cfgServer := provider.CfgServer
-	router := provider.Router
-	serverCtx, stop := context.WithCancel(context.Background())
-	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfgServer.Port),
-		Handler: router,
-		BaseContext: func(_ net.Listener) context.Context {
-			return serverCtx
-		},
-		ReadTimeout:  cfgServer.ReadTimeout.Duration,
-		WriteTimeout: cfgServer.WriteTimeout.Duration,
-		IdleTimeout:  cfgServer.IdleTimeout.Duration,
-	}
-
-	api := &App{
-		server:          server,
-		middlewares:     middlewares,
-		stop:            stop,
-		shutdownTimeout: cfgServer.ShutdownTimeout.Duration,
-		cfgServer:       cfgServer,
-		signer:          provider.Signer,
-		validator:       provider.Validator,
-		router:          router,
-		userHandler:     userHandler,
-		authHandler:     authHandler,
-	}
-
-	return api, nil
 }

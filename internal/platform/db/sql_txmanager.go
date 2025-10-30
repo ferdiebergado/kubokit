@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
 )
 
@@ -27,10 +28,14 @@ type SQLTxManager struct {
 	db *sql.DB
 }
 
+func NewSQLTxManager(db *sql.DB) *SQLTxManager {
+	return &SQLTxManager{db: db}
+}
+
 func (tm *SQLTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	tx, err := tm.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("db txmanager: begin tx: %w", err)
 	}
 
 	// Store the transaction in the context
@@ -50,10 +55,6 @@ func (tm *SQLTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context
 
 	err = fn(txCtx) // Execute the business logic with the transactional context
 	return err
-}
-
-func NewSQLTxManager(db *sql.DB) *SQLTxManager {
-	return &SQLTxManager{db: db}
 }
 
 func rollback(tx *sql.Tx) {

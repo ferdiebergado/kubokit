@@ -17,6 +17,10 @@ type Handler struct {
 	svc Service
 }
 
+func NewHandler(svc Service) *Handler {
+	return &Handler{svc}
+}
+
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	users, err := h.svc.List(r.Context())
 	if err != nil {
@@ -26,10 +30,6 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	payload := newListResponse(users)
 	web.RespondOK(w, nil, payload)
-}
-
-func NewHandler(svc Service) *Handler {
-	return &Handler{svc}
 }
 
 type UserData struct {
