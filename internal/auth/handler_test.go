@@ -16,17 +16,13 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
-	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 const (
 	testEmail = "test@example.com"
 	testPass  = "test"
-	timeUnit  = time.Minute
 )
-
-var defaultDuration = 30 * timeUnit
 
 func TestHandler_Register(t *testing.T) {
 	t.Parallel()
@@ -80,10 +76,10 @@ func TestHandler_Register(t *testing.T) {
 			},
 		},
 		{
-			name: "db error",
+			name: "service failure",
 			service: &auth.StubService{
 				RegisterFunc: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
-					return user.User{}, db.ErrQueryFailed
+					return user.User{}, &auth.ServiceError{Err: errors.New("service failed")}
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -229,10 +225,10 @@ func TestHandler_Login(t *testing.T) {
 			},
 		},
 		{
-			name: "db error",
+			name: "service failure",
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
-					return &auth.Session{}, db.ErrQueryFailed
+					return &auth.Session{}, &auth.ServiceError{Err: errors.New("service failed")}
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -333,10 +329,10 @@ func TestHandler_Verify(t *testing.T) {
 			},
 		},
 		{
-			name: "db error",
+			name: "service failure",
 			service: &auth.StubService{
 				VerifyFunc: func(ctx context.Context, token string) error {
-					return db.ErrQueryFailed
+					return &auth.ServiceError{Err: errors.New("service failed")}
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -440,10 +436,10 @@ func TestHandler_ChangePassword(t *testing.T) {
 			},
 		},
 		{
-			name: "db error",
+			name: "service failure",
 			service: &auth.StubService{
 				ChangePasswordFunc: func(ctx context.Context, params auth.ChangePasswordParams) error {
-					return db.ErrQueryFailed
+					return &auth.ServiceError{Err: errors.New("service failed")}
 				},
 			},
 			userID:     "1",
@@ -604,10 +600,10 @@ func TestHandler_RefreshToken(t *testing.T) {
 			},
 		},
 		{
-			name: "db error",
+			name: "service failure",
 			service: &auth.StubService{
 				RefreshTokenFunc: func(ctx context.Context, token string) (*auth.Session, error) {
-					return nil, errors.New("query error")
+					return nil, &auth.ServiceError{Err: errors.New("service failed")}
 				},
 			},
 			refreshCookie: &http.Cookie{

@@ -10,7 +10,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
-	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -173,7 +172,8 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.Verify(ctx, req.Token); err != nil {
-		if errors.Is(err, db.ErrQueryFailed) {
+		var svcErr *ServiceError
+		if errors.As(err, &svcErr) {
 			web.RespondInternalServerError(w, err)
 			return
 		}
@@ -199,7 +199,8 @@ func (h *Handler) ResendVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.ResendVerificationEmail(ctx, req.Email); err != nil {
-		if errors.Is(err, db.ErrQueryFailed) {
+		var svcErr *ServiceError
+		if errors.As(err, &svcErr) {
 			web.RespondInternalServerError(w, err)
 			return
 		}
@@ -401,7 +402,8 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.ChangePassword(r.Context(), params); err != nil {
-		if errors.Is(err, db.ErrQueryFailed) {
+		var svcErr *ServiceError
+		if errors.As(err, &svcErr) {
 			web.RespondInternalServerError(w, err)
 			return
 		}
