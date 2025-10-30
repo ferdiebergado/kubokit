@@ -10,11 +10,12 @@ import (
 )
 
 type RepositoryError struct {
+	Op  string
 	Err error
 }
 
 func (e *RepositoryError) Error() string {
-	return fmt.Sprintf("auth repo: %v", e.Err)
+	return e.Op + ": " + e.Err.Error()
 }
 
 type repo struct {
@@ -37,16 +38,16 @@ func (r *repo) Verify(ctx context.Context, userID string) error {
 
 	res, err := executor.ExecContext(ctx, query, userID)
 	if err != nil {
-		return &RepositoryError{Err: fmt.Errorf("verify user by ID: %w", err)}
+		return &RepositoryError{Op: "execute query:", Err: err}
 	}
 
 	numRows, err := res.RowsAffected()
 	if err != nil {
-		return &RepositoryError{Err: fmt.Errorf("get rows affected by verification of user by ID: %w", err)}
+		return &RepositoryError{Op: "get rows affected", Err: err}
 	}
 
 	if numRows == 0 {
-		return fmt.Errorf("user by ID not found or user is already verified: %w", user.ErrNotFound)
+		return fmt.Errorf("user not found or already verified: %w", user.ErrNotFound)
 	}
 
 	return nil
@@ -62,12 +63,12 @@ func (r *repo) ChangePassword(ctx context.Context, email, passwordHash string) e
 
 	res, err := executor.ExecContext(ctx, query, passwordHash, email)
 	if err != nil {
-		return fmt.Errorf("query to change password: %w: %w", db.ErrQueryFailed, err)
+		return &RepositoryError{Op: "execute query", Err: err}
 	}
 
 	numRows, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("get rows affected by password change: %w: %w", db.ErrQueryFailed, err)
+		return &RepositoryError{Op: "get rows affected: %w", Err: err}
 	}
 
 	if numRows == 0 {
