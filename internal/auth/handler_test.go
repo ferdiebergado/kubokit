@@ -78,7 +78,7 @@ func TestHandler_Register(t *testing.T) {
 			name: "service failure",
 			service: &auth.StubService{
 				RegisterFunc: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
-					return user.User{}, &auth.ServiceError{Err: errors.New("service failed")}
+					return user.User{}, errors.New("service failed")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -227,7 +227,7 @@ func TestHandler_Login(t *testing.T) {
 			name: "service failure should return error and no cookie",
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
-					return &auth.Session{}, &auth.ServiceError{Err: errors.New("service failed")}
+					return &auth.Session{}, errors.New("service failed")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -319,7 +319,7 @@ func TestHandler_Verify(t *testing.T) {
 			name: "invalid verification token",
 			service: &auth.StubService{
 				VerifyFunc: func(ctx context.Context, token string) error {
-					return errors.New("malformed token")
+					return auth.ErrInvalidToken
 				},
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -331,7 +331,7 @@ func TestHandler_Verify(t *testing.T) {
 			name: "service failure",
 			service: &auth.StubService{
 				VerifyFunc: func(ctx context.Context, token string) error {
-					return &auth.ServiceError{Err: errors.New("service failed")}
+					return errors.New("service failed")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -412,7 +412,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 			name: "user does not exists",
 			service: &auth.StubService{
 				ChangePasswordFunc: func(ctx context.Context, params auth.ChangePasswordParams) error {
-					return user.ErrNotFound
+					return auth.ErrUserNotFound
 				},
 			},
 			userID:     "1",
@@ -438,7 +438,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 			name: "service failure",
 			service: &auth.StubService{
 				ChangePasswordFunc: func(ctx context.Context, params auth.ChangePasswordParams) error {
-					return &auth.ServiceError{Err: errors.New("service failed")}
+					return errors.New("service failed")
 				},
 			},
 			userID:     "1",
@@ -602,7 +602,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			name: "service failure",
 			service: &auth.StubService{
 				RefreshTokenFunc: func(ctx context.Context, token string) (*auth.Session, error) {
-					return nil, &auth.ServiceError{Err: errors.New("service failed")}
+					return nil, errors.New("service failed")
 				},
 			},
 			refreshCookie: &http.Cookie{
@@ -725,7 +725,7 @@ func TestHandler_Logout(t *testing.T) {
 			name: "malformed access token",
 			service: &auth.StubService{
 				LogoutFunc: func(ctx context.Context, token string) error {
-					return errors.New("malformed token")
+					return auth.ErrInvalidToken
 				},
 			},
 			params: &auth.LogoutRequest{
@@ -740,7 +740,7 @@ func TestHandler_Logout(t *testing.T) {
 			name: "user does not exists",
 			service: &auth.StubService{
 				LogoutFunc: func(ctx context.Context, token string) error {
-					return user.ErrNotFound
+					return auth.ErrUserNotFound
 				},
 			},
 			params: &auth.LogoutRequest{
@@ -755,7 +755,7 @@ func TestHandler_Logout(t *testing.T) {
 			name: "service failure",
 			service: &auth.StubService{
 				LogoutFunc: func(ctx context.Context, token string) error {
-					return &auth.ServiceError{Err: errors.New("query failed")}
+					return errors.New("query failed")
 				},
 			},
 			params: &auth.LogoutRequest{

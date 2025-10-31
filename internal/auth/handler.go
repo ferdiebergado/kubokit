@@ -98,13 +98,12 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	}
 	if err = h.svc.ResetPassword(ctx, params); err != nil {
-		var svcErr *ServiceError
-		if errors.As(err, &svcErr) {
-			web.RespondInternalServerError(w, err)
+		if errors.Is(err, ErrUserNotFound) {
+			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 			return
 		}
 
-		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
+		web.RespondInternalServerError(w, err)
 		return
 	}
 
@@ -182,13 +181,12 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.Verify(ctx, req.Token); err != nil {
-		var svcErr *ServiceError
-		if errors.As(err, &svcErr) {
-			web.RespondInternalServerError(w, err)
+		if errors.Is(err, ErrInvalidToken) || errors.Is(err, ErrUserNotFound) {
+			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 			return
 		}
 
-		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
+		web.RespondInternalServerError(w, err)
 		return
 	}
 
@@ -210,13 +208,12 @@ func (h *Handler) ResendVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.ResendVerificationEmail(ctx, req.Email); err != nil {
-		var svcErr *ServiceError
-		if errors.As(err, &svcErr) {
-			web.RespondInternalServerError(w, err)
+		if errors.Is(err, ErrUserNotFound) {
+			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 			return
 		}
 
-		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
+		web.RespondInternalServerError(w, err)
 		return
 	}
 
@@ -415,12 +412,11 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.ChangePassword(r.Context(), params); err != nil {
-		var svcErr *ServiceError
-		if errors.As(err, &svcErr) {
-			web.RespondInternalServerError(w, err)
+		if errors.Is(err, ErrIncorrectPassword) || errors.Is(err, ErrUserNotFound) {
+			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 			return
 		}
-		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
+		web.RespondInternalServerError(w, err)
 		return
 	}
 
@@ -447,12 +443,11 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = h.svc.Logout(ctx, params.AccessToken); err != nil {
-		var svcErr *ServiceError
-		if errors.As(err, &svcErr) {
-			web.RespondInternalServerError(w, err)
+		if errors.Is(err, ErrInvalidToken) || errors.Is(err, ErrUserNotFound) {
+			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 			return
 		}
-		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
+		web.RespondInternalServerError(w, err)
 		return
 	}
 

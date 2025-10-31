@@ -19,16 +19,10 @@ const verificationPath = "/account/verify"
 var (
 	ErrNotVerified       = errors.New("email not verified")
 	ErrIncorrectPassword = errors.New("incorrect password")
+	ErrUserNotFound      = errors.New("user not found")
+	ErrUserExists        = errors.New("user already exists")
+	ErrInvalidToken      = errors.New("invalid token")
 )
-
-type ServiceError struct {
-	Op  string
-	Err error
-}
-
-func (e *ServiceError) Error() string {
-	return fmt.Sprintf("%s: %s", e.Op, e.Err.Error())
-}
 
 type Repository interface {
 	Verify(ctx context.Context, userID string) error
@@ -117,11 +111,11 @@ func (s *service) Register(ctx context.Context, params RegisterParams) (user.Use
 	email := params.Email
 	existing, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil && !errors.Is(err, user.ErrNotFound) {
-		return user.User{}, fmt.Errorf(MsgFmtFindUserByEmail, err)
+		return user.User{}, fmt.Errorf("find user by email: %w", err)
 	}
 
 	if existing != nil {
-		return user.User{}, user.ErrDuplicate
+		return user.User{}, ErrUserExists
 	}
 
 	hash, err := s.hasher.Hash(params.Password)
@@ -171,10 +165,12 @@ func (s *service) sendVerificationEmail(email, userID string) error {
 func (s *service) ResendVerificationEmail(ctx context.Context, email string) error {
 	u, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
+		const format = "find user by email: %w"
+
 		if errors.Is(err, user.ErrNotFound) {
-			return fmt.Errorf(MsgFmtFindUserByEmail, err)
+			return fmt.Errorf(format, ErrUserNotFound)
 		}
-		return &ServiceError{Op: "find user by email", Err: err}
+		return fmt.Errorf(format, err)
 	}
 
 	return s.sendVerificationEmail(u.Email, u.ID)
@@ -197,17 +193,17 @@ func (s *service) sendEmail(email *HTMLEmail) {
 func (s *service) Verify(ctx context.Context, token string) error {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
-		return fmt.Errorf("verify token: %w", err)
+		return fmt.Errorf("verify token: %w: %v", ErrInvalidToken, err)
 	}
 
 	if err := s.repo.Verify(ctx, claims.UserID); err != nil {
-		const op = "verify user"
+		const format = "verify user: %w"
 
 		if errors.Is(err, user.ErrNotFound) {
-			return fmt.Errorf("%s: %w", op, err)
+			return fmt.Errorf(format, ErrUserNotFound)
 		}
 
-		return &ServiceError{Op: op, Err: err}
+		return fmt.Errorf(format, err)
 	}
 
 	return nil
@@ -228,7 +224,13 @@ func (p *LoginParams) LogValue() slog.Value {
 func (s *service) Login(ctx context.Context, params LoginParams) (*Session, error) {
 	u, err := s.userRepo.FindByEmail(ctx, params.Email)
 	if err != nil {
-		return nil, fmt.Errorf(MsgFmtFindUserByEmail, err)
+		const format = "find user by email: %w"
+
+		if errors.Is(err, user.ErrNotFound) {
+			return nil, fmt.Errorf(format, ErrUserNotFound)
+		}
+
+		return nil, fmt.Errorf(format, err)
 	}
 
 	if u.VerifiedAt == nil {
@@ -286,7 +288,13 @@ func (s *service) generateToken(userID, email string) (*Session, error) {
 func (s *service) SendPasswordReset(ctx context.Context, email string) error {
 	_, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
-		return fmt.Errorf(MsgFmtFindUserByEmail, err)
+		const format = "find user by email: %w"
+
+		if errors.Is(err, user.ErrNotFound) {
+			return fmt.Errorf(format, ErrUserNotFound)
+		}
+
+		return fmt.Errorf(format, err)
 	}
 
 	resetEmail := &HTMLEmail{
@@ -309,7 +317,13 @@ type ChangePasswordParams struct {
 func (s *service) ChangePassword(ctx context.Context, params ChangePasswordParams) error {
 	u, err := s.userRepo.Find(ctx, params.userID)
 	if err != nil {
-		return fmt.Errorf(MsgFmtFindUser, err)
+		const format = "find user: %w"
+
+		if errors.Is(err, user.ErrNotFound) {
+			return fmt.Errorf(format, ErrUserNotFound)
+		}
+
+		return fmt.Errorf(format, err)
 	}
 
 	ok, err := s.hasher.Verify(params.currentPassword, u.PasswordHash)
@@ -357,7 +371,13 @@ func (s *service) RefreshToken(ctx context.Context, token string) (*Session, err
 	userID := claims.UserID
 	u, err := s.userRepo.Find(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf(MsgFmtFindUser, err)
+		const format = "find user: %w"
+
+		if errors.Is(err, user.ErrNotFound) {
+			return nil, fmt.Errorf(format, ErrUserNotFound)
+		}
+
+		return nil, fmt.Errorf(format, err)
 	}
 
 	return s.generateToken(userID, u.Email)
@@ -366,16 +386,19 @@ func (s *service) RefreshToken(ctx context.Context, token string) (*Session, err
 func (s *service) Logout(ctx context.Context, token string) error {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
-		return fmt.Errorf("verify access token: %w", err)
+		return fmt.Errorf("verify access token: %w: %v", ErrInvalidToken, err)
 	}
 
 	userID := claims.UserID
 	_, err = s.userRepo.Find(ctx, userID)
 	if err != nil {
+		const format = "find user: %w"
+
 		if errors.Is(err, user.ErrNotFound) {
-			return fmt.Errorf(MsgFmtFindUser, err)
+			return fmt.Errorf(format, ErrUserNotFound)
 		}
-		return &ServiceError{Op: "find user", Err: err}
+
+		return fmt.Errorf(format, err)
 	}
 
 	return nil
@@ -388,10 +411,12 @@ type ResetPasswordParams struct {
 func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
 	u, err := s.userRepo.Find(ctx, params.UserID)
 	if err != nil {
+		const format = "find user: %w"
 		if errors.Is(err, user.ErrNotFound) {
-			return fmt.Errorf(MsgFmtFindUser, ErrUserNotFound)
+			return fmt.Errorf(format, ErrUserNotFound)
 		}
-		return &ServiceError{Op: "find user", Err: err}
+
+		return fmt.Errorf(format, err)
 	}
 
 	hashed, err := s.hasher.Hash(params.Password)
@@ -400,11 +425,13 @@ func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 	}
 
 	if err := s.repo.ChangePassword(ctx, u.Email, hashed); err != nil {
-		const op = "change password"
-		if errors.Is(err, ErrUserNotFound) {
-			return fmt.Errorf("%s: %w", op, err)
+		const format = "change password: %w"
+
+		if errors.Is(err, user.ErrNotFound) {
+			return fmt.Errorf(format, ErrUserNotFound)
 		}
-		return &ServiceError{Op: op, Err: err}
+
+		return fmt.Errorf(format, err)
 	}
 
 	return nil
