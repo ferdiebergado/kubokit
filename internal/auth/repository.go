@@ -9,15 +9,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-type RepositoryError struct {
-	Op  string
-	Err error
-}
-
-func (e *RepositoryError) Error() string {
-	return e.Op + ": " + e.Err.Error()
-}
-
 type repo struct {
 	db db.Executor
 }
@@ -38,12 +29,12 @@ func (r *repo) Verify(ctx context.Context, userID string) error {
 
 	res, err := executor.ExecContext(ctx, query, userID)
 	if err != nil {
-		return &RepositoryError{Op: "execute query:", Err: err}
+		return fmt.Errorf("execute query: %w", err)
 	}
 
 	numRows, err := res.RowsAffected()
 	if err != nil {
-		return &RepositoryError{Op: "get rows affected", Err: err}
+		return fmt.Errorf("get rows affected: %w", err)
 	}
 
 	if numRows == 0 {
@@ -63,12 +54,12 @@ func (r *repo) ChangePassword(ctx context.Context, email, passwordHash string) e
 
 	res, err := executor.ExecContext(ctx, query, passwordHash, email)
 	if err != nil {
-		return &RepositoryError{Op: "execute query", Err: err}
+		return fmt.Errorf("execute query: %w", err)
 	}
 
 	numRows, err := res.RowsAffected()
 	if err != nil {
-		return &RepositoryError{Op: "get rows affected: %w", Err: err}
+		return fmt.Errorf("get rows affected: %w", err)
 	}
 
 	if numRows == 0 {

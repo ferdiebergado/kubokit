@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -49,15 +48,15 @@ type Handler struct {
 
 func NewHandler(svc Service, cfgJWT *config.JWT, cfgCookie *config.Cookie) (*Handler, error) {
 	if svc == nil {
-		return nil, errors.New("create auth handler: service is required")
+		return nil, errors.New("service is required")
 	}
 
 	if cfgJWT == nil {
-		return nil, errors.New("create auth handler: jwt config is required")
+		return nil, errors.New("jwt config is required")
 	}
 
 	if cfgCookie == nil {
-		return nil, errors.New("create auth handler: cookie config is required")
+		return nil, errors.New("cookie config is required")
 	}
 
 	handler := &Handler{
@@ -83,21 +82,30 @@ func (r *ResetPasswordRequest) LogValue() slog.Value {
 
 func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
 	req, err := web.ParamsFromContext[ResetPasswordRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
+
 	userID, err := UserFromContext(ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
+
 	params := ResetPasswordParams{
 		UserID:   userID,
 		Password: req.Password,
 	}
 	if err = h.svc.ResetPassword(ctx, params); err != nil {
+		var svcErr *ServiceError
+		if errors.As(err, &svcErr) {
+			web.RespondInternalServerError(w, err)
+			return
+		}
+
 		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
@@ -129,6 +137,7 @@ type RegisterResponse struct {
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
 	req, err := web.ParamsFromContext[RegisterRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
@@ -141,14 +150,12 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 	u, err := h.svc.Register(ctx, params)
 	if err != nil {
-		regErr := fmt.Errorf("register user: %w", err)
-
 		if errors.Is(err, user.ErrDuplicate) {
-			web.RespondConflict(w, regErr, MsgUserExists, nil)
+			web.RespondConflict(w, err, MsgUserExists, nil)
 			return
 		}
 
-		web.RespondInternalServerError(w, regErr)
+		web.RespondInternalServerError(w, err)
 		return
 	}
 
@@ -159,6 +166,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
 	}
+
 	web.RespondCreated(w, &msg, data)
 }
 
@@ -168,6 +176,7 @@ type VerifyRequest struct {
 
 func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
 	req, err := web.ParamsFromContext[VerifyRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
@@ -195,6 +204,7 @@ type ResendVerifyEmailRequest struct {
 
 func (h *Handler) ResendVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
 	req, err := web.ParamsFromContext[ResendVerifyEmailRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
@@ -260,6 +270,7 @@ func (h *Handler) clearRefreshCookie(w http.ResponseWriter) {
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
 	req, err := web.ParamsFromContext[LoginRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
@@ -348,6 +359,7 @@ func (r *ForgotPasswordRequest) LogValue() slog.Value {
 
 func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
 	req, err := web.ParamsFromContext[ForgotPasswordRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, errInvalidParams, MsgInvalidUser, nil)
@@ -424,6 +436,7 @@ type LogoutRequest struct {
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
 	params, err := web.ParamsFromContext[LogoutRequest](ctx)
 	if err != nil {
 		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)

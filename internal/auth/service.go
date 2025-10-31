@@ -198,17 +198,19 @@ func (s *service) sendEmail(email *HTMLEmail) {
 func (s *service) Verify(ctx context.Context, token string) error {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
-		return fmt.Errorf("auth service: check verification token: %w", err)
+		return fmt.Errorf("verify token: %w", err)
 	}
 
 	if err := s.repo.Verify(ctx, claims.UserID); err != nil {
 		const op = "verify user"
-		var repoErr *RepositoryError
-		if errors.As(err, &repoErr) {
-			return &ServiceError{Op: op, Err: err}
+
+		if errors.Is(err, user.ErrNotFound) {
+			return fmt.Errorf("%s: %w", op, err)
 		}
-		return fmt.Errorf("%s: %w", op, err)
+
+		return &ServiceError{Op: op, Err: err}
 	}
+
 	return nil
 }
 
@@ -243,12 +245,12 @@ func (s *service) Login(ctx context.Context, params LoginParams) (*Session, erro
 		return nil, ErrIncorrectPassword
 	}
 
-	authData, err := s.generateToken(u.ID, params.Email)
+	session, err := s.generateToken(u.ID, params.Email)
 	if err != nil {
 		return nil, fmt.Errorf("generate tokens: %w", err)
 	}
 
-	return authData, nil
+	return session, nil
 }
 
 func (s *service) generateToken(userID, email string) (*Session, error) {
@@ -271,7 +273,7 @@ func (s *service) generateToken(userID, email string) (*Session, error) {
 		Email: email,
 	}
 
-	data := &Session{
+	session := &Session{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    expiresIn,
@@ -279,13 +281,13 @@ func (s *service) generateToken(userID, email string) (*Session, error) {
 		User:         userData,
 	}
 
-	return data, nil
+	return session, nil
 }
 
 func (s *service) SendPasswordReset(ctx context.Context, email string) error {
 	_, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
-		return fmt.Errorf("find user by email: %w", err)
+		return fmt.Errorf(MsgFmtFindUserByEmail, err)
 	}
 
 	resetEmail := &HTMLEmail{
@@ -327,7 +329,7 @@ func (s *service) ChangePassword(ctx context.Context, params ChangePasswordParam
 
 	err = s.repo.ChangePassword(ctx, u.Email, newHash)
 	if err != nil {
-		return fmt.Errorf("change user password: %w", err)
+		return fmt.Errorf("change password: %w", err)
 	}
 
 	return nil
@@ -356,7 +358,7 @@ func (s *service) RefreshToken(ctx context.Context, token string) (*Session, err
 	userID := claims.UserID
 	u, err := s.userRepo.Find(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("find user by id: %w", err)
+		return nil, fmt.Errorf(MsgFmtFindUser, err)
 	}
 
 	return s.generateToken(userID, u.Email)
@@ -385,18 +387,25 @@ type ResetPasswordParams struct {
 }
 
 func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
-	user, err := s.userRepo.Find(ctx, params.UserID)
+	u, err := s.userRepo.Find(ctx, params.UserID)
 	if err != nil {
-		return fmt.Errorf(MsgFmtFindUser, err)
+		if errors.Is(err, user.ErrNotFound) {
+			return fmt.Errorf(MsgFmtFindUser, err)
+		}
+		return &ServiceError{Op: "find user", Err: err}
 	}
 
 	hashed, err := s.hasher.Hash(params.Password)
 	if err != nil {
-		return fmt.Errorf("hash new password: %w", err)
+		return fmt.Errorf("hash password: %w", err)
 	}
 
-	if err := s.repo.ChangePassword(ctx, user.Email, hashed); err != nil {
-		return fmt.Errorf("change password: %w", err)
+	if err := s.repo.ChangePassword(ctx, u.Email, hashed); err != nil {
+		const op = "change password"
+		if errors.Is(err, user.ErrNotFound) {
+			return fmt.Errorf("%s: %w", op, err)
+		}
+		return &ServiceError{Op: op, Err: err}
 	}
 
 	return nil
