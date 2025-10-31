@@ -19,7 +19,6 @@ const verificationPath = "/account/verify"
 var (
 	ErrNotVerified       = errors.New("email not verified")
 	ErrIncorrectPassword = errors.New("incorrect password")
-	ErrServiceFailed     = errors.New("auth service was unable to complete the operation")
 )
 
 type ServiceError struct {
@@ -28,7 +27,7 @@ type ServiceError struct {
 }
 
 func (e *ServiceError) Error() string {
-	return e.Op + ": " + e.Err.Error()
+	return fmt.Sprintf("%s: %s", e.Op, e.Err.Error())
 }
 
 type Repository interface {

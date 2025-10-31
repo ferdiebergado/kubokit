@@ -18,8 +18,6 @@ const (
 	TokenType = "Bearer"
 )
 
-var errInvalidParams = errors.New("invalid request params")
-
 type Session struct {
 	AccessToken  string
 	RefreshToken string
@@ -362,7 +360,7 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	req, err := web.ParamsFromContext[ForgotPasswordRequest](ctx)
 	if err != nil {
-		web.RespondUnauthorized(w, errInvalidParams, MsgInvalidUser, nil)
+		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 		return
 	}
 
