@@ -1,15 +1,12 @@
 package auth
 
 import (
-	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 )
-
-var ErrInvalidToken = errors.New("invalid token")
 
 // VerifyToken verifies if the token in the url query string is valid.
 func VerifyToken(signer Signer) func(http.Handler) http.Handler {

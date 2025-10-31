@@ -3,13 +3,10 @@ package auth
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 )
-
-var ErrUserNotFound = errors.New("user not found")
 
 type repo struct {
 	db db.Executor
