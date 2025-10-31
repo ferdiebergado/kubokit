@@ -2,7 +2,6 @@ package auth_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -146,7 +145,7 @@ func TestHandler_Login(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "user exists and verified with correct password",
+			name: "verified user with correct password should return session and cookie",
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 					return &auth.Session{
@@ -186,7 +185,7 @@ func TestHandler_Login(t *testing.T) {
 			},
 		},
 		{
-			name: "user exists but not yet verified",
+			name: "unverified user with correct password should return error and no cookie",
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 					return &auth.Session{}, auth.ErrNotVerified
@@ -201,10 +200,10 @@ func TestHandler_Login(t *testing.T) {
 			},
 		},
 		{
-			name: "user does not exists",
+			name: "non-existent user should return error and no cookie",
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
-					return &auth.Session{}, user.ErrNotFound
+					return &auth.Session{}, auth.ErrUserNotFound
 				},
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -213,7 +212,7 @@ func TestHandler_Login(t *testing.T) {
 			},
 		},
 		{
-			name: "user exists and verified but with incorrect password",
+			name: "verified user with incorrect password should return error and no cookie",
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 					return &auth.Session{}, auth.ErrIncorrectPassword
@@ -225,7 +224,7 @@ func TestHandler_Login(t *testing.T) {
 			},
 		},
 		{
-			name: "service failure",
+			name: "service failure should return error and no cookie",
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 					return &auth.Session{}, &auth.ServiceError{Err: errors.New("service failed")}
@@ -821,72 +820,71 @@ func TestHandler_ResetPassword(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name          string
-		resetPassword func(ctx context.Context, params auth.ResetPasswordParams) error
-		wantStatus    int
-		wantMsg       string
+		name       string
+		service    auth.Service
+		wantStatus int
+		wantBody   map[string]any
 	}
 
-	testcases := []testCase{
+	testCases := []testCase{
 		{
-			name: "user exists",
-			resetPassword: func(ctx context.Context, params auth.ResetPasswordParams) error {
-				return nil
+			name: "existing should return ok",
+			service: &auth.StubService{
+				ResetPasswordFunc: func(ctx context.Context, params auth.ResetPasswordParams) error {
+					return nil
+				},
 			},
 			wantStatus: http.StatusOK,
-			wantMsg:    auth.MsgPasswordResetSuccess,
+			wantBody: map[string]any{
+				"message": auth.MsgPasswordResetSuccess,
+			},
 		},
 		{
-			name: "user does not exists",
-			resetPassword: func(ctx context.Context, params auth.ResetPasswordParams) error {
-				return user.ErrNotFound
+			name: "non-existent user should return error",
+			service: &auth.StubService{
+				ResetPasswordFunc: func(ctx context.Context, params auth.ResetPasswordParams) error {
+					return auth.ErrUserNotFound
+				},
 			},
 			wantStatus: http.StatusUnauthorized,
-			wantMsg:    auth.MsgInvalidUser,
+			wantBody: map[string]any{
+				"message": auth.MsgInvalidUser,
+			},
 		},
 	}
 
-	for _, tc := range testcases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			mockService := &auth.StubService{
-				ResetPasswordFunc: tc.resetPassword,
-			}
-
-			handler, err := auth.NewHandler(mockService, &config.JWT{}, &config.Cookie{})
+			handler, err := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
 			if err != nil {
-				t.Fatalf("failed to create handler: %v", err)
+				t.Fatalf("failed to create auth handler: %v", err)
 			}
 
-			resetReq := auth.ResetPasswordRequest{
-				Password:        testPass,
-				PasswordConfirm: testPass,
+			params := auth.ResetPasswordRequest{
+				Password:        "mock_password",
+				PasswordConfirm: "mock_password",
 			}
-			ctx := web.NewContextWithParams(context.Background(), resetReq)
-			userCtx := auth.ContextWithUser(ctx, "1")
-			req := httptest.NewRequestWithContext(userCtx, http.MethodPost, "/reset-password", http.NoBody)
+
+			ctx := web.NewContextWithParams(context.Background(), params)
+			ctx = auth.ContextWithUser(ctx, "user1")
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/reset-password", http.NoBody)
 			rec := httptest.NewRecorder()
 			handler.ResetPassword(rec, req)
 
 			res := rec.Result()
 			defer res.Body.Close()
 
-			gotStatus, wantStatus := res.StatusCode, tc.wantStatus
-			if gotStatus != wantStatus {
-				t.Errorf("res.StatusCode = %d, want: %d", gotStatus, wantStatus)
+			if res.StatusCode != tc.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
 			}
 
 			web.AssertContentType(t, res)
 
-			var body map[string]string
-			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
-				t.Fatalf("Failed to decode json response: %v", err)
-			}
-
-			gotMsg, wantMsg := body["message"], tc.wantMsg
-			if gotMsg != wantMsg {
-				t.Errorf("body['message'] = %q, want: %q", body, tc.wantMsg)
+			body := web.DecodeJSONResponse(t, res)
+			if !reflect.DeepEqual(body, tc.wantBody) {
+				t.Errorf("body = %+v, want: %+v", body, tc.wantBody)
 			}
 		})
 	}
