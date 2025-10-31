@@ -14,6 +14,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
+	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -179,130 +180,108 @@ func TestService_Register(t *testing.T) {
 func TestService_Verify(t *testing.T) {
 	t.Parallel()
 
-	errTokenExpired := errors.New("token expired")
-
-	cfg := &config.Config{
-		App: &config.App{
-			URL: "localhost:8888",
-			Key: "123",
-		},
-		Argon2: &config.Argon2{
-			Memory:     1024,
-			Iterations: 1,
-			Threads:    1,
-			SaltLength: 8,
-			KeyLength:  8,
-		},
-		SMTP: &config.SMTP{
-			Host:     "",
-			Port:     0,
-			User:     user1,
-			Password: "",
-		},
-		Email: &config.Email{
-			Templates: "../../web/templates",
-			Layout:    "layout.html",
-			Sender:    "test@example.com",
-			VerifyTTL: timex.Duration{Duration: 5 * time.Minute},
-		},
+	type testCase struct {
+		name    string
+		repo    auth.Repository
+		token   string
+		wantErr error
 	}
 
-	hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	type TestCase struct {
-		name             string
-		repoVerifyFunc   func(ctx context.Context, userID string) error
-		signerVerifyFunc func(tokenString string) (*auth.Claims, error)
-		token            string
-		err              error
-	}
-
-	tests := []TestCase{
+	testCases := []testCase{
 		{
-			name: "Token is valid",
-			repoVerifyFunc: func(ctx context.Context, userID string) error {
-				return nil
+			name: "valid verification token",
+			repo: &auth.StubRepo{
+				VerifyFunc: func(ctx context.Context, userID string) error {
+					return nil
+				},
 			},
-			signerVerifyFunc: func(tokenString string) (*auth.Claims, error) {
-				return &auth.Claims{UserID: "1"}, nil
-			},
-			token: "verification_token",
 		},
 		{
-			name: "Token has expired",
-			repoVerifyFunc: func(ctx context.Context, userID string) error {
-				return nil
-			},
-			signerVerifyFunc: func(tokenString string) (*auth.Claims, error) {
-				return nil, errTokenExpired
-			},
-			token: "verification_token",
-			err:   errTokenExpired,
+			name:    "invalid verification token",
+			repo:    &auth.StubRepo{},
+			token:   "mock_token",
+			wantErr: errors.New("token is malformed"),
 		},
 		{
-			name: "Query error",
-			repoVerifyFunc: func(ctx context.Context, userID string) error {
-				return db.ErrQueryFailed
+			name: "user does not exists",
+			repo: &auth.StubRepo{
+				VerifyFunc: func(ctx context.Context, userID string) error {
+					return user.ErrNotFound
+				},
 			},
-			signerVerifyFunc: func(tokenString string) (*auth.Claims, error) {
-				return &auth.Claims{UserID: "1"}, nil
+			wantErr: user.ErrNotFound,
+		},
+		{
+			name: "repo failure",
+			repo: &auth.StubRepo{
+				VerifyFunc: func(ctx context.Context, userID string) error {
+					return errors.New("query failed")
+				},
 			},
-			token: "verification_token",
-			err:   db.ErrQueryFailed,
+			wantErr: &auth.ServiceError{Op: "verify user", Err: errors.New("query failed")},
 		},
 	}
 
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			signer := &auth.StubSigner{
-				VerifyFunc: tc.signerVerifyFunc,
-			}
-			txMgr := &db.StubTxManager{}
-			cfg := &config.Config{
-				App:   &config.App{},
-				JWT:   &config.JWT{},
+			mockConfig := &config.Config{
+				App: &config.App{Key: "123"},
+				JWT: &config.JWT{
+					JTILength:  8,
+					Issuer:     "localhost",
+					TTL:        timex.Duration{Duration: 5 * time.Minute},
+					RefreshTTL: timex.Duration{Duration: 10 * time.Minute},
+				},
 				Email: &config.Email{},
 			}
 
-			repo := &auth.StubRepo{
-				VerifyFunc: tc.repoVerifyFunc,
-			}
-
-			userRepo := &user.StubRepo{}
-
-			provider := &auth.ServiceProvider{
-				CfgApp:   cfg.App,
-				CfgJWT:   cfg.JWT,
-				CfgEmail: cfg.Email,
-				Hasher:   hasher,
-				Mailer:   mailer,
-				Signer:   signer,
-				Txmgr:    txMgr,
-				UserRepo: userRepo,
-			}
-			svc, err := auth.NewService(repo, provider)
+			signer, err := jwt.NewGolangJWTSigner(mockConfig.JWT, mockConfig.App.Key)
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("failed to create signer: %v", err)
 			}
 
-			ctx := context.Background()
-			if err := svc.Verify(ctx, tc.token); err != nil {
-				if tc.err == nil {
-					t.Fatal(err)
+			mockProvider := &auth.ServiceProvider{
+				CfgApp:   mockConfig.App,
+				CfgEmail: mockConfig.Email,
+				CfgJWT:   mockConfig.JWT,
+				Signer:   signer,
+			}
+
+			svc, err := auth.NewService(tc.repo, mockProvider)
+			if err != nil {
+				t.Fatalf("failed to create auth service: %v", err)
+			}
+
+			mockToken := tc.token
+			if mockToken == "" {
+				mockToken, err = signer.Sign("user1", []string{"/verify"}, mockConfig.JWT.TTL.Duration)
+				if err != nil {
+					t.Fatalf("failed to sign token: %v", err)
+				}
+			}
+
+			err = svc.Verify(context.Background(), mockToken)
+
+			if tc.wantErr != nil {
+				if err == nil {
+					t.Fatal("service did not return an error")
 				}
 
-				if !errors.Is(err, tc.err) {
-					t.Errorf("svc.Verify(ctx, %q) = %v, want: %v", tc.token, err, tc.err)
+				var wantSvcErr *auth.ServiceError
+				if errors.As(tc.wantErr, &wantSvcErr) {
+					var svcErr *auth.ServiceError
+					if !errors.As(err, &svcErr) {
+						t.Fatal("service did not return a ServiceError")
+					}
+
+					if svcErr.Op != wantSvcErr.Op {
+						t.Errorf("svcErr.Op = %q, want: %q", svcErr.Op, wantSvcErr.Op)
+					}
+					if svcErr.Error() != wantSvcErr.Error() {
+						t.Errorf("svcErr.Error() = %q, want: %q", svcErr.Error(), wantSvcErr.Error())
+					}
 				}
 			}
 		})
@@ -312,6 +291,7 @@ func TestService_Verify(t *testing.T) {
 func TestService_ResetPassword(t *testing.T) {
 	t.Parallel()
 
+	// TODO: replace with mock config
 	cfg, err := config.Load(configFile)
 	if err != nil {
 		t.Fatalf("Failed to load config file: %v", err)
@@ -352,12 +332,12 @@ func TestService_ResetPassword(t *testing.T) {
 		{
 			name: "db error",
 			changePassword: func(ctx context.Context, email string, newPassword string) error {
-				return db.ErrQueryFailed
+				return errors.New("query failed")
 			},
 			find: func(ctx context.Context, userID string) (*user.User, error) {
 				return &user.User{}, nil
 			},
-			wantErr: db.ErrQueryFailed,
+			wantErr: &auth.ServiceError{Op: "change password", Err: errors.New("query failed")},
 		},
 	}
 
@@ -365,13 +345,9 @@ func TestService_ResetPassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			repo := &auth.StubRepo{
-				ChangePasswordFunc: tc.changePassword,
-			}
+			repo := &auth.StubRepo{ChangePasswordFunc: tc.changePassword}
+			userRepo := &user.StubRepo{FindUserFunc: tc.find}
 
-			userRepo := &user.StubRepo{
-				FindUserFunc: tc.find,
-			}
 			provider := &auth.ServiceProvider{
 				CfgApp:   cfg.App,
 				CfgJWT:   cfg.JWT,
@@ -379,15 +355,36 @@ func TestService_ResetPassword(t *testing.T) {
 				Hasher:   hasher,
 				UserRepo: userRepo,
 			}
+
 			svc, err := auth.NewService(repo, provider)
 			if err != nil {
 				t.Fatalf("Failed to create auth service: %v", err)
 			}
+
 			params := auth.ResetPasswordParams{
 				UserID:   "1",
 				Password: "abc@123",
 			}
-			if err := svc.ResetPassword(context.Background(), params); !errors.Is(err, tc.wantErr) {
+			err = svc.ResetPassword(context.Background(), params)
+
+			var wantSvcErr *auth.ServiceError
+			if errors.As(tc.wantErr, &wantSvcErr) {
+				var svcErr *auth.ServiceError
+				if !errors.As(err, &svcErr) {
+					t.Fatalf("err is not a ServiceError")
+				}
+
+				if svcErr.Op != wantSvcErr.Op {
+					t.Errorf("svc.ResetPassword(context.Background(),params) = %+s, want: %s", svcErr.Op, wantSvcErr.Op)
+				}
+
+				if svcErr.Error() != wantSvcErr.Error() {
+					t.Errorf("svc.ResetPassword(context.Background(),params) = %+v, want: %+v", svcErr.Error(), wantSvcErr.Error())
+				}
+				return
+			}
+
+			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("svc.ResetPassword(context.Background(),params) = %+v, want: %+v", err, tc.wantErr)
 			}
 		})
