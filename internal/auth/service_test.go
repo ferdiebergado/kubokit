@@ -320,14 +320,14 @@ func TestService_ResetPassword(t *testing.T) {
 			},
 		},
 		{
-			name: "user does not exists",
+			name: "non-existent user should return error",
 			changePassword: func(ctx context.Context, email string, newPassword string) error {
-				return nil
+				return auth.ErrUserNotFound
 			},
 			find: func(ctx context.Context, userID string) (*user.User, error) {
 				return nil, user.ErrNotFound
 			},
-			wantErr: user.ErrNotFound,
+			wantErr: auth.ErrUserNotFound,
 		},
 		{
 			name: "db error",

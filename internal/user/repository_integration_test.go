@@ -217,12 +217,12 @@ func TestIntegrationRepository_Create(t *testing.T) {
 			err: err,
 		},
 		{
-			name: "User already exists",
+			name: "duplicate user should return error",
 			params: user.CreateParams{
 				Email:    "agnis@example.com",
 				Password: "hashed",
 			},
-			err: db.ErrUniqueConstraintViolation,
+			err: user.ErrDuplicate,
 		},
 	}
 	for _, tc := range tests {
@@ -237,7 +237,7 @@ func TestIntegrationRepository_Create(t *testing.T) {
 					t.Fatalf("failed to create user: %v", err)
 				}
 
-				if err != tc.err {
+				if !errors.Is(err, tc.err) {
 					t.Errorf("repo.Create(txCtx, tc.params) = %v, want: %v", err, tc.err)
 				}
 			} else {

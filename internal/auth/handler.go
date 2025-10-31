@@ -287,7 +287,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if errors.Is(err, user.ErrNotFound) || errors.Is(err, ErrIncorrectPassword) {
+		if errors.Is(err, ErrUserNotFound) || errors.Is(err, ErrIncorrectPassword) {
 			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 			return
 		}
@@ -321,7 +321,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.svc.RefreshToken(r.Context(), cookie.Value)
 	if err != nil {
-		if errors.Is(err, ErrInvalidToken) || errors.Is(err, user.ErrNotFound) {
+		if errors.Is(err, ErrInvalidToken) || errors.Is(err, ErrUserNotFound) {
 			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 			return
 		}

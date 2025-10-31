@@ -389,7 +389,7 @@ func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 	u, err := s.userRepo.Find(ctx, params.UserID)
 	if err != nil {
 		if errors.Is(err, user.ErrNotFound) {
-			return fmt.Errorf(MsgFmtFindUser, err)
+			return fmt.Errorf(MsgFmtFindUser, ErrUserNotFound)
 		}
 		return &ServiceError{Op: "find user", Err: err}
 	}
@@ -401,7 +401,7 @@ func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 
 	if err := s.repo.ChangePassword(ctx, u.Email, hashed); err != nil {
 		const op = "change password"
-		if errors.Is(err, user.ErrNotFound) {
+		if errors.Is(err, ErrUserNotFound) {
 			return fmt.Errorf("%s: %w", op, err)
 		}
 		return &ServiceError{Op: op, Err: err}

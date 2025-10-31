@@ -3,11 +3,13 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
-	"github.com/ferdiebergado/kubokit/internal/user"
 )
+
+var ErrUserNotFound = errors.New("user not found")
 
 type repo struct {
 	db db.Executor
@@ -38,7 +40,7 @@ func (r *repo) Verify(ctx context.Context, userID string) error {
 	}
 
 	if numRows == 0 {
-		return fmt.Errorf("user not found or already verified: %w", user.ErrNotFound)
+		return fmt.Errorf("user not found or already verified: %w", ErrUserNotFound)
 	}
 
 	return nil
@@ -63,7 +65,7 @@ func (r *repo) ChangePassword(ctx context.Context, email, passwordHash string) e
 	}
 
 	if numRows == 0 {
-		return user.ErrNotFound
+		return ErrUserNotFound
 	}
 
 	return nil
