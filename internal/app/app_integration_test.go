@@ -52,7 +52,7 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 	txMgr := db.NewSQLTxManager(conn)
 
 	userRepo := user.NewRepository(conn)
-	userSvc := user.NewService(userRepo, hasher)
+	userSvc := user.NewService(userRepo)
 	userHandler := user.NewHandler(userSvc)
 
 	authRepo := auth.NewRepository(conn)

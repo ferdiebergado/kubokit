@@ -75,7 +75,7 @@ func Run() error {
 	txMgr := db.NewSQLTxManager(dbConn)
 
 	userRepo := user.NewRepository(dbConn)
-	userService := user.NewService(userRepo, hasher)
+	userService := user.NewService(userRepo)
 	userHandler := user.NewHandler(userService)
 
 	authRepo := auth.NewRepository(dbConn)

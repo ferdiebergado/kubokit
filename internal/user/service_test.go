@@ -7,23 +7,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/model"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 func TestService_List(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
 	now := time.Now()
 
 	tests := []struct {
-		name    string
-		repo    user.Repository
-		want    []user.User
-		wantErr error
+		name      string
+		repo      user.Repository
+		wantUsers []user.User
+		wantErr   error
 	}{
 		{
 			name: "success - returns users",
@@ -55,7 +52,7 @@ func TestService_List(t *testing.T) {
 					}, nil
 				},
 			},
-			want: []user.User{
+			wantUsers: []user.User{
 				{
 					Model: model.Model{
 						ID:        "1",
@@ -93,27 +90,22 @@ func TestService_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := config.Load("../../config.json")
-			if err != nil {
-				t.Fatal(err)
-			}
+			t.Parallel()
 
-			hasher := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
+			svc := user.NewService(tt.repo)
 
-			svc := user.NewService(tt.repo, hasher)
-
-			got, err := svc.List(ctx)
+			users, err := svc.List(context.Background())
 
 			if (err != nil) != (tt.wantErr != nil) {
-				t.Fatalf("service.List(ctx) error = %v, wantErr: %v", err, tt.wantErr)
+				t.Fatalf("service.List(ctx) = %v, wantErr: %v", err, tt.wantErr)
 			}
 
 			if err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
-				t.Fatalf("service.List(ctx) error = %v, wantErr: %v", err, tt.wantErr)
+				t.Fatalf("service.List(ctx) = %v, wantErr: %v", err, tt.wantErr)
 			}
 
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("service.List(ctx) = %+v, want: %+v", got, tt.want)
+			if !reflect.DeepEqual(users, tt.wantUsers) {
+				t.Errorf("service.List(ctx) = %+v, want: %+v", users, tt.wantUsers)
 			}
 		})
 	}
