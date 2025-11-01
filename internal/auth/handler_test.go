@@ -659,8 +659,7 @@ func TestHandler_Logout(t *testing.T) {
 
 	type testCase struct {
 		name       string
-		service    auth.Service
-		params     *auth.LogoutRequest
+		userID     string
 		wantStatus int
 		wantBody   map[string]any
 		wantCookie *http.Cookie
@@ -668,15 +667,8 @@ func TestHandler_Logout(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "valid access token returns 204 and deletes cookie",
-			service: &auth.StubService{
-				LogoutFunc: func(ctx context.Context, token string) error {
-					return nil
-				},
-			},
-			params: &auth.LogoutRequest{
-				AccessToken: accessToken,
-			},
+			name:       "user is logged in returns 204 and deletes cookie",
+			userID:     "1",
 			wantStatus: http.StatusNoContent,
 			wantBody:   map[string]any{},
 			wantCookie: &http.Cookie{
@@ -690,57 +682,10 @@ func TestHandler_Logout(t *testing.T) {
 			},
 		},
 		{
-			name:       "empty access token returns 401",
-			service:    &auth.StubService{},
-			params:     &auth.LogoutRequest{},
+			name:       "user is not logged in returns 401",
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
 				"message": auth.MsgInvalidUser,
-			},
-		},
-		{
-			name: "malformed access token returns 401",
-			service: &auth.StubService{
-				LogoutFunc: func(ctx context.Context, token string) error {
-					return auth.ErrInvalidToken
-				},
-			},
-			params: &auth.LogoutRequest{
-				AccessToken: accessToken,
-			},
-			wantStatus: http.StatusUnauthorized,
-			wantBody: map[string]any{
-				"message": auth.MsgInvalidUser,
-			},
-		},
-		{
-			name: "user does not exist returns 401",
-			service: &auth.StubService{
-				LogoutFunc: func(ctx context.Context, token string) error {
-					return auth.ErrUserNotFound
-				},
-			},
-			params: &auth.LogoutRequest{
-				AccessToken: accessToken,
-			},
-			wantStatus: http.StatusUnauthorized,
-			wantBody: map[string]any{
-				"message": auth.MsgInvalidUser,
-			},
-		},
-		{
-			name: "service failure returns 500",
-			service: &auth.StubService{
-				LogoutFunc: func(ctx context.Context, token string) error {
-					return errors.New("query failed")
-				},
-			},
-			params: &auth.LogoutRequest{
-				AccessToken: accessToken,
-			},
-			wantStatus: http.StatusInternalServerError,
-			wantBody: map[string]any{
-				"message": message.UnexpectedErr,
 			},
 		},
 	}
@@ -752,11 +697,11 @@ func TestHandler_Logout(t *testing.T) {
 			cfgCookie := &config.Cookie{
 				Name: cookieName,
 			}
-			handler := auth.NewHandler(tc.service, &config.JWT{}, cfgCookie)
+			handler := auth.NewHandler(&auth.StubService{}, &config.JWT{}, cfgCookie)
 
 			ctx := context.Background()
-			if tc.params != nil {
-				ctx = web.NewContextWithParams(ctx, *tc.params)
+			if tc.userID != "" {
+				ctx = auth.ContextWithUser(context.Background(), tc.userID)
 			}
 			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/logout", http.NoBody)
 			rec := httptest.NewRecorder()

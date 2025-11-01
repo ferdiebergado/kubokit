@@ -364,27 +364,6 @@ func (s *service) RefreshToken(ctx context.Context, token string) (*Session, err
 	return s.generateToken(userID, u.Email)
 }
 
-func (s *service) Logout(ctx context.Context, token string) error {
-	claims, err := s.signer.Verify(token)
-	if err != nil {
-		return fmt.Errorf("verify access token: %w: %v", ErrInvalidToken, err)
-	}
-
-	userID := claims.UserID
-	_, err = s.userRepo.Find(ctx, userID)
-	if err != nil {
-		const format = "find user: %w"
-
-		if errors.Is(err, user.ErrNotFound) {
-			return fmt.Errorf(format, ErrUserNotFound)
-		}
-
-		return fmt.Errorf(format, err)
-	}
-
-	return nil
-}
-
 type ResetPasswordParams struct {
 	UserID, Password string
 }

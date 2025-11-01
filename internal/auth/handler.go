@@ -35,7 +35,6 @@ type Service interface {
 	ChangePassword(ctx context.Context, params ChangePasswordParams) error
 	ResetPassword(ctx context.Context, params ResetPasswordParams) error
 	RefreshToken(ctx context.Context, token string) (*Session, error)
-	Logout(ctx context.Context, token string) error
 }
 
 type Handler struct {
@@ -410,30 +409,10 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	web.RespondOK[any](w, &msg, nil)
 }
 
-type LogoutRequest struct {
-	AccessToken string `json:"access_token,omitempty"`
-}
-
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	params, err := web.ParamsFromContext[LogoutRequest](ctx)
+	_, err := UserFromContext(r.Context())
 	if err != nil {
 		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
-		return
-	}
-
-	if params.AccessToken == "" {
-		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
-		return
-	}
-
-	if err = h.svc.Logout(ctx, params.AccessToken); err != nil {
-		if errors.Is(err, ErrInvalidToken) || errors.Is(err, ErrUserNotFound) {
-			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
-			return
-		}
-		web.RespondInternalServerError(w, err)
 		return
 	}
 

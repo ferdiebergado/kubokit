@@ -116,6 +116,8 @@ func (a *App) setupRoutes() {
 			auth.VerifyToken(a.signer),
 			middleware.DecodePayload[auth.ResetPasswordRequest](maxBodySize),
 			middleware.ValidateInput[auth.ResetPasswordRequest](a.validator))
+
+		gr.Post("/logout", a.authHandler.Logout, requireToken)
 	})
 
 	// users routes
