@@ -17,9 +17,7 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-const (
-	mockAppEmail = "app@example.com"
-)
+const mockAppEmail = "app@example.com"
 
 var errMockRepoFailure = errors.New("query failed")
 
@@ -47,6 +45,13 @@ var (
 		TTL:        timex.Duration{Duration: 5 * time.Minute},
 		RefreshTTL: timex.Duration{Duration: 10 * time.Minute},
 	}
+
+	mockSMTPCfg = &config.SMTP{
+		Host:     "localhost",
+		Port:     1025,
+		User:     mockAppEmail,
+		Password: "mock_email_password",
+	}
 )
 
 func TestService_Register(t *testing.T) {
@@ -55,7 +60,6 @@ func TestService_Register(t *testing.T) {
 	const (
 		mockEmail    = "test@example.com"
 		mockPassword = "test"
-		mockAppEmail = "app@example.com"
 	)
 
 	now := time.Now().Truncate(0)
@@ -69,55 +73,6 @@ func TestService_Register(t *testing.T) {
 		},
 		Email:        mockEmail,
 		PasswordHash: "mock_hashed",
-	}
-
-	mockConfig := &config.Config{
-		Argon2: &config.Argon2{
-			Memory:     64,
-			Iterations: 1,
-			Threads:    1,
-			SaltLength: 8,
-			KeyLength:  8,
-		},
-		SMTP: &config.SMTP{
-			Host:     "localhost",
-			Port:     1025,
-			User:     mockAppEmail,
-			Password: "mock_email_password",
-		},
-		Email: &config.Email{
-			Templates: "../../web/templates",
-			Layout:    "layout.html",
-			Sender:    mockAppEmail,
-			VerifyTTL: timex.Duration{Duration: 5 * time.Minute},
-		},
-		JWT: &config.JWT{
-			JTILength:  8,
-			Issuer:     mockAppEmail,
-			TTL:        timex.Duration{Duration: 5 * time.Minute},
-			RefreshTTL: timex.Duration{Duration: 10 * time.Minute},
-		},
-		App: &config.App{Key: "123"},
-	}
-
-	hasher, err := security.NewArgon2Hasher(mockConfig.Argon2, "paminta")
-	if err != nil {
-		t.Fatalf("failed to create hasher: %v", err)
-	}
-
-	mailer, err := email.NewSMTPMailer(mockConfig.SMTP, mockConfig.Email)
-	if err != nil {
-		t.Fatalf("failed to create mailer: %v", err)
-	}
-
-	signer, err := jwt.NewGolangJWTSigner(mockConfig.JWT, mockConfig.App.Key)
-	if err != nil {
-		t.Fatalf("failed to create signer: %v", err)
-	}
-
-	mockParams := auth.RegisterParams{
-		Email:    mockEmail,
-		Password: mockPassword,
 	}
 
 	type testCase struct {
@@ -170,18 +125,23 @@ func TestService_Register(t *testing.T) {
 			t.Parallel()
 
 			mockProvider := &auth.ServiceProvider{
-				CfgApp:   mockConfig.App,
-				CfgJWT:   mockConfig.JWT,
-				CfgEmail: mockConfig.Email,
-				Hasher:   hasher,
-				Mailer:   mailer,
-				Signer:   signer,
+				CfgApp:   mockAppCfg,
+				CfgJWT:   mockJWTCfg,
+				CfgEmail: mockEmailCfg,
+				Hasher:   createHasher(t),
+				Mailer:   createMailer(t),
+				Signer:   createSigner(t),
 				UserRepo: tc.repo,
 			}
 
 			svc, err := auth.NewService(&auth.StubRepo{}, mockProvider)
 			if err != nil {
 				t.Fatalf("failed to create auth service")
+			}
+
+			mockParams := auth.RegisterParams{
+				Email:    mockEmail,
+				Password: mockPassword,
 			}
 
 			u, err := svc.Register(context.Background(), mockParams)
@@ -210,22 +170,6 @@ func TestService_Register(t *testing.T) {
 
 func TestService_Verify(t *testing.T) {
 	t.Parallel()
-
-	mockConfig := &config.Config{
-		App: &config.App{Key: "123"},
-		JWT: &config.JWT{
-			JTILength:  8,
-			Issuer:     "localhost",
-			TTL:        timex.Duration{Duration: 5 * time.Minute},
-			RefreshTTL: timex.Duration{Duration: 10 * time.Minute},
-		},
-		Email: &config.Email{},
-	}
-
-	signer, err := jwt.NewGolangJWTSigner(mockConfig.JWT, mockConfig.App.Key)
-	if err != nil {
-		t.Fatalf("failed to create signer: %v", err)
-	}
 
 	type testCase struct {
 		name    string
@@ -273,10 +217,12 @@ func TestService_Verify(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
+			signer := createSigner(t)
+
 			mockProvider := &auth.ServiceProvider{
-				CfgApp:   mockConfig.App,
-				CfgEmail: mockConfig.Email,
-				CfgJWT:   mockConfig.JWT,
+				CfgApp:   mockAppCfg,
+				CfgEmail: mockEmailCfg,
+				CfgJWT:   mockJWTCfg,
 				Signer:   signer,
 			}
 
@@ -287,7 +233,7 @@ func TestService_Verify(t *testing.T) {
 
 			mockToken := tc.token
 			if mockToken == "" {
-				mockToken, err = signer.Sign("user1", []string{"/verify"}, mockConfig.JWT.TTL.Duration)
+				mockToken, err = signer.Sign("user1", []string{"/verify"}, mockJWTCfg.TTL.Duration)
 				if err != nil {
 					t.Fatalf("failed to sign token: %v", err)
 				}
@@ -303,13 +249,6 @@ func TestService_Verify(t *testing.T) {
 
 func TestService_ResetPassword(t *testing.T) {
 	t.Parallel()
-
-	hasher := createHasher(t)
-
-	mockParams := auth.ResetPasswordParams{
-		UserID:   "1",
-		Password: "test",
-	}
 
 	type testCase struct {
 		name    string
@@ -354,12 +293,17 @@ func TestService_ResetPassword(t *testing.T) {
 				CfgApp:   mockAppCfg,
 				CfgJWT:   mockJWTCfg,
 				CfgEmail: mockEmailCfg,
-				Hasher:   hasher,
+				Hasher:   createHasher(t),
 			}
 
 			svc, err := auth.NewService(tc.repo, provider)
 			if err != nil {
 				t.Fatalf("failed to create auth service: %v", err)
+			}
+
+			mockParams := auth.ResetPasswordParams{
+				UserID:   "1",
+				Password: "test",
 			}
 
 			err = svc.ResetPassword(context.Background(), mockParams)
@@ -391,4 +335,26 @@ func createHasher(t *testing.T) *security.Argon2Hasher {
 	}
 
 	return hasher
+}
+
+func createMailer(t *testing.T) *email.SMTPMailer {
+	t.Helper()
+
+	mailer, err := email.NewSMTPMailer(mockSMTPCfg, mockEmailCfg)
+	if err != nil {
+		t.Fatalf("failed to create mailer: %v", err)
+	}
+
+	return mailer
+}
+
+func createSigner(t *testing.T) *jwt.GolangJWTSigner {
+	t.Helper()
+
+	signer, err := jwt.NewGolangJWTSigner(mockJWTCfg, mockAppCfg.Key)
+	if err != nil {
+		t.Fatalf("failed to create signer: %v", err)
+	}
+
+	return signer
 }
