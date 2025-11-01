@@ -12,6 +12,8 @@ type StubService struct {
 	FindFunc        func(ctx context.Context, userID string) (*User, error)
 }
 
+var _ Service = &StubService{}
+
 func (s *StubService) List(ctx context.Context) ([]User, error) {
 	if s.ListFunc == nil {
 		return nil, errors.New("List() not implemented by stub")
@@ -19,14 +21,14 @@ func (s *StubService) List(ctx context.Context) ([]User, error) {
 	return s.ListFunc(ctx)
 }
 
-var _ Service = &StubService{}
-
 type StubRepo struct {
 	ListFunc        func(ctx context.Context) ([]User, error)
 	CreateFunc      func(ctx context.Context, params CreateParams) (User, error)
 	FindByEmailFunc func(ctx context.Context, email string) (*User, error)
-	FindUserFunc    func(ctx context.Context, userID string) (*User, error)
+	FindFunc        func(ctx context.Context, userID string) (*User, error)
 }
+
+var _ Repository = &StubRepo{}
 
 func (r *StubRepo) Create(ctx context.Context, params CreateParams) (User, error) {
 	if r.CreateFunc == nil {
@@ -50,10 +52,8 @@ func (r *StubRepo) FindByEmail(ctx context.Context, email string) (*User, error)
 }
 
 func (r *StubRepo) Find(ctx context.Context, userID string) (*User, error) {
-	if r.FindUserFunc == nil {
+	if r.FindFunc == nil {
 		return nil, errors.New("Find() not implemented by stub")
 	}
-	return r.FindUserFunc(ctx, userID)
+	return r.FindFunc(ctx, userID)
 }
-
-var _ Repository = &StubRepo{}
