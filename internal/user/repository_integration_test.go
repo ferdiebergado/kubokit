@@ -59,16 +59,11 @@ const (
 func TestIntegrationRepository_List(t *testing.T) {
 	t.Parallel()
 
-	conn, tx := db.Setup(t)
-
-	_, err := tx.Exec(querySeedUsers)
-	if err != nil {
-		t.Fatalf(fmtErrSeed, err)
-	}
+	tx := setup(t)
 
 	row := tx.QueryRow("SELECT COUNT(id) FROM users")
 	var numUsers int
-	if err = row.Scan(&numUsers); err != nil {
+	if err := row.Scan(&numUsers); err != nil {
 		t.Fatalf("failed to count the users: %v", err)
 	}
 
@@ -77,10 +72,9 @@ func TestIntegrationRepository_List(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	txCtx := db.NewContextWithTx(ctx, tx)
-	repo := user.NewRepository(conn)
+	repo := user.NewRepository(tx)
 
-	users, err := repo.List(txCtx)
+	users, err := repo.List(ctx)
 	if err != nil {
 		t.Errorf("repo.ListUsers(txCtx) = %v, want: %v", err, nil)
 	}
@@ -91,20 +85,26 @@ func TestIntegrationRepository_List(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_Find(t *testing.T) {
-	t.Parallel()
+func setup(t *testing.T) *sql.Tx {
+	t.Helper()
 
-	conn, tx := db.Setup(t)
+	_, tx := db.Setup(t)
 
 	_, err := tx.Exec(querySeedUsers)
 	if err != nil {
 		t.Fatalf(fmtErrSeed, err)
 	}
 
-	ctx := context.Background()
-	txCtx := db.NewContextWithTx(ctx, tx)
+	return tx
+}
 
-	repo := user.NewRepository(conn)
+func TestIntegrationRepository_Find(t *testing.T) {
+	t.Parallel()
+
+	tx := setup(t)
+	ctx := context.Background()
+
+	repo := user.NewRepository(tx)
 	verifiedAt := time.Date(2025, time.May, 9, 20, 0, 0, 0, time.Local)
 	wantUser := user.User{
 		Model: model.Model{
@@ -115,7 +115,7 @@ func TestIntegrationRepository_Find(t *testing.T) {
 		Email:      mockEmail,
 		VerifiedAt: &verifiedAt,
 	}
-	gotUser, err := repo.Find(txCtx, mockUserID)
+	gotUser, err := repo.Find(ctx, mockUserID)
 	if err != nil {
 		t.Fatalf("failed to find user: %v", err)
 	}
@@ -161,17 +161,11 @@ func TestIntegrationRepository_Find(t *testing.T) {
 func TestIntegrationRepository_FindByEmail(t *testing.T) {
 	t.Parallel()
 
-	conn, tx := db.Setup(t)
-
-	_, err := tx.Exec(querySeedUsers)
-	if err != nil {
-		t.Fatalf(fmtErrSeed, err)
-	}
+	tx := setup(t)
 
 	ctx := context.Background()
-	txCtx := db.NewContextWithTx(ctx, tx)
 
-	repo := user.NewRepository(conn)
+	repo := user.NewRepository(tx)
 	verifiedAt := time.Date(2025, time.May, 9, 20, 0, 0, 0, time.Local)
 	wantUser := &user.User{
 		Model: model.Model{
@@ -183,7 +177,7 @@ func TestIntegrationRepository_FindByEmail(t *testing.T) {
 		PasswordHash: "$2a$10$e0MYzXyjpJS7Pd0RVvHwHeFx4fQnhdQnZZF9uG6x1Z1ZzR12uLh9e",
 		VerifiedAt:   &verifiedAt,
 	}
-	u, err := repo.FindByEmail(txCtx, mockEmail)
+	u, err := repo.FindByEmail(ctx, mockEmail)
 	if err != nil {
 		t.Fatalf("failed to find user: %v", err)
 	}
@@ -196,13 +190,6 @@ func TestIntegrationRepository_FindByEmail(t *testing.T) {
 func TestIntegrationRepository_Create(t *testing.T) {
 	t.Parallel()
 
-	conn, tx := db.Setup(t)
-
-	_, err := tx.Exec(querySeedUsers)
-	if err != nil {
-		t.Fatalf(fmtErrSeed, err)
-	}
-
 	tests := []struct {
 		name   string
 		params user.CreateParams
@@ -214,7 +201,6 @@ func TestIntegrationRepository_Create(t *testing.T) {
 				Email:    "agnis@example.com",
 				Password: "hashed",
 			},
-			err: err,
 		},
 		{
 			name: "duplicate user should return error",
@@ -227,11 +213,11 @@ func TestIntegrationRepository_Create(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			tx := setup(t)
 			ctx := context.Background()
-			txCtx := db.NewContextWithTx(ctx, tx)
 
-			repo := user.NewRepository(conn)
-			u, err := repo.Create(txCtx, tc.params)
+			repo := user.NewRepository(tx)
+			u, err := repo.Create(ctx, tc.params)
 			if err != nil {
 				if tc.err == nil {
 					t.Fatalf("failed to create user: %v", err)
@@ -261,13 +247,6 @@ func TestIntegrationRepository_Create(t *testing.T) {
 func TestIntegrationRepository_Delete(t *testing.T) {
 	t.Parallel()
 
-	conn, tx := db.Setup(t)
-
-	_, err := tx.Exec(querySeedUsers)
-	if err != nil {
-		t.Fatalf(fmtErrSeed, err)
-	}
-
 	tests := []struct {
 		name, userID string
 		err          error
@@ -285,10 +264,9 @@ func TestIntegrationRepository_Delete(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			txCtx := db.NewContextWithTx(ctx, tx)
-
-			userRepo := user.NewRepository(conn)
-			err := userRepo.Delete(txCtx, tc.userID)
+			tx := setup(t)
+			userRepo := user.NewRepository(tx)
+			err := userRepo.Delete(ctx, tc.userID)
 			if err != nil {
 				if tc.err == nil {
 					t.Fatalf("failed to delete user: %v", err)
@@ -313,22 +291,15 @@ func TestIntegrationRepository_Delete(t *testing.T) {
 func TestIntegrationRepository_Update(t *testing.T) {
 	t.Parallel()
 
-	conn, tx := db.Setup(t)
-
-	_, err := tx.Exec(querySeedUsers)
-	if err != nil {
-		t.Fatalf(fmtErrSeed, err)
-	}
-
 	ctx := context.Background()
-	txCtx := db.NewContextWithTx(ctx, tx)
+	tx := setup(t)
 
-	userRepo := user.NewRepository(conn)
+	userRepo := user.NewRepository(tx)
 	currentTimestamp := time.Now().Truncate(time.Microsecond)
 	updates := &user.User{
 		VerifiedAt: &currentTimestamp,
 	}
-	if err := userRepo.Update(txCtx, updates, mockUserID); err != nil {
+	if err := userRepo.Update(ctx, updates, mockUserID); err != nil {
 		t.Fatalf("failed to update user: %v", err)
 	}
 
