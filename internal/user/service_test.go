@@ -98,10 +98,7 @@ func TestService_List(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
-			if err != nil {
-				t.Fatal(err)
-			}
+			hasher := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
 
 			svc := user.NewService(tt.repo, hasher)
 

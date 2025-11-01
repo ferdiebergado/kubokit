@@ -19,10 +19,8 @@ func TestGolangJWTSigner_Sign(t *testing.T) {
 		TTL:        timex.Duration{Duration: 15 * time.Minute},
 		RefreshTTL: timex.Duration{Duration: 7 * 24 * time.Hour},
 	}
-	signer, err := jwt.NewGolangJWTSigner(cfg, key)
-	if err != nil {
-		t.Fatal(err)
-	}
+	signer := jwt.NewGolangJWTSigner(cfg, key)
+
 	userID := "user1"
 	audience := []string{"example.com"}
 	duration := cfg.TTL.Duration
@@ -38,16 +36,15 @@ func TestGolangJWTSigner_Sign(t *testing.T) {
 
 func TestGolangJWTSigner_Verify(t *testing.T) {
 	const key = "123"
+
 	cfg := &config.JWT{
 		JTILength:  8,
 		Issuer:     "example.com",
 		TTL:        timex.Duration{Duration: 15 * time.Minute},
 		RefreshTTL: timex.Duration{Duration: 7 * 24 * time.Hour},
 	}
-	signer, err := jwt.NewGolangJWTSigner(cfg, key)
-	if err != nil {
-		t.Fatal(err)
-	}
+	signer := jwt.NewGolangJWTSigner(cfg, key)
+
 	userID := "user1"
 	audience := []string{"example.com"}
 	duration := cfg.TTL.Duration

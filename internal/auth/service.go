@@ -63,37 +63,18 @@ type ServiceProvider struct {
 	UserRepo user.Repository
 }
 
-func NewService(repo Repository, provider *ServiceProvider) (Service, error) {
-	cfgApp := provider.CfgApp
-	if cfgApp == nil {
-		return nil, errors.New("app config is required")
-	}
-
-	cfgEmail := provider.CfgEmail
-	if cfgEmail == nil {
-		return nil, errors.New("email config is required")
-	}
-
-	cfgJWT := provider.CfgJWT
-	if cfgJWT == nil {
-		return nil, errors.New("jwt config is required")
-	}
-
-	clientURL := cfgApp.ClientURL
-
-	svc := &service{
+func NewService(repo Repository, provider *ServiceProvider) *service {
+	return &service{
 		repo:      repo,
 		userRepo:  provider.UserRepo,
 		hasher:    provider.Hasher,
 		mailer:    provider.Mailer,
 		signer:    provider.Signer,
 		txManager: provider.Txmgr,
-		clientURL: clientURL,
-		cfgJWT:    cfgJWT,
-		cfgEmail:  cfgEmail,
+		clientURL: provider.CfgApp.URL,
+		cfgJWT:    provider.CfgJWT,
+		cfgEmail:  provider.CfgEmail,
 	}
-
-	return svc, nil
 }
 
 var _ Service = &service{}

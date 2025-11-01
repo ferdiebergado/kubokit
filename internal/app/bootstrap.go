@@ -62,20 +62,14 @@ func Run() error {
 	defer dbConn.Close()
 
 	securityKey := cfg.App.Key
-	signer, err := jwt.NewGolangJWTSigner(cfg.JWT, securityKey)
-	if err != nil {
-		return fmt.Errorf("new jwt signer: %w", err)
-	}
+	signer := jwt.NewGolangJWTSigner(cfg.JWT, securityKey)
 
 	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
 	if err != nil {
 		return fmt.Errorf("new mailer: %w", err)
 	}
 
-	hasher, err := security.NewArgon2Hasher(cfg.Argon2, securityKey)
-	if err != nil {
-		return fmt.Errorf("new hasher: %w", err)
-	}
+	hasher := security.NewArgon2Hasher(cfg.Argon2, securityKey)
 
 	validator := validation.NewGoPlaygroundValidator()
 	txMgr := db.NewSQLTxManager(dbConn)
@@ -95,15 +89,9 @@ func Run() error {
 		Txmgr:    txMgr,
 		UserRepo: userRepo,
 	}
-	authService, err := auth.NewService(authRepo, authServiceProvider)
-	if err != nil {
-		return fmt.Errorf("new service: %w", err)
-	}
+	authService := auth.NewService(authRepo, authServiceProvider)
 
-	authHandler, err := auth.NewHandler(authService, cfg.JWT, cfg.Cookie)
-	if err != nil {
-		return fmt.Errorf("new auth handler: %w", err)
-	}
+	authHandler := auth.NewHandler(authService, cfg.JWT, cfg.Cookie)
 
 	middlewares := []func(http.Handler) http.Handler{
 		middleware.InjectWriter,

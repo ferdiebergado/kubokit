@@ -134,10 +134,7 @@ func TestService_Register(t *testing.T) {
 				UserRepo: tc.repo,
 			}
 
-			svc, err := auth.NewService(&auth.StubRepo{}, mockProvider)
-			if err != nil {
-				t.Fatalf("failed to create auth service")
-			}
+			svc := auth.NewService(&auth.StubRepo{}, mockProvider)
 
 			mockParams := auth.RegisterParams{
 				Email:    mockEmail,
@@ -226,11 +223,9 @@ func TestService_Verify(t *testing.T) {
 				Signer:   signer,
 			}
 
-			svc, err := auth.NewService(tc.repo, mockProvider)
-			if err != nil {
-				t.Fatalf("failed to create auth service: %v", err)
-			}
+			svc := auth.NewService(tc.repo, mockProvider)
 
+			var err error
 			mockToken := tc.token
 			if mockToken == "" {
 				mockToken, err = signer.Sign("user1", []string{"/verify"}, mockJWTCfg.TTL.Duration)
@@ -296,17 +291,14 @@ func TestService_ResetPassword(t *testing.T) {
 				Hasher:   createHasher(t),
 			}
 
-			svc, err := auth.NewService(tc.repo, provider)
-			if err != nil {
-				t.Fatalf("failed to create auth service: %v", err)
-			}
+			svc := auth.NewService(tc.repo, provider)
 
 			mockParams := auth.ResetPasswordParams{
 				UserID:   "1",
 				Password: "test",
 			}
 
-			err = svc.ResetPassword(context.Background(), mockParams)
+			err := svc.ResetPassword(context.Background(), mockParams)
 			if err != nil {
 				if tc.wantErr == nil {
 					t.Fatal("auth service should not return an error")
@@ -329,12 +321,7 @@ func TestService_ResetPassword(t *testing.T) {
 func createHasher(t *testing.T) *security.Argon2Hasher {
 	t.Helper()
 
-	hasher, err := security.NewArgon2Hasher(mockArgon2Cfg, "paminta")
-	if err != nil {
-		t.Fatalf("failed to create hasher: %v", err)
-	}
-
-	return hasher
+	return security.NewArgon2Hasher(mockArgon2Cfg, "paminta")
 }
 
 func createMailer(t *testing.T) *email.SMTPMailer {
@@ -351,10 +338,5 @@ func createMailer(t *testing.T) *email.SMTPMailer {
 func createSigner(t *testing.T) *jwt.GolangJWTSigner {
 	t.Helper()
 
-	signer, err := jwt.NewGolangJWTSigner(mockJWTCfg, mockAppCfg.Key)
-	if err != nil {
-		t.Fatalf("failed to create signer: %v", err)
-	}
-
-	return signer
+	return jwt.NewGolangJWTSigner(mockJWTCfg, mockAppCfg.Key)
 }

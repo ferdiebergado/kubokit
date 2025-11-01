@@ -1,7 +1,6 @@
 package jwt
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -25,19 +24,13 @@ type GolangJWTSigner struct {
 }
 
 // NewGolangJWTSigner creates a new GolangJWTSigner with the provided JWT config and signing key.
-func NewGolangJWTSigner(cfg *config.JWT, key string) (*GolangJWTSigner, error) {
-	if cfg == nil || key == "" {
-		return nil, errors.New("config or key should not be nil or empty")
-	}
-
-	signer := &GolangJWTSigner{
+func NewGolangJWTSigner(cfg *config.JWT, key string) *GolangJWTSigner {
+	return &GolangJWTSigner{
 		method: jwt.SigningMethodHS256,
 		key:    key,
 		jtiLen: cfg.JTILength,
 		issuer: cfg.Issuer,
 	}
-
-	return signer, nil
 }
 
 // Sign generates a signed JWT token with the given subject, audience, and duration.

@@ -2,7 +2,6 @@ package email
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -27,9 +26,6 @@ type SMTPMailer struct {
 }
 
 func NewSMTPMailer(smtpCfg *config.SMTP, emailCfg *config.Email) (*SMTPMailer, error) {
-	if smtpCfg == nil || emailCfg == nil {
-		return nil, errors.New("smtp and email config should not be nil")
-	}
 	path := emailCfg.Templates
 	layoutFile := filepath.Join(path, emailCfg.Layout)
 	tmplMap, err := parsePages(path, layoutFile)

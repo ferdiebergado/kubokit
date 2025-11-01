@@ -97,10 +97,7 @@ func TestHandler_Register(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler, err := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
-			if err != nil {
-				t.Fatalf("Failed to create the handler: %v", err)
-			}
+			handler := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
 
 			mockRequest := auth.RegisterRequest{
 				Email:           mockEmail,
@@ -246,10 +243,7 @@ func TestHandler_Login(t *testing.T) {
 				Name: cookieName,
 			}
 
-			handler, err := auth.NewHandler(tc.service, cfgJWT, cfgCookie)
-			if err != nil {
-				t.Fatalf("Failed to create handler: %v", err)
-			}
+			handler := auth.NewHandler(tc.service, cfgJWT, cfgCookie)
 
 			params := auth.LoginRequest{
 				Email:    mockEmail,
@@ -343,10 +337,7 @@ func TestHandler_Verify(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler, err := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
-			if err != nil {
-				t.Fatalf("Failed to create the handler: %v", err)
-			}
+			handler := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
 
 			mockRequest := auth.VerifyRequest{
 				Token: "mock_token",
@@ -451,10 +442,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler, err := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
-			if err != nil {
-				t.Fatalf("Failed to create the handler: %v", err)
-			}
+			handler := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
 
 			params := auth.ChangePasswordRequest{
 				CurrentPassword: "mock_current_password",
@@ -623,10 +611,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			cfgCookie := &config.Cookie{
 				Name: cookieName,
 			}
-			handler, err := auth.NewHandler(tc.service, cfgJWT, cfgCookie)
-			if err != nil {
-				t.Fatalf("Failed to create auth handler: %v", err)
-			}
+			handler := auth.NewHandler(tc.service, cfgJWT, cfgCookie)
 
 			req := httptest.NewRequest(http.MethodPost, "/refresh", http.NoBody)
 			if tc.refreshCookie != nil {
@@ -767,10 +752,7 @@ func TestHandler_Logout(t *testing.T) {
 			cfgCookie := &config.Cookie{
 				Name: cookieName,
 			}
-			handler, err := auth.NewHandler(tc.service, &config.JWT{}, cfgCookie)
-			if err != nil {
-				t.Fatalf("failed to create auth handler: %v", err)
-			}
+			handler := auth.NewHandler(tc.service, &config.JWT{}, cfgCookie)
 
 			ctx := context.Background()
 			if tc.params != nil {
@@ -849,10 +831,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler, err := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
-			if err != nil {
-				t.Fatalf("failed to create auth handler: %v", err)
-			}
+			handler := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
 
 			params := auth.ResetPasswordRequest{
 				Password:        "mock_password",

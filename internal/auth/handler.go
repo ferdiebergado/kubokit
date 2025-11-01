@@ -44,26 +44,12 @@ type Handler struct {
 	cfgCookie *config.Cookie
 }
 
-func NewHandler(svc Service, cfgJWT *config.JWT, cfgCookie *config.Cookie) (*Handler, error) {
-	if svc == nil {
-		return nil, errors.New("service is required")
-	}
-
-	if cfgJWT == nil {
-		return nil, errors.New("jwt config is required")
-	}
-
-	if cfgCookie == nil {
-		return nil, errors.New("cookie config is required")
-	}
-
-	handler := &Handler{
+func NewHandler(svc Service, cfgJWT *config.JWT, cfgCookie *config.Cookie) *Handler {
+	return &Handler{
 		svc:       svc,
 		cfgJWT:    cfgJWT,
 		cfgCookie: cfgCookie,
 	}
-
-	return handler, nil
 }
 
 type ResetPasswordRequest struct {

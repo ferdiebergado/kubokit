@@ -19,10 +19,8 @@ func TestArgon2Hasher_Hash(t *testing.T) {
 		KeyLength:  32,
 	}
 	pepper := "paminta"
-	hasher, err := security.NewArgon2Hasher(opts, pepper)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hasher := security.NewArgon2Hasher(opts, pepper)
+
 	plain := "rice"
 	hashed, err := hasher.Hash(plain)
 	if err != nil {
@@ -63,10 +61,7 @@ func TestArgon2Hasher_Verify(t *testing.T) {
 				KeyLength:  32,
 			}
 			pepper := "paminta"
-			hasher, err := security.NewArgon2Hasher(opts, pepper)
-			if err != nil {
-				t.Fatal(err)
-			}
+			hasher := security.NewArgon2Hasher(opts, pepper)
 			hashed, err := hasher.Hash(tt.hashed)
 			if err != nil {
 				t.Fatal(err)

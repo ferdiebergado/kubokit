@@ -43,15 +43,9 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 		t.Fatalf("connect db: %v", err)
 	}
 
-	signer, err := jwt.NewGolangJWTSigner(cfg.JWT, "testsecret")
-	if err != nil {
-		t.Fatalf("new jwt signer: %v", err)
-	}
+	signer := jwt.NewGolangJWTSigner(cfg.JWT, "testsecret")
 
-	hasher, err := security.NewArgon2Hasher(cfg.Argon2, "testsecret")
-	if err != nil {
-		t.Fatalf("new hasher: %v", err)
-	}
+	hasher := security.NewArgon2Hasher(cfg.Argon2, "testsecret")
 
 	mailer := &email.SMTPMailer{}
 	validator := validation.NewGoPlaygroundValidator()
@@ -72,15 +66,9 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 		Txmgr:    txMgr,
 		UserRepo: userRepo,
 	}
-	authSvc, err := auth.NewService(authRepo, authSvcProvider)
-	if err != nil {
-		t.Fatalf("failed to create new auth service: %v", err)
-	}
+	authSvc := auth.NewService(authRepo, authSvcProvider)
 
-	authHandler, err := auth.NewHandler(authSvc, cfg.JWT, cfg.Cookie)
-	if err != nil {
-		t.Fatalf("failed to create new auth handler: %v", err)
-	}
+	authHandler := auth.NewHandler(authSvc, cfg.JWT, cfg.Cookie)
 
 	middlewares := []func(http.Handler) http.Handler{}
 	provider := &app.Provider{
