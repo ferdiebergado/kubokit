@@ -19,14 +19,19 @@ import (
 )
 
 const (
-	testEmail = "test@example.com"
-	testPass  = "test"
+	mockEmail    = "test@example.com"
+	mockPassword = "test"
+	cookieName   = "refresh_token"
+	maxAge       = 1000
+	accessToken  = "mock_access_token"
+	refreshToken = "mock_refresh_token"
+	userID       = "1"
 )
 
 func TestHandler_Register(t *testing.T) {
 	t.Parallel()
 
-	timeStamp := time.Now().Truncate(0)
+	now := time.Now().Truncate(0)
 
 	type testCase struct {
 		name       string
@@ -37,16 +42,16 @@ func TestHandler_Register(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "user does not exists",
+			name: "user does not exist returns 201 with new user",
 			service: &auth.StubService{
 				RegisterFunc: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
 					return user.User{
 						Model: model.Model{
-							ID:        "1",
-							CreatedAt: timeStamp,
-							UpdatedAt: timeStamp,
+							ID:        userID,
+							CreatedAt: now,
+							UpdatedAt: now,
 						},
-						Email:        testEmail,
+						Email:        mockEmail,
 						PasswordHash: "hashed",
 					}, nil
 				},
@@ -55,15 +60,15 @@ func TestHandler_Register(t *testing.T) {
 			wantBody: map[string]any{
 				"message": auth.MsgRegisterSuccess,
 				"data": map[string]any{
-					"id":         "1",
-					"email":      testEmail,
-					"created_at": timeStamp.Format(time.RFC3339Nano),
-					"updated_at": timeStamp.Format(time.RFC3339Nano),
+					"id":         userID,
+					"email":      mockEmail,
+					"created_at": now.Format(time.RFC3339Nano),
+					"updated_at": now.Format(time.RFC3339Nano),
 				},
 			},
 		},
 		{
-			name: "user exists",
+			name: "user exists returns 409",
 			service: &auth.StubService{
 				RegisterFunc: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
 					return user.User{}, user.ErrDuplicate
@@ -75,7 +80,7 @@ func TestHandler_Register(t *testing.T) {
 			},
 		},
 		{
-			name: "service failure",
+			name: "service failure returns 500",
 			service: &auth.StubService{
 				RegisterFunc: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
 					return user.User{}, errors.New("service failed")
@@ -98,9 +103,9 @@ func TestHandler_Register(t *testing.T) {
 			}
 
 			mockRequest := auth.RegisterRequest{
-				Email:           testEmail,
-				Password:        testPass,
-				PasswordConfirm: testPass,
+				Email:           mockEmail,
+				Password:        mockPassword,
+				PasswordConfirm: mockPassword,
 			}
 
 			ctx := web.NewContextWithParams(context.Background(), mockRequest)
@@ -128,13 +133,6 @@ func TestHandler_Register(t *testing.T) {
 func TestHandler_Login(t *testing.T) {
 	t.Parallel()
 
-	const (
-		cookieName   = "refresh_token"
-		maxAge       = 1000
-		accessToken  = "mock_access_token"
-		refreshToken = "mock_refresh_token"
-	)
-
 	type testCase struct {
 		name       string
 		service    auth.Service
@@ -145,7 +143,7 @@ func TestHandler_Login(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "verified user with correct password should return session and cookie",
+			name: "verified user with correct password returns 200 with session and cookie",
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 					return &auth.Session{
@@ -154,8 +152,8 @@ func TestHandler_Login(t *testing.T) {
 						ExpiresIn:    maxAge,
 						TokenType:    "Bearer",
 						User: &auth.UserInfo{
-							ID:    "1",
-							Email: testEmail,
+							ID:    userID,
+							Email: mockEmail,
 						},
 					}, nil
 				},
@@ -169,8 +167,8 @@ func TestHandler_Login(t *testing.T) {
 					"expires_in":    float64(1000),
 					"token_type":    "Bearer",
 					"user": map[string]any{
-						"id":    "1",
-						"email": testEmail,
+						"id":    userID,
+						"email": mockEmail,
 					},
 				},
 			},
@@ -185,7 +183,7 @@ func TestHandler_Login(t *testing.T) {
 			},
 		},
 		{
-			name: "unverified user with correct password should return error and no cookie",
+			name: "unverified user with correct password returns 401",
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 					return &auth.Session{}, auth.ErrNotVerified
@@ -200,7 +198,7 @@ func TestHandler_Login(t *testing.T) {
 			},
 		},
 		{
-			name: "non-existent user should return error and no cookie",
+			name: "user does not exist returns 401",
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 					return &auth.Session{}, auth.ErrUserNotFound
@@ -212,7 +210,7 @@ func TestHandler_Login(t *testing.T) {
 			},
 		},
 		{
-			name: "verified user with incorrect password should return error and no cookie",
+			name: "verified user with incorrect password returns 401",
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 					return &auth.Session{}, auth.ErrIncorrectPassword
@@ -224,7 +222,7 @@ func TestHandler_Login(t *testing.T) {
 			},
 		},
 		{
-			name: "service failure should return error and no cookie",
+			name: "service failure returns 500",
 			service: &auth.StubService{
 				LoginFunc: func(ctx context.Context, params auth.LoginParams) (*auth.Session, error) {
 					return &auth.Session{}, errors.New("service failed")
@@ -254,8 +252,8 @@ func TestHandler_Login(t *testing.T) {
 			}
 
 			params := auth.LoginRequest{
-				Email:    testEmail,
-				Password: testPass,
+				Email:    mockEmail,
+				Password: mockPassword,
 			}
 			ctx := web.NewContextWithParams(context.Background(), params)
 			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/login", http.NoBody)
@@ -304,7 +302,7 @@ func TestHandler_Verify(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "valid verification token",
+			name: "valid verification token returns 200",
 			service: &auth.StubService{
 				VerifyFunc: func(ctx context.Context, token string) error {
 					return nil
@@ -316,7 +314,7 @@ func TestHandler_Verify(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid verification token",
+			name: "invalid verification token returns 401",
 			service: &auth.StubService{
 				VerifyFunc: func(ctx context.Context, token string) error {
 					return auth.ErrInvalidToken
@@ -328,7 +326,7 @@ func TestHandler_Verify(t *testing.T) {
 			},
 		},
 		{
-			name: "service failure",
+			name: "service failure returns 500",
 			service: &auth.StubService{
 				VerifyFunc: func(ctx context.Context, token string) error {
 					return errors.New("service failed")
@@ -388,20 +386,20 @@ func TestHandler_ChangePassword(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "password change success",
+			name: "user exists returns 200",
 			service: &auth.StubService{
 				ChangePasswordFunc: func(ctx context.Context, params auth.ChangePasswordParams) error {
 					return nil
 				},
 			},
-			userID:     "1",
+			userID:     userID,
 			wantStatus: http.StatusOK,
 			wantBody: map[string]any{
 				"message": auth.MsgSuccessPasswordChanged,
 			},
 		},
 		{
-			name:       "user is not authenticated",
+			name:       "user is not logged-in returns 401",
 			service:    &auth.StubService{},
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
@@ -409,39 +407,39 @@ func TestHandler_ChangePassword(t *testing.T) {
 			},
 		},
 		{
-			name: "user does not exists",
+			name: "user does not exist returns 401",
 			service: &auth.StubService{
 				ChangePasswordFunc: func(ctx context.Context, params auth.ChangePasswordParams) error {
 					return auth.ErrUserNotFound
 				},
 			},
-			userID:     "1",
+			userID:     userID,
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
 				"message": auth.MsgInvalidUser,
 			},
 		},
 		{
-			name: "current password is incorrect",
+			name: "incorrect current password returns 401",
 			service: &auth.StubService{
 				ChangePasswordFunc: func(ctx context.Context, params auth.ChangePasswordParams) error {
 					return auth.ErrIncorrectPassword
 				},
 			},
-			userID:     "1",
+			userID:     userID,
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
 				"message": auth.MsgInvalidUser,
 			},
 		},
 		{
-			name: "service failure",
+			name: "service failure returns 500",
 			service: &auth.StubService{
 				ChangePasswordFunc: func(ctx context.Context, params auth.ChangePasswordParams) error {
 					return errors.New("service failed")
 				},
 			},
-			userID:     "1",
+			userID:     userID,
 			wantStatus: http.StatusInternalServerError,
 			wantBody: map[string]any{
 				"message": message.UnexpectedErr,
@@ -490,13 +488,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 	t.Parallel()
 
 	const (
-		accessToken  = "mock_access_token"
-		refreshToken = "mock_refresh_token"
-		tokenType    = "Bearer"
-		maxAge       = 1000
-		userID       = "1"
-		userEmail    = "abc@example.com"
-		cookieName   = "refresh_token"
+		tokenType = "Bearer"
 	)
 
 	type testCase struct {
@@ -510,7 +502,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "valid refresh cookie",
+			name: "valid refresh cookie returns ok with new session",
 			service: &auth.StubService{
 				RefreshTokenFunc: func(ctx context.Context, token string) (*auth.Session, error) {
 					return &auth.Session{
@@ -520,7 +512,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 						TokenType:    tokenType,
 						User: &auth.UserInfo{
 							ID:    userID,
-							Email: userEmail,
+							Email: mockEmail,
 						},
 					}, nil
 				},
@@ -544,7 +536,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 					"expires_in":    float64(maxAge),
 					"user": map[string]any{
 						"id":    userID,
-						"email": userEmail,
+						"email": mockEmail,
 					},
 				},
 			},
@@ -559,7 +551,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			},
 		},
 		{
-			name:       "missing refresh cookie",
+			name:       "missing refresh cookie returns 401",
 			service:    &auth.StubService{},
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
@@ -567,7 +559,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			},
 		},
 		{
-			name:       "empty refresh cookie value",
+			name:       "empty refresh cookie value returns 401",
 			service:    &auth.StubService{},
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
@@ -575,7 +567,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid refresh token",
+			name: "invalid refresh token returns 401",
 			service: &auth.StubService{
 				RefreshTokenFunc: func(ctx context.Context, token string) (*auth.Session, error) {
 					return nil, auth.ErrInvalidToken
@@ -587,7 +579,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			},
 		},
 		{
-			name: "user does not exists",
+			name: "user does not exists returns 401",
 			service: &auth.StubService{
 				RefreshTokenFunc: func(ctx context.Context, token string) (*auth.Session, error) {
 					return nil, user.ErrNotFound
@@ -599,7 +591,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			},
 		},
 		{
-			name: "service failure",
+			name: "service failure returns 500",
 			service: &auth.StubService{
 				RefreshTokenFunc: func(ctx context.Context, token string) (*auth.Session, error) {
 					return nil, errors.New("service failed")
@@ -691,7 +683,7 @@ func TestHandler_Logout(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "valid access token",
+			name: "valid access token returns 204 and deletes cookie",
 			service: &auth.StubService{
 				LogoutFunc: func(ctx context.Context, token string) error {
 					return nil
@@ -713,7 +705,7 @@ func TestHandler_Logout(t *testing.T) {
 			},
 		},
 		{
-			name:       "empty access token",
+			name:       "empty access token returns 401",
 			service:    &auth.StubService{},
 			params:     &auth.LogoutRequest{},
 			wantStatus: http.StatusUnauthorized,
@@ -722,7 +714,7 @@ func TestHandler_Logout(t *testing.T) {
 			},
 		},
 		{
-			name: "malformed access token",
+			name: "malformed access token returns 401",
 			service: &auth.StubService{
 				LogoutFunc: func(ctx context.Context, token string) error {
 					return auth.ErrInvalidToken
@@ -737,7 +729,7 @@ func TestHandler_Logout(t *testing.T) {
 			},
 		},
 		{
-			name: "user does not exists",
+			name: "user does not exist returns 401",
 			service: &auth.StubService{
 				LogoutFunc: func(ctx context.Context, token string) error {
 					return auth.ErrUserNotFound
@@ -752,7 +744,7 @@ func TestHandler_Logout(t *testing.T) {
 			},
 		},
 		{
-			name: "service failure",
+			name: "service failure returns 500",
 			service: &auth.StubService{
 				LogoutFunc: func(ctx context.Context, token string) error {
 					return errors.New("query failed")
@@ -828,7 +820,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "existing should return ok",
+			name: "user exists returns 200",
 			service: &auth.StubService{
 				ResetPasswordFunc: func(ctx context.Context, params auth.ResetPasswordParams) error {
 					return nil
@@ -840,7 +832,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 			},
 		},
 		{
-			name: "non-existent user should return error",
+			name: "user does not exist returns 401",
 			service: &auth.StubService{
 				ResetPasswordFunc: func(ctx context.Context, params auth.ResetPasswordParams) error {
 					return auth.ErrUserNotFound
