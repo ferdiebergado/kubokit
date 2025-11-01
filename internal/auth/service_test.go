@@ -187,6 +187,22 @@ func TestService_Verify(t *testing.T) {
 
 	errMockRepoFailure := errors.New("query failed")
 
+	mockConfig := &config.Config{
+		App: &config.App{Key: "123"},
+		JWT: &config.JWT{
+			JTILength:  8,
+			Issuer:     "localhost",
+			TTL:        timex.Duration{Duration: 5 * time.Minute},
+			RefreshTTL: timex.Duration{Duration: 10 * time.Minute},
+		},
+		Email: &config.Email{},
+	}
+
+	signer, err := jwt.NewGolangJWTSigner(mockConfig.JWT, mockConfig.App.Key)
+	if err != nil {
+		t.Fatalf("failed to create signer: %v", err)
+	}
+
 	type testCase struct {
 		name    string
 		repo    auth.Repository
@@ -196,7 +212,7 @@ func TestService_Verify(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "valid verification token should return no error",
+			name: "valid verification token returns no error",
 			repo: &auth.StubRepo{
 				VerifyFunc: func(ctx context.Context, userID string) error {
 					return nil
@@ -204,13 +220,13 @@ func TestService_Verify(t *testing.T) {
 			},
 		},
 		{
-			name:    "invalid verification token should return error",
+			name:    "invalid verification token returns error",
 			repo:    &auth.StubRepo{},
 			token:   "mock_token",
 			wantErr: auth.ErrInvalidToken,
 		},
 		{
-			name: "non-existent user should return error",
+			name: "user does not exist returns error",
 			repo: &auth.StubRepo{
 				VerifyFunc: func(ctx context.Context, userID string) error {
 					return auth.ErrUserNotFound
@@ -219,7 +235,7 @@ func TestService_Verify(t *testing.T) {
 			wantErr: auth.ErrUserNotFound,
 		},
 		{
-			name: "repo failure should return error",
+			name: "repo failure returns error",
 			repo: &auth.StubRepo{
 				VerifyFunc: func(ctx context.Context, userID string) error {
 					return errMockRepoFailure
@@ -232,22 +248,6 @@ func TestService_Verify(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-
-			mockConfig := &config.Config{
-				App: &config.App{Key: "123"},
-				JWT: &config.JWT{
-					JTILength:  8,
-					Issuer:     "localhost",
-					TTL:        timex.Duration{Duration: 5 * time.Minute},
-					RefreshTTL: timex.Duration{Duration: 10 * time.Minute},
-				},
-				Email: &config.Email{},
-			}
-
-			signer, err := jwt.NewGolangJWTSigner(mockConfig.JWT, mockConfig.App.Key)
-			if err != nil {
-				t.Fatalf("failed to create signer: %v", err)
-			}
 
 			mockProvider := &auth.ServiceProvider{
 				CfgApp:   mockConfig.App,
@@ -270,7 +270,6 @@ func TestService_Verify(t *testing.T) {
 			}
 
 			err = svc.Verify(context.Background(), mockToken)
-
 			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("svc.Verify(context.Background(), mockToken) = %v, want: %v", err, tc.wantErr)
 			}
