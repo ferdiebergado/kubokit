@@ -49,7 +49,7 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 
 	mailer := &email.SMTPMailer{}
 	validator := validation.NewGoPlaygroundValidator()
-	txMgr := db.NewSQLTxManager(conn)
+	txMgr := db.NewTxManager(conn)
 
 	userRepo := user.NewRepository(conn)
 	userSvc := user.NewService(userRepo)

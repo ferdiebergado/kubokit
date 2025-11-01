@@ -72,7 +72,7 @@ func Run() error {
 	hasher := security.NewArgon2Hasher(cfg.Argon2, securityKey)
 
 	validator := validation.NewGoPlaygroundValidator()
-	txMgr := db.NewSQLTxManager(dbConn)
+	txMgr := db.NewTxManager(dbConn)
 
 	userRepo := user.NewRepository(dbConn)
 	userService := user.NewService(userRepo)

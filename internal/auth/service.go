@@ -49,7 +49,7 @@ type service struct {
 	cfgJWT    *config.JWT
 	cfgEmail  *config.Email
 	clientURL string
-	txManager db.TxManager
+	txManager *db.TxManager
 }
 
 type ServiceProvider struct {
@@ -59,7 +59,7 @@ type ServiceProvider struct {
 	Hasher   *security.Argon2Hasher
 	Mailer   *email.SMTPMailer
 	Signer   Signer
-	Txmgr    db.TxManager
+	Txmgr    *db.TxManager
 	UserRepo user.Repository
 }
 
@@ -77,7 +77,7 @@ func NewService(repo Repository, provider *ServiceProvider) *service {
 	}
 }
 
-var _ Service = &service{}
+var _ Service = (*service)(nil)
 
 type RegisterParams struct {
 	Email    string
@@ -327,20 +327,6 @@ func (s *service) ChangePassword(ctx context.Context, params ChangePasswordParam
 	}
 
 	return nil
-}
-
-func (s *service) PerformAtomicOperation(ctx context.Context, userID string) error {
-	return s.txManager.RunInTx(ctx, func(txCtx context.Context) error {
-		// All calls within this func will use the same transaction
-		// if err := s.repo.VerifyUser(txCtx, userID); err != nil {
-		// 	return err
-		// }
-		// if err := s.repo.ChangeUserPassword(txCtx, userID, "1"); err != nil {
-		// 	return err
-		// }
-		// If both succeed, the transaction commits. If either fails, it rolls back.
-		return nil
-	})
 }
 
 func (s *service) RefreshToken(ctx context.Context, token string) (*Session, error) {
