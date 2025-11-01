@@ -13,165 +13,170 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/email"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
-	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
 const (
 	configFile = "../../config.json"
-	user1      = "user1@example.com"
 )
 
 func TestService_Register(t *testing.T) {
 	t.Parallel()
 
+	const (
+		mockEmail    = "test@example.com"
+		mockPassword = "test"
+		mockAppEmail = "app@example.com"
+	)
+
+	errMockRepoFailure := errors.New("query failed")
+
 	now := time.Now().Truncate(0)
 
-	cfg := &config.Config{
-		App: &config.App{
-			URL: "localhost:8888",
-			Key: "123",
+	mockUser := user.User{
+		Model: model.Model{
+			ID:        "1",
+			Metadata:  []byte{},
+			CreatedAt: now,
+			UpdatedAt: now,
 		},
-		Server: &config.Server{
-			Port: 8888,
-		},
+		Email:        mockEmail,
+		PasswordHash: "mock_hashed",
+	}
+
+	mockConfig := &config.Config{
 		Argon2: &config.Argon2{
-			Memory:     1024,
+			Memory:     64,
 			Iterations: 1,
 			Threads:    1,
 			SaltLength: 8,
 			KeyLength:  8,
 		},
 		SMTP: &config.SMTP{
-			Host:     "",
-			Port:     0,
-			User:     user1,
-			Password: "",
+			Host:     "localhost",
+			Port:     1025,
+			User:     mockAppEmail,
+			Password: "mock_email_password",
 		},
 		Email: &config.Email{
 			Templates: "../../web/templates",
 			Layout:    "layout.html",
-			Sender:    "test@example.com",
+			Sender:    mockAppEmail,
 			VerifyTTL: timex.Duration{Duration: 5 * time.Minute},
 		},
 		JWT: &config.JWT{
 			JTILength:  8,
-			Issuer:     "localhost:8888",
-			TTL:        timex.Duration{Duration: 15 * time.Minute},
-			RefreshTTL: timex.Duration{Duration: 24 * time.Hour},
+			Issuer:     mockAppEmail,
+			TTL:        timex.Duration{Duration: 5 * time.Minute},
+			RefreshTTL: timex.Duration{Duration: 10 * time.Minute},
 		},
+		App: &config.App{Key: "123"},
 	}
 
-	hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
+	hasher, err := security.NewArgon2Hasher(mockConfig.Argon2, "paminta")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to create hasher: %v", err)
 	}
 
-	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
+	mailer, err := email.NewSMTPMailer(mockConfig.SMTP, mockConfig.Email)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to create mailer: %v", err)
 	}
 
-	tests := []struct {
-		name, email, password string
-		userRepo              user.Repository
-		signer                auth.Signer
-		user                  user.User
-		err                   error
-	}{
+	signer, err := jwt.NewGolangJWTSigner(mockConfig.JWT, mockConfig.App.Key)
+	if err != nil {
+		t.Fatalf("failed to create signer: %v", err)
+	}
+
+	mockParams := auth.RegisterParams{
+		Email:    mockEmail,
+		Password: mockPassword,
+	}
+
+	type testCase struct {
+		name     string
+		repo     user.Repository
+		wantUser user.User
+		wantErr  error
+	}
+
+	testCases := []testCase{
 		{
-			name:     "Successful registration",
-			email:    user1,
-			password: "test",
-			userRepo: &user.StubRepo{
-				CreateFunc: func(ctx context.Context, params user.CreateParams) (user.User, error) {
-					return user.User{
-						Model: model.Model{
-							ID:        "1",
-							CreatedAt: now,
-							UpdatedAt: now,
-						},
-						Email: params.Email,
-					}, nil
-				},
+			name: "user does not exist returns new user",
+			repo: &user.StubRepo{
 				FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
 					return nil, user.ErrNotFound
 				},
-			},
-
-			signer: &auth.StubSigner{
-				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
-					return "1", nil
+				CreateFunc: func(ctx context.Context, params user.CreateParams) (user.User, error) {
+					return mockUser, nil
 				},
 			},
-			user: user.User{
-				Model: model.Model{
-					ID:        "1",
-					CreatedAt: now,
-					UpdatedAt: now,
-				},
-				Email: user1,
-			},
+			wantUser: mockUser,
 		},
 		{
-			name:     "User already exists",
-			email:    user1,
-			password: "test",
-			userRepo: &user.StubRepo{
+			name: "user exists returns error",
+			repo: &user.StubRepo{
 				FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
-					return &user.User{
-						Model: model.Model{
-							ID:        "1",
-							CreatedAt: now,
-							UpdatedAt: now,
-						},
-						Email: user1,
-					}, nil
+					return &mockUser, nil
 				},
 			},
-			signer: &auth.StubSigner{},
-			user:   user.User{},
-			err:    auth.ErrUserExists,
+			wantUser: user.User{},
+			wantErr:  auth.ErrUserExists,
+		},
+		{
+			name: "repo failure returns error",
+			repo: &user.StubRepo{
+				FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+					return nil, user.ErrNotFound
+				},
+				CreateFunc: func(ctx context.Context, params user.CreateParams) (user.User, error) {
+					return user.User{}, errMockRepoFailure
+				},
+			},
+			wantUser: user.User{},
+			wantErr:  errMockRepoFailure,
 		},
 	}
-	for _, tc := range tests {
+
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			provider := &auth.ServiceProvider{
-				CfgApp:   cfg.App,
-				CfgJWT:   cfg.JWT,
-				CfgEmail: cfg.Email,
+			mockProvider := &auth.ServiceProvider{
+				CfgApp:   mockConfig.App,
+				CfgJWT:   mockConfig.JWT,
+				CfgEmail: mockConfig.Email,
 				Hasher:   hasher,
 				Mailer:   mailer,
-				Signer:   tc.signer,
-				Txmgr:    &db.StubTxManager{},
-				UserRepo: tc.userRepo,
-			}
-			authSvc, err := auth.NewService(&auth.StubRepo{}, provider)
-			if err != nil {
-				t.Fatal(err)
+				Signer:   signer,
+				UserRepo: tc.repo,
 			}
 
-			ctx := context.Background()
-			params := auth.RegisterParams{
-				Email:    tc.email,
-				Password: tc.password,
-			}
-			gotUser, err := authSvc.Register(ctx, params)
+			svc, err := auth.NewService(&auth.StubRepo{}, mockProvider)
 			if err != nil {
-				if tc.err == nil {
-					t.Fatal(err)
+				t.Fatalf("failed to create auth service")
+			}
+
+			u, err := svc.Register(context.Background(), mockParams)
+			if err != nil {
+				if tc.wantErr == nil {
+					t.Fatal("auth service should not return an error")
 				}
 
-				if !errors.Is(err, tc.err) {
-					t.Errorf("authSvc.Register(ctx, params) = %v, want: %v", err, tc.err)
+				if !errors.Is(err, tc.wantErr) {
+					t.Errorf("svc.Register(context.Background(), params) = %v, want %v", err, tc.wantErr)
 				}
+
+				return
 			}
 
-			if !reflect.DeepEqual(gotUser, tc.user) {
-				t.Errorf("authSvc.Register(ctx, params) = %+v, want: %+v", gotUser, tc.user)
+			if tc.wantErr != nil {
+				t.Fatal("auth service should return an error")
+			}
+
+			if !reflect.DeepEqual(u, tc.wantUser) {
+				t.Errorf("svc.Register(context.Background(), params) = %v, want %v", u, tc.wantUser)
 			}
 		})
 	}
