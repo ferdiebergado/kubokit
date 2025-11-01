@@ -14,7 +14,34 @@ import (
 func TestService_List(t *testing.T) {
 	t.Parallel()
 
+	errMockRepoFailure := errors.New("query failed")
+
 	now := time.Now()
+
+	mockUsers := []user.User{
+		{
+			Model: model.Model{
+				ID:        "1",
+				Metadata:  []byte(`{"role":"admin"}`),
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Email:        "user1@example.com",
+			PasswordHash: "hashed123",
+			VerifiedAt:   &now,
+		},
+		{
+			Model: model.Model{
+				ID:        "2",
+				Metadata:  []byte(`{"role":"user"}`),
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Email:        "user2@example.com",
+			PasswordHash: "hashed456",
+			VerifiedAt:   nil,
+		},
+	}
 
 	tests := []struct {
 		name      string
@@ -23,68 +50,22 @@ func TestService_List(t *testing.T) {
 		wantErr   error
 	}{
 		{
-			name: "success - returns users",
+			name: "success returns users",
 			repo: &user.StubRepo{
 				ListFunc: func(_ context.Context) ([]user.User, error) {
-					return []user.User{
-						{
-							Model: model.Model{
-								ID:        "1",
-								Metadata:  []byte(`{"role":"admin"}`),
-								CreatedAt: now,
-								UpdatedAt: now,
-							},
-							Email:        "a@example.com",
-							PasswordHash: "hashed123",
-							VerifiedAt:   &now,
-						},
-						{
-							Model: model.Model{
-								ID:        "2",
-								Metadata:  []byte(`{"role":"user"}`),
-								CreatedAt: now,
-								UpdatedAt: now,
-							},
-							Email:        "b@example.com",
-							PasswordHash: "hashed456",
-							VerifiedAt:   nil,
-						},
-					}, nil
+					return mockUsers, nil
 				},
 			},
-			wantUsers: []user.User{
-				{
-					Model: model.Model{
-						ID:        "1",
-						Metadata:  []byte(`{"role":"admin"}`),
-						CreatedAt: now,
-						UpdatedAt: now,
-					},
-					Email:        "a@example.com",
-					PasswordHash: "hashed123",
-					VerifiedAt:   &now,
-				},
-				{
-					Model: model.Model{
-						ID:        "2",
-						Metadata:  []byte(`{"role":"user"}`),
-						CreatedAt: now,
-						UpdatedAt: now,
-					},
-					Email:        "b@example.com",
-					PasswordHash: "hashed456",
-					VerifiedAt:   nil,
-				},
-			},
+			wantUsers: mockUsers,
 		},
 		{
-			name: "error - repo fails",
+			name: "repo failure returns error",
 			repo: &user.StubRepo{
 				ListFunc: func(_ context.Context) ([]user.User, error) {
-					return nil, errors.New("db error")
+					return nil, errMockRepoFailure
 				},
 			},
-			wantErr: errors.New("db error"),
+			wantErr: errMockRepoFailure,
 		},
 	}
 
@@ -100,7 +81,7 @@ func TestService_List(t *testing.T) {
 				t.Fatalf("service.List(ctx) = %v, wantErr: %v", err, tt.wantErr)
 			}
 
-			if err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
+			if err != nil && tt.wantErr != nil && !errors.Is(err, tt.wantErr) {
 				t.Fatalf("service.List(ctx) = %v, wantErr: %v", err, tt.wantErr)
 			}
 
