@@ -89,11 +89,11 @@ func TestIntegrationRepository_ChangePassword(t *testing.T) {
 	tests := []struct {
 		name         string
 		passwordHash string
-		email        string
+		userID       string
 		err          error
 	}{
-		{"User exists", "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa", "bob@example.com", nil},
-		{"User does not exists", "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa", "sue@example.com", auth.ErrUserNotFound},
+		{"User exists", "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa", "3d594650-3436-11e5-bf21-0800200c9a66", nil},
+		{"User does not exists", "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa", "3d594650-3436-11e5-bf21-0800200c9a67", auth.ErrUserNotFound},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -103,8 +103,8 @@ func TestIntegrationRepository_ChangePassword(t *testing.T) {
 			var initialUpdatedAt time.Time
 
 			if tc.err == nil {
-				const query = "SELECT updated_at FROM users WHERE email = $1"
-				row := tx.QueryRowContext(ctx, query, tc.email)
+				const query = "SELECT updated_at FROM users WHERE id = $1"
+				row := tx.QueryRowContext(ctx, query, tc.userID)
 				if err := row.Scan(&initialUpdatedAt); err != nil {
 					t.Fatalf("failed to fetch current user: %v", err)
 				}
@@ -112,16 +112,16 @@ func TestIntegrationRepository_ChangePassword(t *testing.T) {
 
 			repo := auth.NewRepository(conn)
 			const testPassword = "test"
-			if err = repo.ChangePassword(txCtx, tc.email, testPassword); !errors.Is(err, tc.err) {
-				t.Errorf("repo.ChangePassword(txCtx, %q, %q) = %v, want: %v", tc.email, testPassword, err, tc.err)
+			if err = repo.ChangePassword(txCtx, tc.userID, testPassword); !errors.Is(err, tc.err) {
+				t.Errorf("repo.ChangePassword(txCtx, %q, %q) = %v, want: %v", tc.userID, testPassword, err, tc.err)
 			}
 
 			if tc.err == nil {
-				const query = "SELECT password_hash, updated_at FROM users WHERE email = $1"
+				const query = "SELECT password_hash, updated_at FROM users WHERE id = $1"
 				var passwordHash string
 				var updatedAt time.Time
 
-				row := tx.QueryRowContext(ctx, query, tc.email)
+				row := tx.QueryRowContext(ctx, query, tc.userID)
 				if err := row.Scan(&passwordHash, &updatedAt); err != nil {
 					t.Fatalf("failed to fetch updated user: %v", err)
 				}

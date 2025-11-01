@@ -26,7 +26,7 @@ var (
 
 type Repository interface {
 	Verify(ctx context.Context, userID string) error
-	ChangePassword(ctx context.Context, email, newPassword string) error
+	ChangePassword(ctx context.Context, userID, newPassword string) error
 }
 
 // Claims represents the JWT claims that are processed for authentication.
@@ -340,7 +340,7 @@ func (s *service) ChangePassword(ctx context.Context, params ChangePasswordParam
 		return fmt.Errorf("hash new password: %w", err)
 	}
 
-	err = s.repo.ChangePassword(ctx, u.Email, newHash)
+	err = s.repo.ChangePassword(ctx, params.userID, newHash)
 	if err != nil {
 		return fmt.Errorf("change password: %w", err)
 	}
@@ -409,22 +409,12 @@ type ResetPasswordParams struct {
 }
 
 func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
-	u, err := s.userRepo.Find(ctx, params.UserID)
-	if err != nil {
-		const format = "find user: %w"
-		if errors.Is(err, user.ErrNotFound) {
-			return fmt.Errorf(format, ErrUserNotFound)
-		}
-
-		return fmt.Errorf(format, err)
-	}
-
 	hashed, err := s.hasher.Hash(params.Password)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	if err := s.repo.ChangePassword(ctx, u.Email, hashed); err != nil {
+	if err := s.repo.ChangePassword(ctx, params.UserID, hashed); err != nil {
 		const format = "change password: %w"
 
 		if errors.Is(err, user.ErrNotFound) {

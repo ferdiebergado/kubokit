@@ -43,15 +43,15 @@ func (r *repo) Verify(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (r *repo) ChangePassword(ctx context.Context, email, passwordHash string) error {
-	const query = "UPDATE users SET password_hash = $1 WHERE email = $2"
+func (r *repo) ChangePassword(ctx context.Context, userID, passwordHash string) error {
+	const query = "UPDATE users SET password_hash = $1 WHERE id = $2"
 
 	executor := r.db
 	if tx := db.TxFromContext(ctx); tx != nil {
 		executor = tx
 	}
 
-	res, err := executor.ExecContext(ctx, query, passwordHash, email)
+	res, err := executor.ExecContext(ctx, query, passwordHash, userID)
 	if err != nil {
 		return fmt.Errorf("execute query: %w", err)
 	}
