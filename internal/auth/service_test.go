@@ -18,7 +18,35 @@ import (
 )
 
 const (
-	configFile = "../../config.json"
+	mockAppEmail = "app@example.com"
+)
+
+var errMockRepoFailure = errors.New("query failed")
+
+var (
+	mockAppCfg = &config.App{Key: "123"}
+
+	mockArgon2Cfg = &config.Argon2{
+		Memory:     64,
+		Iterations: 1,
+		Threads:    1,
+		SaltLength: 8,
+		KeyLength:  8,
+	}
+
+	mockEmailCfg = &config.Email{
+		Templates: "../../web/templates",
+		Layout:    "layout.html",
+		Sender:    mockAppEmail,
+		VerifyTTL: timex.Duration{Duration: 5 * time.Minute},
+	}
+
+	mockJWTCfg = &config.JWT{
+		JTILength:  8,
+		Issuer:     mockAppEmail,
+		TTL:        timex.Duration{Duration: 5 * time.Minute},
+		RefreshTTL: timex.Duration{Duration: 10 * time.Minute},
+	}
 )
 
 func TestService_Register(t *testing.T) {
@@ -29,8 +57,6 @@ func TestService_Register(t *testing.T) {
 		mockPassword = "test"
 		mockAppEmail = "app@example.com"
 	)
-
-	errMockRepoFailure := errors.New("query failed")
 
 	now := time.Now().Truncate(0)
 
@@ -185,8 +211,6 @@ func TestService_Register(t *testing.T) {
 func TestService_Verify(t *testing.T) {
 	t.Parallel()
 
-	errMockRepoFailure := errors.New("query failed")
-
 	mockConfig := &config.Config{
 		App: &config.App{Key: "123"},
 		JWT: &config.JWT{
@@ -280,87 +304,91 @@ func TestService_Verify(t *testing.T) {
 func TestService_ResetPassword(t *testing.T) {
 	t.Parallel()
 
-	errMockRepoFailure := errors.New("query failed")
+	hasher := createHasher(t)
 
-	// TODO: replace with mock config
-	cfg, err := config.Load(configFile)
-	if err != nil {
-		t.Fatalf("Failed to load config file: %v", err)
-	}
-
-	hasher, err := security.NewArgon2Hasher(cfg.Argon2, cfg.Key)
-	if err != nil {
-		t.Fatalf("Failed to create hasher: %v", err)
+	mockParams := auth.ResetPasswordParams{
+		UserID:   "1",
+		Password: "test",
 	}
 
 	type testCase struct {
-		name           string
-		changePassword func(ctx context.Context, email, newPassword string) error
-		find           func(ctx context.Context, userID string) (*user.User, error)
-		wantErr        error
+		name    string
+		repo    auth.Repository
+		wantErr error
 	}
 
-	testcases := []testCase{
+	testCases := []testCase{
 		{
-			name: "user exists",
-			changePassword: func(ctx context.Context, email string, newPassword string) error {
-				return nil
-			},
-			find: func(ctx context.Context, userID string) (*user.User, error) {
-				return &user.User{}, nil
+			name: "user exists returns no error",
+			repo: &auth.StubRepo{
+				ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
+					return nil
+				},
 			},
 		},
 		{
-			name: "non-existent user should return error",
-			changePassword: func(ctx context.Context, email string, newPassword string) error {
-				return auth.ErrUserNotFound
-			},
-			find: func(ctx context.Context, userID string) (*user.User, error) {
-				return nil, user.ErrNotFound
+			name: "user does not exist returns error",
+			repo: &auth.StubRepo{
+				ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
+					return auth.ErrUserNotFound
+				},
 			},
 			wantErr: auth.ErrUserNotFound,
 		},
 		{
-			name: "db error",
-			changePassword: func(ctx context.Context, email string, newPassword string) error {
-				return errMockRepoFailure
-			},
-			find: func(ctx context.Context, userID string) (*user.User, error) {
-				return &user.User{}, nil
+			name: "repo failure returns error",
+			repo: &auth.StubRepo{
+				ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
+					return errMockRepoFailure
+				},
 			},
 			wantErr: errMockRepoFailure,
 		},
 	}
 
-	for _, tc := range testcases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			repo := &auth.StubRepo{ChangePasswordFunc: tc.changePassword}
-			userRepo := &user.StubRepo{FindUserFunc: tc.find}
-
 			provider := &auth.ServiceProvider{
-				CfgApp:   cfg.App,
-				CfgJWT:   cfg.JWT,
-				CfgEmail: cfg.Email,
+				CfgApp:   mockAppCfg,
+				CfgJWT:   mockJWTCfg,
+				CfgEmail: mockEmailCfg,
 				Hasher:   hasher,
-				UserRepo: userRepo,
 			}
 
-			svc, err := auth.NewService(repo, provider)
+			svc, err := auth.NewService(tc.repo, provider)
 			if err != nil {
-				t.Fatalf("Failed to create auth service: %v", err)
+				t.Fatalf("failed to create auth service: %v", err)
 			}
 
-			params := auth.ResetPasswordParams{
-				UserID:   "1",
-				Password: "abc@123",
-			}
-			err = svc.ResetPassword(context.Background(), params)
+			err = svc.ResetPassword(context.Background(), mockParams)
+			if err != nil {
+				if tc.wantErr == nil {
+					t.Fatal("auth service should not return an error")
+				}
 
-			if !errors.Is(err, tc.wantErr) {
-				t.Errorf("svc.ResetPassword(context.Background(),params) = %+v, want: %+v", err, tc.wantErr)
+				if !errors.Is(err, tc.wantErr) {
+					t.Errorf("svc.Register(context.Background(), params) = %v, want %v", err, tc.wantErr)
+				}
+
+				return
+			}
+
+			if tc.wantErr != nil {
+				t.Errorf("svc.Register(context.Background(), params) = %v, want %v", err, tc.wantErr)
 			}
 		})
 	}
+}
+
+func createHasher(t *testing.T) *security.Argon2Hasher {
+	t.Helper()
+
+	hasher, err := security.NewArgon2Hasher(mockArgon2Cfg, "paminta")
+	if err != nil {
+		t.Fatalf("failed to create hasher: %v", err)
+	}
+
+	return hasher
 }
