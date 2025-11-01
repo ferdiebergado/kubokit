@@ -2,31 +2,25 @@ package auth
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 )
 
-type repo struct {
+type SQLRepository struct {
 	db db.Executor
 }
 
-func NewRepository(db *sql.DB) *repo {
-	return &repo{db}
+func NewRepository(db db.Executor) *SQLRepository {
+	return &SQLRepository{db: db}
 }
 
-var _ Repository = &repo{}
+var _ Repository = (*SQLRepository)(nil)
 
-func (r *repo) Verify(ctx context.Context, userID string) error {
+func (r *SQLRepository) Verify(ctx context.Context, userID string) error {
 	const query = "UPDATE users SET verified_at = NOW() WHERE id = $1 AND verified_at IS NULL"
 
-	executor := r.db
-	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx
-	}
-
-	res, err := executor.ExecContext(ctx, query, userID)
+	res, err := r.db.ExecContext(ctx, query, userID)
 	if err != nil {
 		return fmt.Errorf("execute query: %w", err)
 	}
@@ -43,15 +37,10 @@ func (r *repo) Verify(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (r *repo) ChangePassword(ctx context.Context, userID, passwordHash string) error {
+func (r *SQLRepository) ChangePassword(ctx context.Context, userID, passwordHash string) error {
 	const query = "UPDATE users SET password_hash = $1 WHERE id = $2"
 
-	executor := r.db
-	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx
-	}
-
-	res, err := executor.ExecContext(ctx, query, passwordHash, userID)
+	res, err := r.db.ExecContext(ctx, query, passwordHash, userID)
 	if err != nil {
 		return fmt.Errorf("execute query: %w", err)
 	}

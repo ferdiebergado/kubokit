@@ -14,31 +14,28 @@ var (
 	ErrDuplicate = errors.New("user already exists")
 )
 
-type repo struct {
+type SQLRepository struct {
 	db db.Executor
 }
 
-func NewRepository(db *sql.DB) *repo {
-	return &repo{db}
+func NewRepository(db db.Executor) *SQLRepository {
+	return &SQLRepository{db: db}
 }
 
-var _ Repository = &repo{}
+var _ Repository = &SQLRepository{}
 
 type CreateParams struct {
 	Email, Password string
 }
 
-func (r *repo) Create(ctx context.Context, params CreateParams) (User, error) {
+func (r *SQLRepository) Create(ctx context.Context, params CreateParams) (User, error) {
 	const query = `
 	INSERT INTO users (email, password_hash)
 	VALUES ($1, $2)
 	RETURNING id, email, created_at, updated_at
 	`
-	executor := r.db
-	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx
-	}
-	row := executor.QueryRowContext(ctx, query, params.Email, params.Password)
+
+	row := r.db.QueryRowContext(ctx, query, params.Email, params.Password)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		const errFmt = "execute query: %w"
@@ -50,17 +47,14 @@ func (r *repo) Create(ctx context.Context, params CreateParams) (User, error) {
 	return u, nil
 }
 
-func (r *repo) FindByEmail(ctx context.Context, email string) (*User, error) {
+func (r *SQLRepository) FindByEmail(ctx context.Context, email string) (*User, error) {
 	const query = `
 	SELECT id, email, password_hash, created_at, updated_at, verified_at
 	FROM users
 	WHERE email = $1
 	`
-	executor := r.db
-	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx
-	}
-	row := executor.QueryRowContext(ctx, query, email)
+
+	row := r.db.QueryRowContext(ctx, query, email)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt, &u.VerifiedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -71,14 +65,10 @@ func (r *repo) FindByEmail(ctx context.Context, email string) (*User, error) {
 	return &u, nil
 }
 
-func (r *repo) List(ctx context.Context) ([]User, error) {
+func (r *SQLRepository) List(ctx context.Context) ([]User, error) {
 	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users"
 
-	executor := r.db
-	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx
-	}
-	rows, err := executor.QueryContext(ctx, query)
+	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("repo list all users: %w", err)
 	}
@@ -105,14 +95,10 @@ func (r *repo) List(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-func (r *repo) Find(ctx context.Context, userID string) (*User, error) {
+func (r *SQLRepository) Find(ctx context.Context, userID string) (*User, error) {
 	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users WHERE id = $1"
 
-	executor := r.db
-	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx
-	}
-	row := executor.QueryRowContext(ctx, query, userID)
+	row := r.db.QueryRowContext(ctx, query, userID)
 	var u User
 	if err := row.Scan(&u.ID, &u.Email, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -123,14 +109,10 @@ func (r *repo) Find(ctx context.Context, userID string) (*User, error) {
 	return &u, nil
 }
 
-func (r *repo) Delete(ctx context.Context, userID string) error {
+func (r *SQLRepository) Delete(ctx context.Context, userID string) error {
 	const query = "DELETE FROM users WHERE id = $1"
 
-	executor := r.db
-	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx
-	}
-	res, err := executor.ExecContext(ctx, query, userID)
+	res, err := r.db.ExecContext(ctx, query, userID)
 	if err != nil {
 		return fmt.Errorf("execute query: %w", err)
 	}
@@ -147,7 +129,7 @@ func (r *repo) Delete(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (r *repo) Update(ctx context.Context, updates *User, userID string) error {
+func (r *SQLRepository) Update(ctx context.Context, updates *User, userID string) error {
 	// TODO: update metadata
 	const query = `
 	UPDATE users
@@ -156,11 +138,7 @@ func (r *repo) Update(ctx context.Context, updates *User, userID string) error {
 	verified_at = COALESCE($2, verified_at)
 	WHERE id = $3`
 
-	executor := r.db
-	if tx := db.TxFromContext(ctx); tx != nil {
-		executor = tx
-	}
-	res, err := executor.ExecContext(ctx, query, updates.PasswordHash, updates.VerifiedAt, userID)
+	res, err := r.db.ExecContext(ctx, query, updates.PasswordHash, updates.VerifiedAt, userID)
 	if err != nil {
 		return fmt.Errorf("execute query: %w", err)
 	}
