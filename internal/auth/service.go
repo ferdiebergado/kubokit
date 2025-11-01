@@ -375,13 +375,7 @@ func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 	}
 
 	if err := s.repo.ChangePassword(ctx, params.UserID, hashed); err != nil {
-		const format = "change password: %w"
-
-		if errors.Is(err, user.ErrNotFound) {
-			return fmt.Errorf(format, ErrUserNotFound)
-		}
-
-		return fmt.Errorf(format, err)
+		return fmt.Errorf("change password: %w", err)
 	}
 
 	return nil
