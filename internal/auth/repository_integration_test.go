@@ -16,7 +16,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-var realUser user.User
+var testUser user.User
 
 func TestIntegrationRepository_VerifyUserExistsReturnsNoError(t *testing.T) {
 	t.Parallel()
@@ -25,7 +25,7 @@ func TestIntegrationRepository_VerifyUserExistsReturnsNoError(t *testing.T) {
 	repo := auth.NewRepository(tx)
 	ctx := t.Context()
 
-	mockUserID := realUser.ID
+	mockUserID := testUser.ID
 
 	if err := repo.Verify(ctx, mockUserID); err != nil {
 		t.Errorf("repo.Verify(ctx, %q) = %v, want: %v", mockUserID, err, nil)
@@ -53,12 +53,12 @@ func TestIntegrationRepository_VerifyUserDontExistReturnsError(t *testing.T) {
 	tx := setup(t)
 	repo := auth.NewRepository(tx)
 	const mockUserID = "3d594650-3436-11e5-bf21-0800200c9a67"
-	wantErr := auth.ErrUserNotFound
 	err := repo.Verify(t.Context(), mockUserID)
 	if err == nil {
 		t.Fatal("repo.Verify did not return an error")
 	}
 
+	wantErr := auth.ErrUserNotFound
 	if !errors.Is(err, wantErr) {
 		t.Errorf("repo.Verify(t.Context(), %q) = %v, want: %v", mockUserID, err, wantErr)
 	}
@@ -72,21 +72,21 @@ func TestIntegrationRepository_ChangePasswordUserExistsReturnsNoError(t *testing
 	ctx := t.Context()
 
 	const wantPasswordHash = "mock_hashed"
-	mockUserID := realUser.ID
+	mockUserID := testUser.ID
 	if err := repo.ChangePassword(ctx, mockUserID, wantPasswordHash); err != nil {
 		t.Errorf("repo.ChangePassword(ctx, %q, %q) = %v, want: %v", mockUserID, wantPasswordHash, err, nil)
 	}
 
-	const query = "SELECT password_hash, updated_at FROM users WHERE id = $1"
+	const query = "SELECT password_hash FROM users WHERE id = $1"
 	row := tx.QueryRowContext(ctx, query, mockUserID)
 
-	var updatedUser user.User
-	if err := row.Scan(&updatedUser.PasswordHash, &updatedUser.UpdatedAt); err != nil {
+	var passwordHash string
+	if err := row.Scan(&passwordHash); err != nil {
 		t.Fatalf("failed to retrieve updated user: %v", err)
 	}
 
-	if updatedUser.PasswordHash != wantPasswordHash {
-		t.Errorf("updatedUser.PasswordHash = %q, want: %q", updatedUser.PasswordHash, wantPasswordHash)
+	if passwordHash != wantPasswordHash {
+		t.Errorf("passwordHash = %q, want: %q", passwordHash, wantPasswordHash)
 	}
 }
 
@@ -102,13 +102,12 @@ func TestIntegrationRepository_ChangePasswordUserDontExistReturnsError(t *testin
 		mockPasswordHash = "mock_hashed"
 	)
 
-	wantErr := auth.ErrUserNotFound
-
 	err := repo.ChangePassword(ctx, mockUserID, mockPasswordHash)
 	if err == nil {
 		t.Fatal("repo.ChangePassword did not return an error")
 	}
 
+	wantErr := auth.ErrUserNotFound
 	if !errors.Is(err, wantErr) {
 		t.Errorf("repo.ChangePassword(ctx, %q, %q) = %v, want: %v", mockUserID, mockPasswordHash, err, wantErr)
 	}
@@ -126,7 +125,7 @@ func setup(t *testing.T) *sql.Tx {
 
 	row := tx.QueryRowContext(t.Context(), query, mockEmail, mockPassword)
 
-	if err := row.Scan(&realUser.ID, &realUser.Email, &realUser.PasswordHash, &realUser.VerifiedAt, &realUser.CreatedAt, &realUser.UpdatedAt); err != nil {
+	if err := row.Scan(&testUser.ID, &testUser.Email, &testUser.PasswordHash, &testUser.VerifiedAt, &testUser.CreatedAt, &testUser.UpdatedAt); err != nil {
 		t.Fatalf("failed to retrieve created user: %v", err)
 	}
 
