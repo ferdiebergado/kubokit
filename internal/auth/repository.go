@@ -7,17 +7,17 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 )
 
-type SQLRepository struct {
+type repo struct {
 	db db.Executor
 }
 
-func NewRepository(db db.Executor) *SQLRepository {
-	return &SQLRepository{db: db}
+var _ Repository = (*repo)(nil)
+
+func NewRepository(db db.Executor) Repository {
+	return &repo{db: db}
 }
 
-var _ Repository = (*SQLRepository)(nil)
-
-func (r *SQLRepository) Verify(ctx context.Context, userID string) error {
+func (r *repo) Verify(ctx context.Context, userID string) error {
 	const query = "UPDATE users SET verified_at = NOW() WHERE id = $1 AND verified_at IS NULL"
 
 	res, err := r.db.ExecContext(ctx, query, userID)
@@ -37,7 +37,7 @@ func (r *SQLRepository) Verify(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (r *SQLRepository) ChangePassword(ctx context.Context, userID, passwordHash string) error {
+func (r *repo) ChangePassword(ctx context.Context, userID, passwordHash string) error {
 	const query = "UPDATE users SET password_hash = $1 WHERE id = $2"
 
 	res, err := r.db.ExecContext(ctx, query, passwordHash, userID)

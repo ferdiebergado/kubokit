@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/auth"
+	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 )
 
 func TestMiddleware_RequireToken(t *testing.T) {
@@ -14,7 +15,7 @@ func TestMiddleware_RequireToken(t *testing.T) {
 
 	type testCase struct {
 		name, accessToken, headerCalled string
-		signer                          auth.Signer
+		signer                          jwt.Signer
 		code                            int
 	}
 
@@ -26,8 +27,8 @@ func TestMiddleware_RequireToken(t *testing.T) {
 				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
 					return "access_token", nil
 				},
-				VerifyFunc: func(tokenString string) (*auth.Claims, error) {
-					return &auth.Claims{
+				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
+					return &jwt.Claims{
 						UserID: "1",
 					}, nil
 				},

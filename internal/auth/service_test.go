@@ -335,7 +335,7 @@ func createMailer(t *testing.T) *email.SMTPMailer {
 	return mailer
 }
 
-func createSigner(t *testing.T) *jwt.GolangJWTSigner {
+func createSigner(t *testing.T) jwt.Signer {
 	t.Helper()
 
 	return jwt.NewGolangJWTSigner(mockJWTCfg, mockAppCfg.Key)

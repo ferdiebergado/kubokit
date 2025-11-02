@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -20,7 +21,8 @@ type StubService struct {
 	LogoutFunc                  func(ctx context.Context, token string) error
 }
 
-// ResendVerificationEmail implements AuthService.
+var _ Service = (*StubService)(nil)
+
 func (s *StubService) ResendVerificationEmail(ctx context.Context, email string) error {
 	if s.ResendVerificationEmailFunc == nil {
 		return errors.New("ResendVerificationEmail() not implemented by stub")
@@ -84,14 +86,14 @@ func (s *StubService) Logout(ctx context.Context, token string) error {
 	return s.LogoutFunc(ctx, token)
 }
 
-var _ Service = &StubService{}
-
 type StubRepo struct {
 	RegisterFunc       func(ctx context.Context, params RegisterParams) (user.User, error)
 	LoginFunc          func(ctx context.Context, params LoginParams) (accessToken, refreshToken string, err error)
 	VerifyFunc         func(ctx context.Context, userID string) error
 	ChangePasswordFunc func(ctx context.Context, email, newPassword string) error
 }
+
+var _ Repository = (*StubRepo)(nil)
 
 func (r *StubRepo) Register(ctx context.Context, params RegisterParams) (user.User, error) {
 	if r.RegisterFunc == nil {
@@ -121,12 +123,12 @@ func (r *StubRepo) ChangePassword(ctx context.Context, email, newPassword string
 	return r.ChangePasswordFunc(ctx, email, newPassword)
 }
 
-var _ Repository = &StubRepo{}
-
 type StubSigner struct {
 	SignFunc   func(subject string, audience []string, duration time.Duration) (string, error)
-	VerifyFunc func(tokenString string) (*Claims, error)
+	VerifyFunc func(tokenString string) (*jwt.Claims, error)
 }
+
+var _ jwt.Signer = (*StubSigner)(nil)
 
 func (s *StubSigner) Sign(subject string, audience []string, duration time.Duration) (string, error) {
 	if s.SignFunc == nil {
@@ -135,11 +137,9 @@ func (s *StubSigner) Sign(subject string, audience []string, duration time.Durat
 	return s.SignFunc(subject, audience, duration)
 }
 
-func (s *StubSigner) Verify(tokenString string) (*Claims, error) {
+func (s *StubSigner) Verify(tokenString string) (*jwt.Claims, error) {
 	if s.VerifyFunc == nil {
 		return nil, errors.New("Verify not implemented by stub")
 	}
 	return s.VerifyFunc(tokenString)
 }
-
-var _ Signer = &StubSigner{}

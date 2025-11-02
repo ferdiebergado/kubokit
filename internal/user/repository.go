@@ -14,21 +14,21 @@ var (
 	ErrDuplicate = errors.New("user already exists")
 )
 
-type SQLRepository struct {
+type repo struct {
 	db db.Executor
 }
 
-func NewRepository(db db.Executor) *SQLRepository {
-	return &SQLRepository{db: db}
-}
+var _ Repository = (*repo)(nil)
 
-var _ Repository = &SQLRepository{}
+func NewRepository(db db.Executor) Repository {
+	return &repo{db: db}
+}
 
 type CreateParams struct {
 	Email, Password string
 }
 
-func (r *SQLRepository) Create(ctx context.Context, params CreateParams) (User, error) {
+func (r *repo) Create(ctx context.Context, params CreateParams) (User, error) {
 	const query = `
 	INSERT INTO users (email, password_hash)
 	VALUES ($1, $2)
@@ -47,7 +47,7 @@ func (r *SQLRepository) Create(ctx context.Context, params CreateParams) (User, 
 	return u, nil
 }
 
-func (r *SQLRepository) FindByEmail(ctx context.Context, email string) (*User, error) {
+func (r *repo) FindByEmail(ctx context.Context, email string) (*User, error) {
 	const query = `
 	SELECT id, email, password_hash, created_at, updated_at, verified_at
 	FROM users
@@ -65,7 +65,7 @@ func (r *SQLRepository) FindByEmail(ctx context.Context, email string) (*User, e
 	return &u, nil
 }
 
-func (r *SQLRepository) List(ctx context.Context) ([]User, error) {
+func (r *repo) List(ctx context.Context) ([]User, error) {
 	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users"
 
 	rows, err := r.db.QueryContext(ctx, query)
@@ -95,7 +95,7 @@ func (r *SQLRepository) List(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-func (r *SQLRepository) Find(ctx context.Context, userID string) (*User, error) {
+func (r *repo) Find(ctx context.Context, userID string) (*User, error) {
 	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users WHERE id = $1"
 
 	row := r.db.QueryRowContext(ctx, query, userID)
@@ -109,7 +109,7 @@ func (r *SQLRepository) Find(ctx context.Context, userID string) (*User, error) 
 	return &u, nil
 }
 
-func (r *SQLRepository) Delete(ctx context.Context, userID string) error {
+func (r *repo) Delete(ctx context.Context, userID string) error {
 	const query = "DELETE FROM users WHERE id = $1"
 
 	res, err := r.db.ExecContext(ctx, query, userID)
@@ -129,7 +129,7 @@ func (r *SQLRepository) Delete(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (r *SQLRepository) Update(ctx context.Context, updates *User, userID string) error {
+func (r *repo) Update(ctx context.Context, updates *User, userID string) error {
 	// TODO: update metadata
 	const query = `
 	UPDATE users

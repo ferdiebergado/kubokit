@@ -12,7 +12,7 @@ type StubService struct {
 	FindFunc        func(ctx context.Context, userID string) (*User, error)
 }
 
-var _ Service = &StubService{}
+var _ Service = (*StubService)(nil)
 
 func (s *StubService) List(ctx context.Context) ([]User, error) {
 	if s.ListFunc == nil {
@@ -26,9 +26,11 @@ type StubRepo struct {
 	CreateFunc      func(ctx context.Context, params CreateParams) (User, error)
 	FindByEmailFunc func(ctx context.Context, email string) (*User, error)
 	FindFunc        func(ctx context.Context, userID string) (*User, error)
+	UpdateFunc      func(ctx context.Context, updates *User, userID string) error
+	DeleteFunc      func(ctx context.Context, userID string) error
 }
 
-var _ Repository = &StubRepo{}
+var _ Repository = (*StubRepo)(nil)
 
 func (r *StubRepo) Create(ctx context.Context, params CreateParams) (User, error) {
 	if r.CreateFunc == nil {
@@ -56,4 +58,18 @@ func (r *StubRepo) Find(ctx context.Context, userID string) (*User, error) {
 		return nil, errors.New("Find() not implemented by stub")
 	}
 	return r.FindFunc(ctx, userID)
+}
+
+func (r *StubRepo) Update(ctx context.Context, updates *User, userID string) error {
+	if r.UpdateFunc == nil {
+		return errors.New("Update() not implemented by stub")
+	}
+	return r.UpdateFunc(ctx, updates, userID)
+}
+
+func (r *StubRepo) Delete(ctx context.Context, userID string) error {
+	if r.DeleteFunc == nil {
+		return errors.New("Delete() not implemented by stub")
+	}
+	return r.DeleteFunc(ctx, userID)
 }

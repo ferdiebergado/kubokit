@@ -6,52 +6,54 @@ import (
 	"github.com/ferdiebergado/goexpress"
 )
 
-type GoexpressRouter struct {
+type goexpressRouter struct {
 	handler *goexpress.Router
 }
 
-func NewGoexpressRouter() *GoexpressRouter {
-	return &GoexpressRouter{
+var _ Router = (*goexpressRouter)(nil)
+
+func NewGoexpressRouter() Router {
+	return &goexpressRouter{
 		handler: goexpress.New(),
 	}
 }
 
-var _ Router = &GoexpressRouter{}
-
-func (r *GoexpressRouter) Delete(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) {
+func (r *goexpressRouter) Delete(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) {
 	r.handler.Delete(pattern, handler, middlewares...)
 }
 
-func (r *GoexpressRouter) Get(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) {
+func (r *goexpressRouter) Get(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) {
 	r.handler.Get(pattern, handler, middlewares...)
 }
 
-func (r *GoexpressRouter) Options(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) {
+func (r *goexpressRouter) Options(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) {
 	r.handler.Options(pattern, handler, middlewares...)
 }
 
-func (r *GoexpressRouter) Patch(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) {
+func (r *goexpressRouter) Patch(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) {
 	r.handler.Patch(pattern, handler, middlewares...)
 }
 
-func (r *GoexpressRouter) Post(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) {
+func (r *goexpressRouter) Post(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) {
 	r.handler.Post(pattern, handler, middlewares...)
 }
 
-func (r *GoexpressRouter) Put(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) {
+func (r *goexpressRouter) Put(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) {
 	r.handler.Put(pattern, handler, middlewares...)
 }
 
-func (r *GoexpressRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (r *goexpressRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.handler.ServeHTTP(w, req)
 }
 
-func (r *GoexpressRouter) Use(middleware func(next http.Handler) http.Handler) {
+func (r *goexpressRouter) Use(middleware func(next http.Handler) http.Handler) {
 	r.handler.Use(middleware)
 }
 
-func (r *GoexpressRouter) Group(prefix string, fn func(r Router), middlewares ...func(next http.Handler) http.Handler) {
-	gr := NewGoexpressRouter()
+func (r *goexpressRouter) Group(prefix string, fn func(r Router), middlewares ...func(next http.Handler) http.Handler) {
+	gr := &goexpressRouter{
+		handler: goexpress.New(),
+	}
 	gr.handler.SetPrefix(prefix)
 	gr.handler.SetMux(r.handler.Mux())
 	gr.handler.SetMiddlewares(append(r.handler.Middlewares(), middlewares...))

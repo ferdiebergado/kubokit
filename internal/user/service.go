@@ -10,20 +10,21 @@ type Repository interface {
 	List(ctx context.Context) ([]User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	Find(ctx context.Context, userID string) (*User, error)
+	Update(ctx context.Context, updates *User, userID string) error
+	Delete(ctx context.Context, userID string) error
 }
 
-// service is the implementation of the User service interface.
 type service struct {
 	repo Repository
 }
 
-func NewService(repo Repository) *service {
+var _ Service = (*service)(nil)
+
+func NewService(repo Repository) Service {
 	return &service{
 		repo: repo,
 	}
 }
-
-var _ Service = &service{}
 
 func (s *service) List(ctx context.Context) ([]User, error) {
 	users, err := s.repo.List(ctx)

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/golang-jwt/jwt/v5"
@@ -15,17 +14,19 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-// GolangJWTSigner implements the Signer interface using the golang-jwt library.
-type GolangJWTSigner struct {
+// golangJWTSigner implements the Signer interface using the golang-jwt library.
+type golangJWTSigner struct {
 	method jwt.SigningMethod
 	key    string
 	jtiLen uint32
 	issuer string
 }
 
+var _ Signer = (*golangJWTSigner)(nil)
+
 // NewGolangJWTSigner creates a new GolangJWTSigner with the provided JWT config and signing key.
-func NewGolangJWTSigner(cfg *config.JWT, key string) *GolangJWTSigner {
-	return &GolangJWTSigner{
+func NewGolangJWTSigner(cfg *config.JWT, key string) Signer {
+	return &golangJWTSigner{
 		method: jwt.SigningMethodHS256,
 		key:    key,
 		jtiLen: cfg.JTILength,
@@ -34,7 +35,7 @@ func NewGolangJWTSigner(cfg *config.JWT, key string) *GolangJWTSigner {
 }
 
 // Sign generates a signed JWT token with the given subject, audience, and duration.
-func (s *GolangJWTSigner) Sign(sub string, audience []string, duration time.Duration) (string, error) {
+func (s *golangJWTSigner) Sign(sub string, audience []string, duration time.Duration) (string, error) {
 	jti, err := security.GenerateRandomBytesURLEncoded(s.jtiLen)
 	if err != nil {
 		return "", fmt.Errorf("generate jti with length %d: %w", s.jtiLen, err)
@@ -59,7 +60,7 @@ func (s *GolangJWTSigner) Sign(sub string, audience []string, duration time.Dura
 }
 
 // Verify parses and validates a JWT token string and returns the associated Claims if valid.
-func (s *GolangJWTSigner) Verify(tokenString string) (*auth.Claims, error) {
+func (s *golangJWTSigner) Verify(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(_ *jwt.Token) (any, error) {
 		return []byte(s.key), nil
 	}, jwt.WithValidMethods([]string{s.method.Alg()}))
@@ -72,11 +73,9 @@ func (s *GolangJWTSigner) Verify(tokenString string) (*auth.Claims, error) {
 		return nil, fmt.Errorf("unknown claims type: %T", token.Claims)
 	}
 
-	claims := &auth.Claims{
+	claims := &Claims{
 		UserID: customClaims.Subject,
 	}
 
 	return claims, nil
 }
-
-var _ auth.Signer = &GolangJWTSigner{}
