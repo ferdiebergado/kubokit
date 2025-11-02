@@ -11,14 +11,10 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-func TestService_List(t *testing.T) {
-	t.Parallel()
+var (
+	now = time.Now()
 
-	errMockRepoFailure := errors.New("query failed")
-
-	now := time.Now()
-
-	mockUsers := []user.User{
+	mockUsers = []user.User{
 		{
 			Model: model.Model{
 				ID:        "1",
@@ -39,55 +35,50 @@ func TestService_List(t *testing.T) {
 			},
 			Email:        "user2@example.com",
 			PasswordHash: "hashed456",
-			VerifiedAt:   nil,
+		},
+	}
+)
+
+func TestService_ListSuccess(t *testing.T) {
+	t.Parallel()
+
+	repo := &user.StubRepo{
+		ListFunc: func(_ context.Context) ([]user.User, error) {
+			return mockUsers, nil
 		},
 	}
 
-	tests := []struct {
-		name      string
-		repo      user.Repository
-		wantUsers []user.User
-		wantErr   error
-	}{
-		{
-			name: "success returns users",
-			repo: &user.StubRepo{
-				ListFunc: func(_ context.Context) ([]user.User, error) {
-					return mockUsers, nil
-				},
-			},
-			wantUsers: mockUsers,
-		},
-		{
-			name: "repo failure returns error",
-			repo: &user.StubRepo{
-				ListFunc: func(_ context.Context) ([]user.User, error) {
-					return nil, errMockRepoFailure
-				},
-			},
-			wantErr: errMockRepoFailure,
+	svc := user.NewService(repo)
+
+	users, err := svc.List(t.Context())
+	if err != nil {
+		t.Fatalf("svc.List should not return an error: %v", err)
+	}
+
+	if !reflect.DeepEqual(users, mockUsers) {
+		t.Errorf("svc.List(t.Context()) = %+v, want: %+v", users, mockUsers)
+	}
+}
+
+func TestService_ListFails(t *testing.T) {
+	t.Parallel()
+
+	errMockRepoFailure := errors.New("query failed")
+
+	repo := &user.StubRepo{
+		ListFunc: func(_ context.Context) ([]user.User, error) {
+			return nil, errMockRepoFailure
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+	svc := user.NewService(repo)
 
-			svc := user.NewService(tt.repo)
+	_, err := svc.List(t.Context())
+	if err == nil {
+		t.Fatal("svc.List did not return an error")
+	}
 
-			users, err := svc.List(context.Background())
-
-			if (err != nil) != (tt.wantErr != nil) {
-				t.Fatalf("service.List(ctx) = %v, wantErr: %v", err, tt.wantErr)
-			}
-
-			if err != nil && tt.wantErr != nil && !errors.Is(err, tt.wantErr) {
-				t.Fatalf("service.List(ctx) = %v, wantErr: %v", err, tt.wantErr)
-			}
-
-			if !reflect.DeepEqual(users, tt.wantUsers) {
-				t.Errorf("service.List(ctx) = %+v, want: %+v", users, tt.wantUsers)
-			}
-		})
+	if !errors.Is(err, errMockRepoFailure) {
+		t.Errorf("svc.List(t.Context()) = %+v, want: %+v", err, errMockRepoFailure)
 	}
 }

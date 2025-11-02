@@ -19,13 +19,11 @@ import (
 )
 
 const (
-	mockEmail    = "test@example.com"
-	mockPassword = "test"
 	cookieName   = "refresh_token"
 	maxAge       = 1000
 	accessToken  = "mock_access_token"
 	refreshToken = "mock_refresh_token"
-	userID       = "1"
+	mockUserID   = "1"
 )
 
 func TestHandler_Register(t *testing.T) {
@@ -47,7 +45,7 @@ func TestHandler_Register(t *testing.T) {
 				RegisterFunc: func(ctx context.Context, params auth.RegisterParams) (user.User, error) {
 					return user.User{
 						Model: model.Model{
-							ID:        userID,
+							ID:        mockUserID,
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
@@ -60,7 +58,7 @@ func TestHandler_Register(t *testing.T) {
 			wantBody: map[string]any{
 				"message": auth.MsgRegisterSuccess,
 				"data": map[string]any{
-					"id":         userID,
+					"id":         mockUserID,
 					"email":      mockEmail,
 					"created_at": now.Format(time.RFC3339Nano),
 					"updated_at": now.Format(time.RFC3339Nano),
@@ -149,7 +147,7 @@ func TestHandler_Login(t *testing.T) {
 						ExpiresIn:    maxAge,
 						TokenType:    "Bearer",
 						User: &auth.UserInfo{
-							ID:    userID,
+							ID:    mockUserID,
 							Email: mockEmail,
 						},
 					}, nil
@@ -164,7 +162,7 @@ func TestHandler_Login(t *testing.T) {
 					"expires_in":    float64(1000),
 					"token_type":    "Bearer",
 					"user": map[string]any{
-						"id":    userID,
+						"id":    mockUserID,
 						"email": mockEmail,
 					},
 				},
@@ -383,7 +381,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 					return nil
 				},
 			},
-			userID:     userID,
+			userID:     mockUserID,
 			wantStatus: http.StatusOK,
 			wantBody: map[string]any{
 				"message": auth.MsgSuccessPasswordChanged,
@@ -404,7 +402,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 					return auth.ErrUserNotFound
 				},
 			},
-			userID:     userID,
+			userID:     mockUserID,
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
 				"message": auth.MsgInvalidUser,
@@ -417,7 +415,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 					return auth.ErrIncorrectPassword
 				},
 			},
-			userID:     userID,
+			userID:     mockUserID,
 			wantStatus: http.StatusUnauthorized,
 			wantBody: map[string]any{
 				"message": auth.MsgInvalidUser,
@@ -430,7 +428,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 					return errors.New("service failed")
 				},
 			},
-			userID:     userID,
+			userID:     mockUserID,
 			wantStatus: http.StatusInternalServerError,
 			wantBody: map[string]any{
 				"message": message.UnexpectedErr,
@@ -499,7 +497,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 						ExpiresIn:    maxAge,
 						TokenType:    tokenType,
 						User: &auth.UserInfo{
-							ID:    userID,
+							ID:    mockUserID,
 							Email: mockEmail,
 						},
 					}, nil
@@ -523,7 +521,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 					"token_type":    tokenType,
 					"expires_in":    float64(maxAge),
 					"user": map[string]any{
-						"id":    userID,
+						"id":    mockUserID,
 						"email": mockEmail,
 					},
 				},

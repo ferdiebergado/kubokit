@@ -19,9 +19,22 @@ import (
 
 const mockAppEmail = "app@example.com"
 
-var errMockRepoFailure = errors.New("query failed")
-
 var (
+	errMockRepoFailure = errors.New("query failed")
+
+	now = time.Now().Truncate(0)
+
+	mockUser = user.User{
+		Model: model.Model{
+			ID:        "1",
+			Metadata:  []byte{},
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		Email:        mockEmail,
+		PasswordHash: "mock_hashed",
+	}
+
 	mockAppCfg = &config.App{Key: "123"}
 
 	mockArgon2Cfg = &config.Argon2{
@@ -54,47 +67,54 @@ var (
 	}
 )
 
-func TestService_Register(t *testing.T) {
+func TestService_RegisterShouldReturnNewUser(t *testing.T) {
 	t.Parallel()
 
-	const (
-		mockEmail    = "test@example.com"
-		mockPassword = "test"
-	)
-
-	now := time.Now().Truncate(0)
-
-	mockUser := user.User{
-		Model: model.Model{
-			ID:        "1",
-			Metadata:  []byte{},
-			CreatedAt: now,
-			UpdatedAt: now,
+	userRepo := &user.StubRepo{
+		FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+			return nil, user.ErrNotFound
 		},
-		Email:        mockEmail,
-		PasswordHash: "mock_hashed",
+		CreateFunc: func(ctx context.Context, params user.CreateParams) (user.User, error) {
+			return mockUser, nil
+		},
 	}
 
-	type testCase struct {
-		name     string
-		repo     user.Repository
-		wantUser user.User
-		wantErr  error
+	mockDeps := &auth.Dependencies{
+		Repo:     &auth.StubRepo{},
+		CfgApp:   mockAppCfg,
+		CfgJWT:   mockJWTCfg,
+		CfgEmail: mockEmailCfg,
+		Hasher:   createHasher(t),
+		Mailer:   createMailer(t),
+		Signer:   createSigner(t),
+		UserRepo: userRepo,
 	}
 
-	testCases := []testCase{
-		{
-			name: "user does not exist returns new user",
-			repo: &user.StubRepo{
-				FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
-					return nil, user.ErrNotFound
-				},
-				CreateFunc: func(ctx context.Context, params user.CreateParams) (user.User, error) {
-					return mockUser, nil
-				},
-			},
-			wantUser: mockUser,
-		},
+	svc := auth.NewService(mockDeps)
+
+	mockParams := auth.RegisterParams{
+		Email:    mockEmail,
+		Password: mockPassword,
+	}
+
+	u, err := svc.Register(t.Context(), mockParams)
+	if err != nil {
+		t.Fatalf("svc.Register should not return an error: %v", err)
+	}
+
+	if !reflect.DeepEqual(u, mockUser) {
+		t.Errorf("svc.Register(t.Context(), %+v) = %+v, want %+v", mockParams, u, mockUser)
+	}
+}
+
+func TestService_RegisterFails(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		repo    user.Repository
+		wantErr error
+	}{
 		{
 			name: "user exists returns error",
 			repo: &user.StubRepo{
@@ -102,8 +122,7 @@ func TestService_Register(t *testing.T) {
 					return &mockUser, nil
 				},
 			},
-			wantUser: user.User{},
-			wantErr:  auth.ErrUserExists,
+			wantErr: auth.ErrUserExists,
 		},
 		{
 			name: "repo failure returns error",
@@ -115,13 +134,12 @@ func TestService_Register(t *testing.T) {
 					return user.User{}, errMockRepoFailure
 				},
 			},
-			wantUser: user.User{},
-			wantErr:  errMockRepoFailure,
+			wantErr: errMockRepoFailure,
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			mockDeps := &auth.Dependencies{
@@ -132,7 +150,7 @@ func TestService_Register(t *testing.T) {
 				Hasher:   createHasher(t),
 				Mailer:   createMailer(t),
 				Signer:   createSigner(t),
-				UserRepo: tc.repo,
+				UserRepo: tt.repo,
 			}
 
 			svc := auth.NewService(mockDeps)
@@ -142,49 +160,58 @@ func TestService_Register(t *testing.T) {
 				Password: mockPassword,
 			}
 
-			u, err := svc.Register(context.Background(), mockParams)
-			if err != nil {
-				if tc.wantErr == nil {
-					t.Fatal("auth service should not return an error")
-				}
-
-				if !errors.Is(err, tc.wantErr) {
-					t.Errorf("svc.Register(context.Background(), params) = %v, want %v", err, tc.wantErr)
-				}
-
-				return
-			}
-
-			if tc.wantErr != nil {
+			_, err := svc.Register(context.Background(), mockParams)
+			if err == nil {
 				t.Fatal("auth service should return an error")
 			}
 
-			if !reflect.DeepEqual(u, tc.wantUser) {
-				t.Errorf("svc.Register(context.Background(), params) = %v, want %v", u, tc.wantUser)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("svc.Register(context.Background(), params) = %v, want %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestService_Verify(t *testing.T) {
+func TestService_VerifySuccess(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
+	repo := &auth.StubRepo{
+		VerifyFunc: func(ctx context.Context, userID string) error {
+			return nil
+		},
+	}
+
+	signer := createSigner(t)
+
+	mockDeps := &auth.Dependencies{
+		Repo:     repo,
+		CfgApp:   mockAppCfg,
+		CfgEmail: mockEmailCfg,
+		CfgJWT:   mockJWTCfg,
+		Signer:   signer,
+	}
+
+	svc := auth.NewService(mockDeps)
+
+	mockToken, err := signer.Sign(mockUserID, []string{"/verify"}, mockJWTCfg.TTL.Duration)
+	if err != nil {
+		t.Fatalf("failed to sign token: %v", err)
+	}
+
+	if err := svc.Verify(t.Context(), mockToken); err != nil {
+		t.Errorf("svc.Verify(t.Context(), mockToken) = %v, want: %v", err, nil)
+	}
+}
+
+func TestService_VerifyFails(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
 		name    string
 		repo    auth.Repository
 		token   string
 		wantErr error
-	}
-
-	testCases := []testCase{
-		{
-			name: "valid verification token returns no error",
-			repo: &auth.StubRepo{
-				VerifyFunc: func(ctx context.Context, userID string) error {
-					return nil
-				},
-			},
-		},
+	}{
 		{
 			name:    "invalid verification token returns error",
 			repo:    &auth.StubRepo{},
@@ -211,14 +238,14 @@ func TestService_Verify(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			signer := createSigner(t)
 
 			mockDeps := &auth.Dependencies{
-				Repo:     tc.repo,
+				Repo:     tt.repo,
 				CfgApp:   mockAppCfg,
 				CfgEmail: mockEmailCfg,
 				CfgJWT:   mockJWTCfg,
@@ -228,40 +255,63 @@ func TestService_Verify(t *testing.T) {
 			svc := auth.NewService(mockDeps)
 
 			var err error
-			mockToken := tc.token
+			mockToken := tt.token
 			if mockToken == "" {
-				mockToken, err = signer.Sign("user1", []string{"/verify"}, mockJWTCfg.TTL.Duration)
+				mockToken, err = signer.Sign(mockUserID, []string{"/verify"}, mockJWTCfg.TTL.Duration)
 				if err != nil {
 					t.Fatalf("failed to sign token: %v", err)
 				}
 			}
 
-			err = svc.Verify(context.Background(), mockToken)
-			if !errors.Is(err, tc.wantErr) {
-				t.Errorf("svc.Verify(context.Background(), mockToken) = %v, want: %v", err, tc.wantErr)
+			err = svc.Verify(t.Context(), mockToken)
+			if err == nil {
+				t.Fatal("svc.Verify did not return an error")
+			}
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("svc.Verify(t.Context(), mockToken) = %v, want: %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestService_ResetPassword(t *testing.T) {
+func TestService_ResetPasswordSuccess(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
+	repo := &auth.StubRepo{
+		ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
+			return nil
+		},
+	}
+
+	deps := &auth.Dependencies{
+		Repo:     repo,
+		CfgApp:   mockAppCfg,
+		CfgJWT:   mockJWTCfg,
+		CfgEmail: mockEmailCfg,
+		Hasher:   createHasher(t),
+	}
+
+	svc := auth.NewService(deps)
+
+	mockParams := auth.ResetPasswordParams{
+		UserID:   mockUserID,
+		Password: "test",
+	}
+
+	if err := svc.ResetPassword(t.Context(), mockParams); err != nil {
+		t.Errorf("svc.ResetPassword(t.Context(), %+v) = %v, want: %v", mockParams, err, nil)
+	}
+}
+
+func TestService_ResetPasswordFails(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
 		name    string
 		repo    auth.Repository
 		wantErr error
-	}
-
-	testCases := []testCase{
-		{
-			name: "user exists returns no error",
-			repo: &auth.StubRepo{
-				ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
-					return nil
-				},
-			},
-		},
+	}{
 		{
 			name: "user does not exist returns error",
 			repo: &auth.StubRepo{
@@ -282,12 +332,12 @@ func TestService_ResetPassword(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			deps := &auth.Dependencies{
-				Repo:     tc.repo,
+				Repo:     tt.repo,
 				CfgApp:   mockAppCfg,
 				CfgJWT:   mockJWTCfg,
 				CfgEmail: mockEmailCfg,
@@ -297,25 +347,17 @@ func TestService_ResetPassword(t *testing.T) {
 			svc := auth.NewService(deps)
 
 			mockParams := auth.ResetPasswordParams{
-				UserID:   "1",
-				Password: "test",
+				UserID:   mockUserID,
+				Password: mockPassword,
 			}
 
-			err := svc.ResetPassword(context.Background(), mockParams)
-			if err != nil {
-				if tc.wantErr == nil {
-					t.Fatal("auth service should not return an error")
-				}
-
-				if !errors.Is(err, tc.wantErr) {
-					t.Errorf("svc.Register(context.Background(), params) = %v, want %v", err, tc.wantErr)
-				}
-
-				return
+			err := svc.ResetPassword(t.Context(), mockParams)
+			if err == nil {
+				t.Fatal("svc.ResetPassword did not return an error")
 			}
 
-			if tc.wantErr != nil {
-				t.Errorf("svc.Register(context.Background(), params) = %v, want %v", err, tc.wantErr)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("svc.Register(t.Context(), %+v) = %v, want %v", mockParams, err, tt.wantErr)
 			}
 		})
 	}
