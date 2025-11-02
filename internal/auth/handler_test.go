@@ -31,14 +31,12 @@ func TestHandler_Register(t *testing.T) {
 
 	now := time.Now().Truncate(0)
 
-	type testCase struct {
+	tests := []struct {
 		name       string
 		service    auth.Service
 		wantStatus int
 		wantBody   map[string]any
-	}
-
-	testCases := []testCase{
+	}{
 		{
 			name: "user does not exist returns 201 with new user",
 			service: &auth.StubService{
@@ -91,11 +89,11 @@ func TestHandler_Register(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
+			handler := auth.NewHandler(tt.service, &config.JWT{}, &config.Cookie{})
 
 			mockRequest := auth.RegisterRequest{
 				Email:           mockEmail,
@@ -111,15 +109,15 @@ func TestHandler_Register(t *testing.T) {
 			res := rec.Result()
 			defer res.Body.Close()
 
-			if res.StatusCode != tc.wantStatus {
-				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
+			if res.StatusCode != tt.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
 			}
 
 			web.AssertContentType(t, res)
 
 			body := web.DecodeJSONResponse(t, res)
-			if !reflect.DeepEqual(body, tc.wantBody) {
-				t.Errorf("body = %v, want: %v", body, tc.wantBody)
+			if !reflect.DeepEqual(body, tt.wantBody) {
+				t.Errorf("body = %v, want: %v", body, tt.wantBody)
 			}
 		})
 	}
@@ -128,15 +126,13 @@ func TestHandler_Register(t *testing.T) {
 func TestHandler_Login(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
+	tests := []struct {
 		name       string
 		service    auth.Service
 		wantStatus int
 		wantBody   map[string]any
 		wantCookie *http.Cookie
-	}
-
-	testCases := []testCase{
+	}{
 		{
 			name: "verified user with correct password returns 200 with session and cookie",
 			service: &auth.StubService{
@@ -230,8 +226,8 @@ func TestHandler_Login(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			cfgJWT := &config.JWT{
@@ -241,7 +237,7 @@ func TestHandler_Login(t *testing.T) {
 				Name: cookieName,
 			}
 
-			handler := auth.NewHandler(tc.service, cfgJWT, cfgCookie)
+			handler := auth.NewHandler(tt.service, cfgJWT, cfgCookie)
 
 			params := auth.LoginRequest{
 				Email:    mockEmail,
@@ -255,29 +251,18 @@ func TestHandler_Login(t *testing.T) {
 			res := rec.Result()
 			defer res.Body.Close()
 
-			if res.StatusCode != tc.wantStatus {
-				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
+			if res.StatusCode != tt.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
 			}
 
 			web.AssertContentType(t, res)
 
 			body := web.DecodeJSONResponse(t, res)
-			if !reflect.DeepEqual(body, tc.wantBody) {
-				t.Errorf("body = %v, want: %v", body, tc.wantBody)
+			if !reflect.DeepEqual(body, tt.wantBody) {
+				t.Errorf("body = %v, want: %v", body, tt.wantBody)
 			}
 
-			cookies := res.Cookies()
-			numCookies := len(cookies)
-
-			if tc.wantCookie != nil {
-				if numCookies == 0 {
-					t.Fatal("no cookies found in the response")
-				}
-
-				assertCookies(t, cookies[0], tc.wantCookie)
-			} else if numCookies > 0 {
-				t.Errorf("len(cookies) = %d, want: %d", numCookies, 0)
-			}
+			assertCookies(t, res, tt.wantCookie)
 		})
 	}
 }
@@ -285,14 +270,12 @@ func TestHandler_Login(t *testing.T) {
 func TestHandler_Verify(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
+	tests := []struct {
 		name       string
 		service    auth.Service
 		wantStatus int
 		wantBody   map[string]any
-	}
-
-	testCases := []testCase{
+	}{
 		{
 			name: "valid verification token returns 200",
 			service: &auth.StubService{
@@ -331,11 +314,11 @@ func TestHandler_Verify(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
+			handler := auth.NewHandler(tt.service, &config.JWT{}, &config.Cookie{})
 
 			mockRequest := auth.VerifyRequest{
 				Token: "mock_token",
@@ -348,15 +331,15 @@ func TestHandler_Verify(t *testing.T) {
 			res := rec.Result()
 			defer res.Body.Close()
 
-			if res.StatusCode != tc.wantStatus {
-				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
+			if res.StatusCode != tt.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
 			}
 
 			web.AssertContentType(t, res)
 
 			body := web.DecodeJSONResponse(t, res)
-			if !reflect.DeepEqual(body, tc.wantBody) {
-				t.Errorf("body = %v, want: %v", body, tc.wantBody)
+			if !reflect.DeepEqual(body, tt.wantBody) {
+				t.Errorf("body = %v, want: %v", body, tt.wantBody)
 			}
 		})
 	}
@@ -365,15 +348,13 @@ func TestHandler_Verify(t *testing.T) {
 func TestHandler_ChangePassword(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
+	tests := []struct {
 		name       string
 		service    auth.Service
 		userID     string
 		wantStatus int
 		wantBody   map[string]any
-	}
-
-	testCases := []testCase{
+	}{
 		{
 			name: "user exists returns 200",
 			service: &auth.StubService{
@@ -436,11 +417,11 @@ func TestHandler_ChangePassword(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
+			handler := auth.NewHandler(tt.service, &config.JWT{}, &config.Cookie{})
 
 			params := auth.ChangePasswordRequest{
 				CurrentPassword: "mock_current_password",
@@ -448,7 +429,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 				RepeatPassword:  "mock_new_password",
 			}
 			ctx := web.NewContextWithParams(context.Background(), params)
-			ctx = auth.ContextWithUser(ctx, tc.userID)
+			ctx = auth.ContextWithUser(ctx, tt.userID)
 			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/change-password", http.NoBody)
 			rec := httptest.NewRecorder()
 			handler.ChangePassword(rec, req)
@@ -456,15 +437,15 @@ func TestHandler_ChangePassword(t *testing.T) {
 			res := rec.Result()
 			defer res.Body.Close()
 
-			if res.StatusCode != tc.wantStatus {
-				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
+			if res.StatusCode != tt.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
 			}
 
 			web.AssertContentType(t, res)
 
 			body := web.DecodeJSONResponse(t, res)
-			if !reflect.DeepEqual(body, tc.wantBody) {
-				t.Errorf("body = %v, want: %v", body, tc.wantBody)
+			if !reflect.DeepEqual(body, tt.wantBody) {
+				t.Errorf("body = %v, want: %v", body, tt.wantBody)
 			}
 		})
 	}
@@ -473,20 +454,16 @@ func TestHandler_ChangePassword(t *testing.T) {
 func TestHandler_RefreshToken(t *testing.T) {
 	t.Parallel()
 
-	const (
-		tokenType = "Bearer"
-	)
+	const tokenType = "Bearer"
 
-	type testCase struct {
+	tests := []struct {
 		name          string
 		service       auth.Service
 		refreshCookie *http.Cookie
 		wantStatus    int
 		wantBody      map[string]any
 		wantCookie    *http.Cookie
-	}
-
-	testCases := []testCase{
+	}{
 		{
 			name: "valid refresh cookie returns ok with new session",
 			service: &auth.StubService{
@@ -599,8 +576,8 @@ func TestHandler_RefreshToken(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			cfgJWT := &config.JWT{
@@ -609,11 +586,11 @@ func TestHandler_RefreshToken(t *testing.T) {
 			cfgCookie := &config.Cookie{
 				Name: cookieName,
 			}
-			handler := auth.NewHandler(tc.service, cfgJWT, cfgCookie)
+			handler := auth.NewHandler(tt.service, cfgJWT, cfgCookie)
 
 			req := httptest.NewRequest(http.MethodPost, "/refresh", http.NoBody)
-			if tc.refreshCookie != nil {
-				req.AddCookie(tc.refreshCookie)
+			if tt.refreshCookie != nil {
+				req.AddCookie(tt.refreshCookie)
 			}
 			rec := httptest.NewRecorder()
 			handler.RefreshToken(rec, req)
@@ -621,27 +598,18 @@ func TestHandler_RefreshToken(t *testing.T) {
 			res := rec.Result()
 			defer res.Body.Close()
 
-			if res.StatusCode != tc.wantStatus {
-				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
+			if res.StatusCode != tt.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
 			}
 
 			web.AssertContentType(t, res)
 
 			body := web.DecodeJSONResponse(t, res)
-			if !reflect.DeepEqual(body, tc.wantBody) {
-				t.Errorf("body = %v, want: %v", body, tc.wantBody)
+			if !reflect.DeepEqual(body, tt.wantBody) {
+				t.Errorf("body = %v, want: %v", body, tt.wantBody)
 			}
 
-			cookies := res.Cookies()
-			numCookies := len(cookies)
-			if tc.wantCookie != nil {
-				if numCookies == 0 {
-					t.Fatal("there should be cookies in the response")
-				}
-				assertCookies(t, cookies[0], tc.wantCookie)
-			} else if numCookies > 0 {
-				t.Fatal("there should be no cookies in the response")
-			}
+			assertCookies(t, res, tt.wantCookie)
 		})
 	}
 }
@@ -655,15 +623,13 @@ func TestHandler_Logout(t *testing.T) {
 		refreshToken = "mock_refresh_token"
 	)
 
-	type testCase struct {
+	tests := []struct {
 		name       string
 		userID     string
 		wantStatus int
 		wantBody   map[string]any
 		wantCookie *http.Cookie
-	}
-
-	testCases := []testCase{
+	}{
 		{
 			name:       "user is logged in returns 204 and deletes cookie",
 			userID:     "1",
@@ -688,8 +654,8 @@ func TestHandler_Logout(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			cfgCookie := &config.Cookie{
@@ -698,8 +664,8 @@ func TestHandler_Logout(t *testing.T) {
 			handler := auth.NewHandler(&auth.StubService{}, &config.JWT{}, cfgCookie)
 
 			ctx := context.Background()
-			if tc.userID != "" {
-				ctx = auth.ContextWithUser(context.Background(), tc.userID)
+			if tt.userID != "" {
+				ctx = auth.ContextWithUser(context.Background(), tt.userID)
 			}
 			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/logout", http.NoBody)
 			rec := httptest.NewRecorder()
@@ -708,27 +674,18 @@ func TestHandler_Logout(t *testing.T) {
 			res := rec.Result()
 			defer res.Body.Close()
 
-			if res.StatusCode != tc.wantStatus {
-				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
+			if res.StatusCode != tt.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
 			}
 
 			web.AssertContentType(t, res)
 
 			body := web.DecodeJSONResponse(t, res)
-			if !reflect.DeepEqual(body, tc.wantBody) {
-				t.Errorf("body = %+v, want: %+v", body, tc.wantBody)
+			if !reflect.DeepEqual(body, tt.wantBody) {
+				t.Errorf("body = %+v, want: %+v", body, tt.wantBody)
 			}
 
-			cookies := res.Cookies()
-			numCookies := len(cookies)
-			if tc.wantCookie != nil {
-				if numCookies == 0 {
-					t.Fatal("there should be cookies in the response")
-				}
-				assertCookies(t, cookies[0], tc.wantCookie)
-			} else if numCookies > 0 {
-				t.Fatal("there should be no cookies in the response")
-			}
+			assertCookies(t, res, tt.wantCookie)
 		})
 	}
 }
@@ -736,14 +693,12 @@ func TestHandler_Logout(t *testing.T) {
 func TestHandler_ResetPassword(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
+	tests := []struct {
 		name       string
 		service    auth.Service
 		wantStatus int
 		wantBody   map[string]any
-	}
-
-	testCases := []testCase{
+	}{
 		{
 			name: "user exists returns 200",
 			service: &auth.StubService{
@@ -770,11 +725,11 @@ func TestHandler_ResetPassword(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler := auth.NewHandler(tc.service, &config.JWT{}, &config.Cookie{})
+			handler := auth.NewHandler(tt.service, &config.JWT{}, &config.Cookie{})
 
 			params := auth.ResetPasswordRequest{
 				Password:        "mock_password",
@@ -790,40 +745,53 @@ func TestHandler_ResetPassword(t *testing.T) {
 			res := rec.Result()
 			defer res.Body.Close()
 
-			if res.StatusCode != tc.wantStatus {
-				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tc.wantStatus)
+			if res.StatusCode != tt.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
 			}
 
 			web.AssertContentType(t, res)
 
 			body := web.DecodeJSONResponse(t, res)
-			if !reflect.DeepEqual(body, tc.wantBody) {
-				t.Errorf("body = %+v, want: %+v", body, tc.wantBody)
+			if !reflect.DeepEqual(body, tt.wantBody) {
+				t.Errorf("body = %+v, want: %+v", body, tt.wantBody)
 			}
 		})
 	}
 }
 
-func assertCookies(t *testing.T, responseCookie, wantCookie *http.Cookie) {
+func assertCookies(t *testing.T, res *http.Response, wantCookie *http.Cookie) {
 	t.Helper()
 
-	if responseCookie.Value != wantCookie.Value {
-		t.Errorf("responseCookie.Value = %q, want: %q", responseCookie.Value, wantCookie.Value)
-	}
+	cookies := res.Cookies()
+	numCookies := len(cookies)
 
-	if responseCookie.Secure != wantCookie.Secure {
-		t.Errorf("responseCookie.Secure = %t, want: %t", responseCookie.Secure, wantCookie.Secure)
-	}
+	if wantCookie != nil {
+		if numCookies == 0 {
+			t.Fatal("there should be cookies in the response")
+		}
 
-	if responseCookie.HttpOnly != wantCookie.HttpOnly {
-		t.Errorf("responseCookie.HttpOnly = %t, want: %t", responseCookie.HttpOnly, wantCookie.HttpOnly)
-	}
+		responseCookie := cookies[0]
 
-	if responseCookie.Path != wantCookie.Path {
-		t.Errorf("responseCookie.Path = %q, want: %q", responseCookie.Path, wantCookie.Path)
-	}
+		if responseCookie.Value != wantCookie.Value {
+			t.Errorf("responseCookie.Value = %q, want: %q", responseCookie.Value, wantCookie.Value)
+		}
 
-	if responseCookie.SameSite != wantCookie.SameSite {
-		t.Errorf("responseCookie.SameSite = %q, want: %q", responseCookie.SameSite, wantCookie.SameSite)
+		if responseCookie.Secure != wantCookie.Secure {
+			t.Errorf("responseCookie.Secure = %t, want: %t", responseCookie.Secure, wantCookie.Secure)
+		}
+
+		if responseCookie.HttpOnly != wantCookie.HttpOnly {
+			t.Errorf("responseCookie.HttpOnly = %t, want: %t", responseCookie.HttpOnly, wantCookie.HttpOnly)
+		}
+
+		if responseCookie.Path != wantCookie.Path {
+			t.Errorf("responseCookie.Path = %q, want: %q", responseCookie.Path, wantCookie.Path)
+		}
+
+		if responseCookie.SameSite != wantCookie.SameSite {
+			t.Errorf("responseCookie.SameSite = %q, want: %q", responseCookie.SameSite, wantCookie.SameSite)
+		}
+	} else if numCookies > 0 {
+		t.Fatal("there should be no cookies in the response")
 	}
 }

@@ -11,15 +11,15 @@ import (
 )
 
 func TestMiddleware_RequireToken(t *testing.T) {
+	t.Parallel()
+
 	const headerCalled = "X-Handler-Called"
 
-	type testCase struct {
+	tests := []struct {
 		name, accessToken, headerCalled string
 		signer                          jwt.Signer
 		code                            int
-	}
-
-	testCases := []testCase{
+	}{
 		{
 			name:        "With valid token",
 			accessToken: "access_token",
@@ -36,32 +36,33 @@ func TestMiddleware_RequireToken(t *testing.T) {
 			code:         http.StatusOK,
 			headerCalled: "true",
 		},
-
 		{
 			name: "Without token",
 			code: http.StatusUnauthorized,
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set(headerCalled, "true")
 				w.WriteHeader(http.StatusOK)
 			})
 
 			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", http.NoBody)
-			req.Header.Set("Authorization", "Bearer "+tc.accessToken)
+			req.Header.Set("Authorization", "Bearer "+tt.accessToken)
 			rec := httptest.NewRecorder()
-			mw := auth.RequireToken(tc.signer)
+			mw := auth.RequireToken(tt.signer)
 			mw(handler).ServeHTTP(rec, req)
 
-			gotCode, wantCode := rec.Code, tc.code
+			gotCode, wantCode := rec.Code, tt.code
 			if gotCode != wantCode {
 				t.Errorf("rec.Code = %d, want: %d", gotCode, wantCode)
 			}
 
-			gotHeaderCalled, wantHeaderCalled := rec.Header().Get(headerCalled), tc.headerCalled
+			gotHeaderCalled, wantHeaderCalled := rec.Header().Get(headerCalled), tt.headerCalled
 			if gotHeaderCalled != wantHeaderCalled {
 				t.Errorf("rec.Header().Get(%q) = %q, want: %q", headerCalled, gotHeaderCalled, wantHeaderCalled)
 			}
