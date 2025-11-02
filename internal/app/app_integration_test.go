@@ -25,7 +25,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
+func setupApp(t *testing.T) (server *app.App, cleanUpFunc func()) {
 	t.Helper()
 
 	if err := env.Load("../../.env.testing"); err != nil {
@@ -56,7 +56,8 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 	userHandler := user.NewHandler(userSvc)
 
 	authRepo := auth.NewRepository(conn)
-	authSvcProvider := &auth.ServiceProvider{
+	authSvcDeps := &auth.Dependencies{
+		Repo:     authRepo,
 		CfgApp:   cfg.App,
 		CfgJWT:   cfg.JWT,
 		CfgEmail: cfg.Email,
@@ -66,18 +67,21 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 		Txmgr:    txMgr,
 		UserRepo: userRepo,
 	}
-	authSvc := auth.NewService(authRepo, authSvcProvider)
-
+	authSvc := auth.NewService(authSvcDeps)
 	authHandler := auth.NewHandler(authSvc, cfg.JWT, cfg.Cookie)
 
 	middlewares := []func(http.Handler) http.Handler{}
-	provider := &app.Provider{
-		CfgServer: cfg.Server,
-		Signer:    signer,
-		Validator: validator,
-		Router:    router.NewGoexpressRouter(),
+
+	deps := &app.Dependencies{
+		CfgServer:   cfg.Server,
+		Signer:      signer,
+		Validator:   validator,
+		Router:      router.NewGoexpressRouter(),
+		Middlewares: middlewares,
+		AuthHandler: authHandler,
+		UserHandler: userHandler,
 	}
-	api, err = app.New(provider, middlewares, authHandler, userHandler)
+	server, err = app.New(deps)
 	if err != nil {
 		t.Fatalf("new api: %v", err)
 	}
@@ -86,7 +90,7 @@ func setupApp(t *testing.T) (api *app.App, cleanUpFunc func()) {
 		conn.Close()
 	}
 
-	return api, cleanUpFunc
+	return server, cleanUpFunc
 }
 
 func TestIntegrationApp_StartAndShutdown(t *testing.T) {

@@ -44,7 +44,8 @@ type service struct {
 
 var _ Service = (*service)(nil)
 
-type ServiceProvider struct {
+type Dependencies struct {
+	Repo     Repository
 	CfgApp   *config.App
 	CfgJWT   *config.JWT
 	CfgEmail *config.Email
@@ -55,17 +56,17 @@ type ServiceProvider struct {
 	UserRepo user.Repository
 }
 
-func NewService(repo Repository, provider *ServiceProvider) Service {
+func NewService(deps *Dependencies) Service {
 	return &service{
-		repo:      repo,
-		userRepo:  provider.UserRepo,
-		hasher:    provider.Hasher,
-		mailer:    provider.Mailer,
-		signer:    provider.Signer,
-		txManager: provider.Txmgr,
-		clientURL: provider.CfgApp.URL,
-		cfgJWT:    provider.CfgJWT,
-		cfgEmail:  provider.CfgEmail,
+		repo:      deps.Repo,
+		userRepo:  deps.UserRepo,
+		hasher:    deps.Hasher,
+		mailer:    deps.Mailer,
+		signer:    deps.Signer,
+		txManager: deps.Txmgr,
+		clientURL: deps.CfgApp.URL,
+		cfgJWT:    deps.CfgJWT,
+		cfgEmail:  deps.CfgEmail,
 	}
 }
 

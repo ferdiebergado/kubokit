@@ -124,7 +124,8 @@ func TestService_Register(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			mockProvider := &auth.ServiceProvider{
+			mockDeps := &auth.Dependencies{
+				Repo:     &auth.StubRepo{},
 				CfgApp:   mockAppCfg,
 				CfgJWT:   mockJWTCfg,
 				CfgEmail: mockEmailCfg,
@@ -134,7 +135,7 @@ func TestService_Register(t *testing.T) {
 				UserRepo: tc.repo,
 			}
 
-			svc := auth.NewService(&auth.StubRepo{}, mockProvider)
+			svc := auth.NewService(mockDeps)
 
 			mockParams := auth.RegisterParams{
 				Email:    mockEmail,
@@ -216,14 +217,15 @@ func TestService_Verify(t *testing.T) {
 
 			signer := createSigner(t)
 
-			mockProvider := &auth.ServiceProvider{
+			mockDeps := &auth.Dependencies{
+				Repo:     tc.repo,
 				CfgApp:   mockAppCfg,
 				CfgEmail: mockEmailCfg,
 				CfgJWT:   mockJWTCfg,
 				Signer:   signer,
 			}
 
-			svc := auth.NewService(tc.repo, mockProvider)
+			svc := auth.NewService(mockDeps)
 
 			var err error
 			mockToken := tc.token
@@ -284,14 +286,15 @@ func TestService_ResetPassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			provider := &auth.ServiceProvider{
+			deps := &auth.Dependencies{
+				Repo:     tc.repo,
 				CfgApp:   mockAppCfg,
 				CfgJWT:   mockJWTCfg,
 				CfgEmail: mockEmailCfg,
 				Hasher:   createHasher(t),
 			}
 
-			svc := auth.NewService(tc.repo, provider)
+			svc := auth.NewService(deps)
 
 			mockParams := auth.ResetPasswordParams{
 				UserID:   "1",

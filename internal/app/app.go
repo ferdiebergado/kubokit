@@ -31,16 +31,20 @@ type App struct {
 	authHandler     *auth.Handler
 }
 
-type Provider struct {
-	CfgServer *config.Server
-	Router    router.Router
-	Signer    jwt.Signer
-	Validator validation.Validator
+type Dependencies struct {
+	CfgServer   *config.Server
+	Router      router.Router
+	Signer      jwt.Signer
+	Validator   validation.Validator
+	Middlewares []func(http.Handler) http.Handler
+	AuthHandler *auth.Handler
+	UserHandler *user.Handler
 }
 
-func New(provider *Provider, middlewares []func(http.Handler) http.Handler, authHandler *auth.Handler, userHandler *user.Handler) (*App, error) {
-	cfgServer := provider.CfgServer
-	router := provider.Router
+func New(deps *Dependencies) (*App, error) {
+	cfgServer := deps.CfgServer
+	router := deps.Router
+
 	serverCtx, stop := context.WithCancel(context.Background())
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfgServer.Port),
@@ -53,20 +57,18 @@ func New(provider *Provider, middlewares []func(http.Handler) http.Handler, auth
 		IdleTimeout:  cfgServer.IdleTimeout.Duration,
 	}
 
-	api := &App{
+	return &App{
 		server:          server,
-		middlewares:     middlewares,
+		middlewares:     deps.Middlewares,
 		stop:            stop,
 		shutdownTimeout: cfgServer.ShutdownTimeout.Duration,
 		cfgServer:       cfgServer,
-		signer:          provider.Signer,
-		validator:       provider.Validator,
+		signer:          deps.Signer,
+		validator:       deps.Validator,
 		router:          router,
-		userHandler:     userHandler,
-		authHandler:     authHandler,
-	}
-
-	return api, nil
+		userHandler:     deps.UserHandler,
+		authHandler:     deps.AuthHandler,
+	}, nil
 }
 
 func (a *App) registerMiddlewares() {

@@ -72,6 +72,7 @@ func Run() error {
 	hasher := security.NewArgon2Hasher(cfg.Argon2, securityKey)
 
 	validator := validation.NewGoPlaygroundValidator()
+
 	txMgr := db.NewTxManager(dbConn)
 
 	userRepo := user.NewRepository(dbConn)
@@ -79,7 +80,8 @@ func Run() error {
 	userHandler := user.NewHandler(userService)
 
 	authRepo := auth.NewRepository(dbConn)
-	authServiceProvider := &auth.ServiceProvider{
+	authSvcDeps := &auth.Dependencies{
+		Repo:     authRepo,
 		CfgApp:   cfg.App,
 		CfgJWT:   cfg.JWT,
 		CfgEmail: cfg.Email,
@@ -89,8 +91,7 @@ func Run() error {
 		Txmgr:    txMgr,
 		UserRepo: userRepo,
 	}
-	authService := auth.NewService(authRepo, authServiceProvider)
-
+	authService := auth.NewService(authSvcDeps)
 	authHandler := auth.NewHandler(authService, cfg.JWT, cfg.Cookie)
 
 	middlewares := []func(http.Handler) http.Handler{
@@ -101,23 +102,26 @@ func Run() error {
 		middleware.CheckContentType,
 	}
 
-	provider := &Provider{
-		CfgServer: cfg.Server,
-		Router:    router.NewGoexpressRouter(),
-		Signer:    signer,
-		Validator: validator,
+	deps := &Dependencies{
+		CfgServer:   cfg.Server,
+		Router:      router.NewGoexpressRouter(),
+		Signer:      signer,
+		Validator:   validator,
+		Middlewares: middlewares,
+		AuthHandler: authHandler,
+		UserHandler: userHandler,
 	}
 
-	api, err := New(provider, middlewares, authHandler, userHandler)
+	server, err := New(deps)
 	if err != nil {
 		return fmt.Errorf("new api: %w", err)
 	}
 
-	if err = api.Start(signalCtx); err != nil {
+	if err = server.Start(signalCtx); err != nil {
 		return fmt.Errorf("start server: %w", err)
 	}
 
-	if err := api.Shutdown(); err != nil {
+	if err := server.Shutdown(); err != nil {
 		return fmt.Errorf("api shutdown: %w", err)
 	}
 
