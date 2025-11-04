@@ -19,13 +19,12 @@ import (
 const (
 	mockUserID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
 	mockEmail  = "alice@example.com"
-	fmtErrSeed = "failed to seed users: %v"
 )
 
 func TestIntegrationRepository_List(t *testing.T) {
 	t.Parallel()
 
-	tx := setup(t)
+	seedUsers, tx := setup(t)
 	repo := user.NewRepository(tx)
 
 	users, err := repo.List(t.Context())
@@ -33,61 +32,75 @@ func TestIntegrationRepository_List(t *testing.T) {
 		t.Fatalf("failed to list users: %v", err)
 	}
 
-	gotLen, wantLen := len(users), 3
+	gotLen, wantLen := len(users), len(seedUsers)
 	if gotLen != wantLen {
-		t.Errorf("len(users) = %d, want: %d", gotLen, wantLen)
+		t.Fatalf("len(users) = %d, want: %d", gotLen, wantLen)
+	}
+
+	for i, u := range users {
+		if !reflect.DeepEqual(u, seedUsers[i]) {
+			t.Errorf("u = %+v, want: %+v", u, seedUsers[i])
+		}
 	}
 }
 
-func setup(t *testing.T) *sql.Tx {
+func setup(t *testing.T) ([]user.User, *sql.Tx) {
 	t.Helper()
 
-	const querySeedUsers = `
-	INSERT INTO users (id, email, password_hash, verified_at, metadata, created_at, updated_at, deleted_at) VALUES
-	(
-		'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-		'alice@example.com',
-		'$2a$10$e0MYzXyjpJS7Pd0RVvHwHeFx4fQnhdQnZZF9uG6x1Z1ZzR12uLh9e',
-    '2025-05-09T12:00:00Z',
-    '{"role":"admin","signup_source":"referral"}',
-    '2025-05-09T10:00:00Z',
-    '2025-05-09T10:00:00Z',
-    NULL
-	),
-	(
-		'3d594650-3436-11e5-bf21-0800200c9a67',
-		'bobby@example.com',
-		'$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z1Z3MxE8lmyy6h6Zy/YPj4Oa',
-		NULL,
-		'{"role":"user","signup_source":"organic"}',
-		'2025-05-09T10:05:00Z',
-		'2025-05-09T10:05:00Z',
-		NULL
-		),
-		(
-			'6f1e3e3a-1c55-4f19-8341-8132f374dc5f',
-			'carol@example.com',
-			'$2a$10$wHk8Zkk8s5DdAOpTmLkp8O4fZzPLAlZsYMHcFzU4sdkuXwYlVjOBK',
-			'2025-05-09T11:00:00Z',
-			'{"role":"moderator","interests":["go","sql"]}',
-    '2025-05-09T10:10:00Z',
-    '2025-05-09T10:10:00Z',
-    '2025-05-09T12:00:00Z'
-	);`
+	const (
+		numUsers = 3
+
+		seedQuery = `
+		INSERT INTO users (email, password_hash)
+		VALUES
+		('abc@example.com', 'hashed1'),
+		('123@example.com', 'hashed2'),
+		('user1@example.com', 'hashed3')`
+
+		usersQuery = `
+		SELECT id, email, metadata, verified_at, created_at, updated_at
+		FROM users`
+	)
 
 	_, tx := db.Setup(t)
-	_, err := tx.Exec(querySeedUsers)
+	ctx := t.Context()
+
+	_, err := tx.ExecContext(ctx, seedQuery)
 	if err != nil {
-		t.Fatalf(fmtErrSeed, err)
+		t.Fatalf("failed to seed users: %v", err)
 	}
 
-	return tx
+	rows, err := tx.QueryContext(ctx, usersQuery)
+	if err != nil {
+		t.Fatalf("failed to retrieve users: %v", err)
+	}
+	defer rows.Close()
+
+	users := make([]user.User, 0, numUsers)
+	for rows.Next() {
+		var u user.User
+		if err := rows.Scan(&u.ID, &u.Email, &u.Metadata, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			t.Fatalf("failed to scan row: %v", err)
+		}
+
+		users = append(users, u)
+	}
+
+	if err := rows.Close(); err != nil {
+		t.Fatalf("failed to close rows: %v", err)
+	}
+
+	if err := rows.Err(); err != nil {
+		t.Fatalf("failed to iterate rows: %v", err)
+	}
+
+	return users, tx
 }
 
 func TestIntegrationRepository_FindReturnsUser(t *testing.T) {
 	t.Parallel()
 
-	tx := setup(t)
+	_, tx := setup(t)
 	repo := user.NewRepository(tx)
 
 	u, err := repo.Find(t.Context(), mockUserID)
@@ -141,7 +154,7 @@ func parseTime(t *testing.T, timeStr string) time.Time {
 func TestIntegrationRepository_FindByEmail(t *testing.T) {
 	t.Parallel()
 
-	tx := setup(t)
+	_, tx := setup(t)
 
 	ctx := context.Background()
 
@@ -193,7 +206,7 @@ func TestIntegrationRepository_Create(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			tx := setup(t)
+			_, tx := setup(t)
 			ctx := context.Background()
 
 			repo := user.NewRepository(tx)
@@ -244,7 +257,7 @@ func TestIntegrationRepository_Delete(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			tx := setup(t)
+			_, tx := setup(t)
 			userRepo := user.NewRepository(tx)
 			err := userRepo.Delete(ctx, tc.userID)
 			if err != nil {
@@ -272,7 +285,7 @@ func TestIntegrationRepository_Update(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	tx := setup(t)
+	_, tx := setup(t)
 
 	userRepo := user.NewRepository(tx)
 	currentTimestamp := time.Now().Truncate(time.Microsecond)
