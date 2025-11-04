@@ -24,7 +24,7 @@ const (
 func TestIntegrationRepository_List(t *testing.T) {
 	t.Parallel()
 
-	seedUsers, tx := setup(t)
+	mockUsers, tx := setup(t)
 	repo := user.NewRepository(tx)
 
 	users, err := repo.List(t.Context())
@@ -32,14 +32,14 @@ func TestIntegrationRepository_List(t *testing.T) {
 		t.Fatalf("failed to list users: %v", err)
 	}
 
-	gotLen, wantLen := len(users), len(seedUsers)
+	gotLen, wantLen := len(users), len(mockUsers)
 	if gotLen != wantLen {
 		t.Fatalf("len(users) = %d, want: %d", gotLen, wantLen)
 	}
 
 	for i, u := range users {
-		if !reflect.DeepEqual(u, seedUsers[i]) {
-			t.Errorf("u = %+v, want: %+v", u, seedUsers[i])
+		if !reflect.DeepEqual(u, mockUsers[i]) {
+			t.Errorf("u = %+v, want: %+v", u, mockUsers[i])
 		}
 	}
 }
@@ -100,55 +100,19 @@ func setup(t *testing.T) ([]user.User, *sql.Tx) {
 func TestIntegrationRepository_FindReturnsUser(t *testing.T) {
 	t.Parallel()
 
-	_, tx := setup(t)
+	mockUsers, tx := setup(t)
 	repo := user.NewRepository(tx)
 
-	u, err := repo.Find(t.Context(), mockUserID)
+	wantUser := mockUsers[0]
+
+	u, err := repo.Find(t.Context(), wantUser.ID)
 	if err != nil {
-		t.Fatalf("failed to find user with id: %q: %v", mockUserID, err)
+		t.Fatalf("failed to find user with id: %q: %v", wantUser.ID, err)
 	}
 
-	const (
-		createdAt  = "2025-05-09T10:00:00Z"
-		verifiedAt = "2025-05-09T12:00:00Z"
-	)
-
-	wantCreatedAt := parseTime(t, createdAt)
-	wantUpdatedAt := parseTime(t, createdAt)
-	wantVerifiedAt := parseTime(t, verifiedAt)
-
-	wantUser := &user.User{
-		Model: model.Model{
-			ID:        mockUserID,
-			CreatedAt: wantCreatedAt,
-			UpdatedAt: wantUpdatedAt,
-		},
-		Email:      mockEmail,
-		VerifiedAt: &wantVerifiedAt,
+	if !reflect.DeepEqual(u, &wantUser) {
+		t.Errorf("repo.Find(t.Context(), %q) = %+v, want: %+v", wantUser.ID, u, wantUser)
 	}
-
-	u.Model.CreatedAt = u.Model.CreatedAt.In(time.UTC)
-	u.Model.UpdatedAt = u.Model.UpdatedAt.In(time.UTC)
-
-	if u.VerifiedAt != nil {
-		t := u.VerifiedAt.In(time.UTC).Truncate(time.Microsecond)
-		u.VerifiedAt = &t
-	}
-
-	if !reflect.DeepEqual(u, wantUser) {
-		t.Errorf("repo.Find(ctx, %q) = %+v, want: %+v", mockUserID, u, wantUser)
-	}
-}
-
-func parseTime(t *testing.T, timeStr string) time.Time {
-	t.Helper()
-
-	val, err := time.Parse(time.RFC3339, timeStr)
-	if err != nil {
-		t.Fatalf("failed to parse time string: %q: %v", timeStr, err)
-	}
-
-	return val
 }
 
 func TestIntegrationRepository_FindByEmail(t *testing.T) {
