@@ -25,19 +25,19 @@ func NewRepository(db db.Executor) Repository {
 }
 
 type CreateParams struct {
-	Email, Password string
+	Email, PasswordHash string
 }
 
 func (r *repo) Create(ctx context.Context, params CreateParams) (User, error) {
 	const query = `
 	INSERT INTO users (email, password_hash)
 	VALUES ($1, $2)
-	RETURNING id, email, created_at, updated_at
+	RETURNING id, email, password_hash, verified_at, created_at, updated_at
 	`
 
-	row := r.db.QueryRowContext(ctx, query, params.Email, params.Password)
+	row := r.db.QueryRowContext(ctx, query, params.Email, params.PasswordHash)
 	var u User
-	if err := row.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		const errFmt = "execute query: %w"
 		if db.IsUniqueConstraintViolation(err) {
 			return User{}, fmt.Errorf(errFmt, ErrDuplicate)
