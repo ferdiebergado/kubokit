@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	mockUserID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
-	mockEmail  = "alice@example.com"
+	mockUserID   = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+	mockEmail    = "alice@example.com"
+	mockPassword = "test"
 )
 
 func TestIntegrationRepository_List(t *testing.T) {
@@ -149,6 +150,42 @@ func TestIntegrationRepository_FindByEmail(t *testing.T) {
 	}
 }
 
+func TestIntegrationRepository_CreateSuccess(t *testing.T) {
+	t.Parallel()
+
+	_, tx := setup(t)
+	repo := user.NewRepository(tx)
+
+	mockParams := user.CreateParams{
+		Email:        mockEmail,
+		PasswordHash: mockPassword,
+	}
+	u, err := repo.Create(t.Context(), mockParams)
+	if err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	if u.Email != mockEmail {
+		t.Errorf("u.Email = %q, want: %q", u.Email, mockEmail)
+	}
+
+	if u.PasswordHash != mockPassword {
+		t.Errorf("u.Password = %q, want: %q", u.PasswordHash, mockPassword)
+	}
+
+	if u.VerifiedAt != nil {
+		t.Errorf("u.verifiedAt = %v, want: %v", u.VerifiedAt, nil)
+	}
+
+	if u.CreatedAt.IsZero() {
+		t.Errorf("u.CreatedAt = %v, want: non-zero time", u.CreatedAt)
+	}
+
+	if u.UpdatedAt.IsZero() {
+		t.Errorf("u.UpdatedAt = %v, want: non-zero time", u.UpdatedAt)
+	}
+}
+
 func TestIntegrationRepository_Create(t *testing.T) {
 	t.Parallel()
 
@@ -160,15 +197,15 @@ func TestIntegrationRepository_Create(t *testing.T) {
 		{
 			name: "User is available",
 			params: user.CreateParams{
-				Email:    "agnis@example.com",
-				Password: "hashed",
+				Email:        "agnis@example.com",
+				PasswordHash: "hashed",
 			},
 		},
 		{
 			name: "duplicate user should return error",
 			params: user.CreateParams{
-				Email:    "agnis@example.com",
-				Password: "hashed",
+				Email:        "agnis@example.com",
+				PasswordHash: "hashed",
 			},
 			err: user.ErrDuplicate,
 		},
