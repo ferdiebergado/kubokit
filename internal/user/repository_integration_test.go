@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ferdiebergado/kubokit/internal/model"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/user"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -111,7 +110,7 @@ func TestIntegrationRepository_FindReturnsUser(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(u, &wantUser) {
-		t.Errorf("repo.Find(t.Context(), %q) = %+v, want: %+v", wantUser.ID, u, wantUser)
+		t.Errorf("repo.Find(t.Context(), %q) = %+v, want: %+v", wantUser.ID, u, &wantUser)
 	}
 }
 
@@ -134,29 +133,19 @@ func TestIntegrationRepository_FindUserDontExistFails(t *testing.T) {
 func TestIntegrationRepository_FindByEmail(t *testing.T) {
 	t.Parallel()
 
-	_, tx := setup(t)
-
-	ctx := context.Background()
-
+	mockUsers, tx := setup(t)
 	repo := user.NewRepository(tx)
-	verifiedAt := time.Date(2025, time.May, 9, 20, 0, 0, 0, time.Local)
-	wantUser := &user.User{
-		Model: model.Model{
-			ID:        "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-			CreatedAt: time.Date(2025, time.May, 9, 18, 0, 0, 0, time.Local),
-			UpdatedAt: time.Date(2025, time.May, 9, 18, 0, 0, 0, time.Local),
-		},
-		Email:        mockEmail,
-		PasswordHash: "$2a$10$e0MYzXyjpJS7Pd0RVvHwHeFx4fQnhdQnZZF9uG6x1Z1ZzR12uLh9e",
-		VerifiedAt:   &verifiedAt,
-	}
-	u, err := repo.FindByEmail(ctx, mockEmail)
+	wantUser := mockUsers[0]
+
+	u, err := repo.FindByEmail(t.Context(), wantUser.Email)
 	if err != nil {
-		t.Fatalf("failed to find user: %v", err)
+		t.Fatalf("failed to find user by email: %v", err)
 	}
 
-	if !reflect.DeepEqual(u, wantUser) {
-		t.Errorf("repo.FindUserByEmail(txCtx, %q) = %+v, want: %+v", mockEmail, u, wantUser)
+	u.PasswordHash = ""
+
+	if !reflect.DeepEqual(u, &wantUser) {
+		t.Errorf("repo.FindUserByEmail(txCtx, %q) = %+v, want: %+v", wantUser.Email, u, &wantUser)
 	}
 }
 
