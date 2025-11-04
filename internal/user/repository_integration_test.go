@@ -115,6 +115,22 @@ func TestIntegrationRepository_FindReturnsUser(t *testing.T) {
 	}
 }
 
+func TestIntegrationRepository_FindUserDontExistFails(t *testing.T) {
+	t.Parallel()
+
+	_, tx := setup(t)
+	repo := user.NewRepository(tx)
+
+	_, err := repo.Find(t.Context(), mockUserID)
+	if err == nil {
+		t.Fatal("repo.Find did not return an error")
+	}
+
+	if !errors.Is(err, user.ErrNotFound) {
+		t.Errorf("repo.Find(t.Context(), %q) = %v, want: %v", mockUserID, err, user.ErrNotFound)
+	}
+}
+
 func TestIntegrationRepository_FindByEmail(t *testing.T) {
 	t.Parallel()
 
