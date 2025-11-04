@@ -95,7 +95,7 @@ func (s *service) Register(ctx context.Context, params RegisterParams) (user.Use
 		return user.User{}, fmt.Errorf("hash password: %w", err)
 	}
 
-	newUser, err := s.userRepo.Create(ctx, user.CreateParams{Email: email, Password: hash})
+	newUser, err := s.userRepo.Create(ctx, user.CreateParams{Email: email, PasswordHash: hash})
 	if err != nil {
 		return user.User{}, fmt.Errorf("create user: %w", err)
 	}
