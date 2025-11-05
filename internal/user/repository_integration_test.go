@@ -43,59 +43,6 @@ func TestIntegrationRepository_List(t *testing.T) {
 	}
 }
 
-func setup(t *testing.T) ([]user.User, *sql.Tx) {
-	t.Helper()
-
-	const (
-		numUsers = 3
-
-		seedQuery = `
-		INSERT INTO users (email, password_hash)
-		VALUES
-		('abc@example.com', 'hashed1'),
-		('123@example.com', 'hashed2'),
-		('user1@example.com', 'hashed3')`
-
-		usersQuery = `
-		SELECT id, email, password_hash, metadata, verified_at, created_at, updated_at
-		FROM users`
-	)
-
-	_, tx := db.Setup(t)
-	ctx := t.Context()
-
-	_, err := tx.ExecContext(ctx, seedQuery)
-	if err != nil {
-		t.Fatalf("failed to seed users: %v", err)
-	}
-
-	rows, err := tx.QueryContext(ctx, usersQuery)
-	if err != nil {
-		t.Fatalf("failed to retrieve users: %v", err)
-	}
-	defer rows.Close()
-
-	users := make([]user.User, 0, numUsers)
-	for rows.Next() {
-		var u user.User
-		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Metadata, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
-			t.Fatalf("failed to scan row: %v", err)
-		}
-
-		users = append(users, u)
-	}
-
-	if err := rows.Close(); err != nil {
-		t.Fatalf("failed to close rows: %v", err)
-	}
-
-	if err := rows.Err(); err != nil {
-		t.Fatalf("failed to iterate rows: %v", err)
-	}
-
-	return users, tx
-}
-
 func TestIntegrationRepository_FindReturnsUser(t *testing.T) {
 	t.Parallel()
 
@@ -301,4 +248,57 @@ func TestIntegrationRepository_UpdateUserDontExistFails(t *testing.T) {
 	if !errors.Is(err, wantErr) {
 		t.Errorf("repo.Update(ctx, %v, %q) = %v, want: %v", mockUpdates, mockUserID, err, wantErr)
 	}
+}
+
+func setup(t *testing.T) ([]user.User, *sql.Tx) {
+	t.Helper()
+
+	const (
+		numUsers = 3
+
+		seedQuery = `
+		INSERT INTO users (email, password_hash)
+		VALUES
+		('abc@example.com', 'hashed1'),
+		('123@example.com', 'hashed2'),
+		('user1@example.com', 'hashed3')`
+
+		usersQuery = `
+		SELECT id, email, password_hash, metadata, verified_at, created_at, updated_at
+		FROM users`
+	)
+
+	_, tx := db.Setup(t)
+	ctx := t.Context()
+
+	_, err := tx.ExecContext(ctx, seedQuery)
+	if err != nil {
+		t.Fatalf("failed to seed users: %v", err)
+	}
+
+	rows, err := tx.QueryContext(ctx, usersQuery)
+	if err != nil {
+		t.Fatalf("failed to retrieve users: %v", err)
+	}
+	defer rows.Close()
+
+	users := make([]user.User, 0, numUsers)
+	for rows.Next() {
+		var u user.User
+		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Metadata, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			t.Fatalf("failed to scan row: %v", err)
+		}
+
+		users = append(users, u)
+	}
+
+	if err := rows.Close(); err != nil {
+		t.Fatalf("failed to close rows: %v", err)
+	}
+
+	if err := rows.Err(); err != nil {
+		t.Fatalf("failed to iterate rows: %v", err)
+	}
+
+	return users, tx
 }
