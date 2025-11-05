@@ -27,6 +27,7 @@ func (a *App) LogValue() slog.Value {
 		slog.String("key", maskChar),
 		slog.String("url", a.URL),
 		slog.String("log_level", a.LogLevel),
+		slog.String("client_url", a.ClientURL),
 	)
 }
 
