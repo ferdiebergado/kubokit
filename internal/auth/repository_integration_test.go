@@ -16,16 +16,14 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-var testUser user.User
-
 func TestIntegrationRepository_VerifyUserExistsReturnsNoError(t *testing.T) {
 	t.Parallel()
 
-	tx := setup(t)
+	mockUser, tx := setup(t)
 	repo := auth.NewRepository(tx)
 	ctx := t.Context()
 
-	mockUserID := testUser.ID
+	mockUserID := mockUser.ID
 
 	if err := repo.Verify(ctx, mockUserID); err != nil {
 		t.Errorf("repo.Verify(ctx, %q) = %v, want: %v", mockUserID, err, nil)
@@ -50,7 +48,7 @@ func TestIntegrationRepository_VerifyUserExistsReturnsNoError(t *testing.T) {
 func TestIntegrationRepository_VerifyUserDontExistReturnsError(t *testing.T) {
 	t.Parallel()
 
-	tx := setup(t)
+	_, tx := setup(t)
 	repo := auth.NewRepository(tx)
 	const mockUserID = "3d594650-3436-11e5-bf21-0800200c9a67"
 	err := repo.Verify(t.Context(), mockUserID)
@@ -67,12 +65,12 @@ func TestIntegrationRepository_VerifyUserDontExistReturnsError(t *testing.T) {
 func TestIntegrationRepository_ChangePasswordUserExistsReturnsNoError(t *testing.T) {
 	t.Parallel()
 
-	tx := setup(t)
+	mockUser, tx := setup(t)
 	repo := auth.NewRepository(tx)
 	ctx := t.Context()
 
 	const wantPasswordHash = "mock_hashed"
-	mockUserID := testUser.ID
+	mockUserID := mockUser.ID
 	if err := repo.ChangePassword(ctx, mockUserID, wantPasswordHash); err != nil {
 		t.Errorf("repo.ChangePassword(ctx, %q, %q) = %v, want: %v", mockUserID, wantPasswordHash, err, nil)
 	}
@@ -93,7 +91,7 @@ func TestIntegrationRepository_ChangePasswordUserExistsReturnsNoError(t *testing
 func TestIntegrationRepository_ChangePasswordUserDontExistReturnsError(t *testing.T) {
 	t.Parallel()
 
-	tx := setup(t)
+	_, tx := setup(t)
 	repo := auth.NewRepository(tx)
 	ctx := context.Background()
 
@@ -113,7 +111,7 @@ func TestIntegrationRepository_ChangePasswordUserDontExistReturnsError(t *testin
 	}
 }
 
-func setup(t *testing.T) *sql.Tx {
+func setup(t *testing.T) (user.User, *sql.Tx) {
 	t.Helper()
 
 	_, tx := db.Setup(t)
@@ -125,9 +123,10 @@ func setup(t *testing.T) *sql.Tx {
 
 	row := tx.QueryRowContext(t.Context(), query, mockEmail, mockPassword)
 
-	if err := row.Scan(&testUser.ID, &testUser.Email, &testUser.PasswordHash, &testUser.VerifiedAt, &testUser.CreatedAt, &testUser.UpdatedAt); err != nil {
-		t.Fatalf("failed to retrieve created user: %v", err)
+	var mockUser user.User
+	if err := row.Scan(&mockUser.ID, &mockUser.Email, &mockUser.PasswordHash, &mockUser.VerifiedAt, &mockUser.CreatedAt, &mockUser.UpdatedAt); err != nil {
+		t.Fatalf("failed to retrieve mock user: %v", err)
 	}
 
-	return tx
+	return mockUser, tx
 }
