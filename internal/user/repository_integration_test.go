@@ -3,7 +3,6 @@
 package user_test
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"reflect"
@@ -186,162 +185,122 @@ func TestIntegrationRepository_CreateSuccess(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_Create(t *testing.T) {
+func TestIntegrationRepository_CreateUserExistsFails(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name   string
-		params user.CreateParams
-		err    error
-	}{
-		{
-			name: "User is available",
-			params: user.CreateParams{
-				Email:        "agnis@example.com",
-				PasswordHash: "hashed",
-			},
-		},
-		{
-			name: "duplicate user should return error",
-			params: user.CreateParams{
-				Email:        "agnis@example.com",
-				PasswordHash: "hashed",
-			},
-			err: user.ErrDuplicate,
-		},
+	mockUsers, tx := setup(t)
+	repo := user.NewRepository(tx)
+
+	mockParams := user.CreateParams{
+		Email:        mockUsers[0].Email,
+		PasswordHash: mockPassword,
 	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			_, tx := setup(t)
-			ctx := context.Background()
+	_, err := repo.Create(t.Context(), mockParams)
+	if err == nil {
+		t.Fatal("repo.Create did not return an error")
+	}
 
-			repo := user.NewRepository(tx)
-			u, err := repo.Create(ctx, tc.params)
-			if err != nil {
-				if tc.err == nil {
-					t.Fatalf("failed to create user: %v", err)
-				}
-
-				if !errors.Is(err, tc.err) {
-					t.Errorf("repo.Create(txCtx, tc.params) = %v, want: %v", err, tc.err)
-				}
-			} else {
-				gotEmail, wantEmail := u.Email, tc.params.Email
-				if gotEmail != wantEmail {
-					t.Errorf("u.Email = %q, want: %q", gotEmail, wantEmail)
-				}
-
-				if u.CreatedAt.IsZero() {
-					t.Errorf("u.CreatedAt = %v, want: non-zero", u.CreatedAt)
-				}
-
-				if u.UpdatedAt.IsZero() {
-					t.Errorf("u.UpdatedAt = %v, want: non-zero", u.UpdatedAt)
-				}
-			}
-		})
+	wantErr := user.ErrDuplicate
+	if !errors.Is(err, wantErr) {
+		t.Errorf("repo.Create(t.Context(), %q) = %v, want: %v", mockParams, err, wantErr)
 	}
 }
 
-func TestIntegrationRepository_Delete(t *testing.T) {
+func TestIntegrationRepository_DeleteSuccess(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name, userID string
-		err          error
-	}{
-		{
-			name:   "Delete an existing user",
-			userID: "6f1e3e3a-1c55-4f19-8341-8132f374dc5f",
-		},
-		{
-			name:   "Delete a user that does not exists",
-			userID: "6f1e3e3a-1c55-4f19-8341-8132f374dc50",
-			err:    user.ErrNotFound,
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			_, tx := setup(t)
-			userRepo := user.NewRepository(tx)
-			err := userRepo.Delete(ctx, tc.userID)
-			if err != nil {
-				if tc.err == nil {
-					t.Fatalf("failed to delete user: %v", err)
-				}
+	mockUsers, tx := setup(t)
+	repo := user.NewRepository(tx)
+	ctx := t.Context()
+	mockUserID := mockUsers[0].ID
 
-				if err != tc.err {
-					t.Errorf("repo.Delete(txCtx, %q) = %v, want: %v", tc.userID, err, tc.err)
-				}
-			}
-			const query = "SELECT email FROM users WHERE id = $1"
-			row := tx.QueryRow(query, tc.userID)
-			var email string
-			if err := row.Scan(&email); err != nil {
-				if !errors.Is(err, sql.ErrNoRows) {
-					t.Errorf("tx.QueryRow(%q, %q) = %v, want: %v", query, tc.userID, err, sql.ErrNoRows)
-				}
-			}
-		})
+	if err := repo.Delete(ctx, mockUserID); err != nil {
+		t.Fatalf("failed to delete user: %v", err)
+	}
+
+	const query = "SELECT id FROM users WHERE id = $1"
+	row := tx.QueryRowContext(ctx, query, mockUserID)
+	var id string
+	if err := row.Scan(&id); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		t.Errorf("user was not deleted: id: %q: %v", id, err)
 	}
 }
 
-func TestIntegrationRepository_Update(t *testing.T) {
+func TestIntegrationRepository_DeleteUserDontExistFails(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
 	_, tx := setup(t)
+	repo := user.NewRepository(tx)
+	ctx := t.Context()
 
-	userRepo := user.NewRepository(tx)
-	currentTimestamp := time.Now().Truncate(time.Microsecond)
-	updates := &user.User{
-		VerifiedAt: &currentTimestamp,
+	err := repo.Delete(ctx, mockUserID)
+	if err == nil {
+		t.Fatal("repo.Delete did not return an error")
 	}
-	if err := userRepo.Update(ctx, updates, mockUserID); err != nil {
+
+	wantErr := user.ErrNotFound
+	if !errors.Is(err, wantErr) {
+		t.Errorf("repo.Delete(ctx, %q) = %v, want: %v", mockEmail, err, wantErr)
+	}
+}
+
+func TestIntegrationRepository_UpdateSuccess(t *testing.T) {
+	t.Parallel()
+
+	mockUsers, tx := setup(t)
+	repo := user.NewRepository(tx)
+	ctx := t.Context()
+
+	mockUser := mockUsers[0]
+	mockUserID := mockUser.ID
+	mockUpdates := &user.User{
+		PasswordHash: "new_mock_hash",
+	}
+	if err := repo.Update(ctx, mockUpdates, mockUserID); err != nil {
 		t.Fatalf("failed to update user: %v", err)
 	}
 
-	const query = "SELECT id, verified_at, password_hash, updated_at, created_at, email FROM users WHERE id = $1"
-	row := tx.QueryRow(query, mockUserID)
-	var updatedUser user.User
-	if err := row.Scan(&updatedUser.ID, &updatedUser.VerifiedAt, &updatedUser.PasswordHash, &updatedUser.UpdatedAt, &updatedUser.CreatedAt, &updatedUser.Email); err != nil {
-		t.Fatal(err)
-	}
-	gotVerifiedAt := updatedUser.VerifiedAt
-	if !gotVerifiedAt.Equal(currentTimestamp) {
-		t.Errorf("updatedUser.VerifiedAt = %v, want: %v", gotVerifiedAt, currentTimestamp)
-	}
+	const query = "SELECT password_hash, updated_at FROM users WHERE id = $1"
 
-	gotUpdatedAt := updatedUser.UpdatedAt.Truncate(time.Second)
-	wantUpdatedAt := currentTimestamp.Truncate(time.Second)
-	if !gotUpdatedAt.Equal(wantUpdatedAt) {
-		t.Errorf("updatedUser.UpdatedAt = %v, want: %v", gotUpdatedAt, wantUpdatedAt)
+	row := tx.QueryRowContext(ctx, query, mockUserID)
+
+	var (
+		passwordHash string
+		updatedAt    time.Time
+	)
+	if err := row.Scan(&passwordHash, &updatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			t.Fatalf("no user with id: %q: %v", mockUserID, err)
+		}
+		t.Fatalf("query failed: %v", err)
 	}
 
-	gotHash := updatedUser.PasswordHash
-	wantHash := "$2a$10$e0MYzXyjpJS7Pd0RVvHwHeFx4fQnhdQnZZF9uG6x1Z1ZzR12uLh9e"
-
-	if gotHash == "" {
-		t.Errorf("updatedUser.PasswordHash = %q, want: %q", gotHash, wantHash)
+	if passwordHash != mockUpdates.PasswordHash {
+		t.Errorf("passwordHash = %q, want: %q", passwordHash, updatedAt)
 	}
 
-	gotID := updatedUser.ID
-	wantID := mockUserID
-	if gotID != wantID {
-		t.Errorf("updatedUser.ID = %q, want: %q", gotID, wantID)
+	if !updatedAt.After(mockUser.UpdatedAt) {
+		t.Errorf("updatedAt = %v, want: after %v", updatedAt, mockUser.UpdatedAt)
+	}
+}
+
+func TestIntegrationRepository_UpdateUserDontExistFails(t *testing.T) {
+	t.Parallel()
+
+	_, tx := setup(t)
+	repo := user.NewRepository(tx)
+	ctx := t.Context()
+
+	mockUpdates := &user.User{
+		PasswordHash: "new_mock_hash",
+	}
+	err := repo.Update(ctx, mockUpdates, mockUserID)
+	if err == nil {
+		t.Fatal("repo.Update did not return an error")
 	}
 
-	gotCreatedAt := updatedUser.CreatedAt
-	wantCreatedAt := time.Date(2025, time.May, 9, 18, 0, 0, 0, time.Local)
-	if !gotCreatedAt.Equal(wantCreatedAt) {
-		t.Errorf("updatedUser.CreatedAt = %v, want: %v", gotCreatedAt, wantCreatedAt)
-	}
-
-	gotEmail := updatedUser.Email
-	wantEmail := "alice@example.com"
-
-	if gotEmail != wantEmail {
-		t.Errorf("updatedUser.Email = %q, want: %q", gotEmail, wantEmail)
+	wantErr := user.ErrNotFound
+	if !errors.Is(err, wantErr) {
+		t.Errorf("repo.Update(ctx, %v, %q) = %v, want: %v", mockUpdates, mockUserID, err, wantErr)
 	}
 }
