@@ -64,7 +64,7 @@ func NewService(deps *Dependencies) Service {
 		mailer:    deps.Mailer,
 		signer:    deps.Signer,
 		txManager: deps.Txmgr,
-		clientURL: deps.CfgApp.URL,
+		clientURL: deps.CfgApp.ClientURL,
 		cfgJWT:    deps.CfgJWT,
 		cfgEmail:  deps.CfgEmail,
 	}
@@ -258,7 +258,7 @@ func (s *service) generateToken(userID, email string) (*Session, error) {
 }
 
 func (s *service) SendPasswordReset(ctx context.Context, email string) error {
-	_, err := s.userRepo.FindByEmail(ctx, email)
+	u, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
 		const format = "find user by email: %w"
 
@@ -269,11 +269,19 @@ func (s *service) SendPasswordReset(ctx context.Context, email string) error {
 		return fmt.Errorf(format, err)
 	}
 
+	audience := s.clientURL + "/account/reset-password"
+
+	ttl := s.cfgEmail.VerifyTTL.Duration
+	token, err := s.signer.Sign(u.ID, []string{audience}, ttl)
+	if err != nil {
+		return fmt.Errorf("sign verification token: %w", err)
+	}
+
 	resetEmail := &HTMLEmail{
 		Address:  email,
 		Subject:  "Reset Your Password",
 		Title:    "Password Reset",
-		Link:     "/auth/reset-password",
+		Link:     audience + "?token=" + token,
 		Template: "reset_password",
 	}
 
