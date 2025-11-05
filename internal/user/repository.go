@@ -66,7 +66,7 @@ func (r *repo) FindByEmail(ctx context.Context, email string) (*User, error) {
 }
 
 func (r *repo) List(ctx context.Context) ([]User, error) {
-	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users"
+	const query = "SELECT id, email, password_hash, verified_at, created_at, updated_at FROM users"
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
@@ -78,7 +78,7 @@ func (r *repo) List(ctx context.Context) ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Email, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("execute query: %w", err)
 		}
 		users = append(users, u)
@@ -96,11 +96,11 @@ func (r *repo) List(ctx context.Context) ([]User, error) {
 }
 
 func (r *repo) Find(ctx context.Context, userID string) (*User, error) {
-	const query = "SELECT id, email, verified_at, created_at, updated_at FROM users WHERE id = $1"
+	const query = "SELECT id, email, password_hash, verified_at, created_at, updated_at FROM users WHERE id = $1"
 
 	row := r.db.QueryRowContext(ctx, query, userID)
 	var u User
-	if err := row.Scan(&u.ID, &u.Email, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
+	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}

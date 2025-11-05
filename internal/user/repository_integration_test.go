@@ -57,7 +57,7 @@ func setup(t *testing.T) ([]user.User, *sql.Tx) {
 		('user1@example.com', 'hashed3')`
 
 		usersQuery = `
-		SELECT id, email, metadata, verified_at, created_at, updated_at
+		SELECT id, email, password_hash, metadata, verified_at, created_at, updated_at
 		FROM users`
 	)
 
@@ -78,7 +78,7 @@ func setup(t *testing.T) ([]user.User, *sql.Tx) {
 	users := make([]user.User, 0, numUsers)
 	for rows.Next() {
 		var u user.User
-		if err := rows.Scan(&u.ID, &u.Email, &u.Metadata, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Metadata, &u.VerifiedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			t.Fatalf("failed to scan row: %v", err)
 		}
 
@@ -141,8 +141,6 @@ func TestIntegrationRepository_FindByEmail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to find user by email: %v", err)
 	}
-
-	u.PasswordHash = ""
 
 	if !reflect.DeepEqual(u, &wantUser) {
 		t.Errorf("repo.FindUserByEmail(txCtx, %q) = %+v, want: %+v", wantUser.Email, u, &wantUser)
