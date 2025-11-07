@@ -67,7 +67,7 @@ var (
 	}
 )
 
-func TestService_RegisterShouldReturnNewUser(t *testing.T) {
+func TestService_RegisterSuccess(t *testing.T) {
 	t.Parallel()
 
 	userRepo := &user.StubRepo{

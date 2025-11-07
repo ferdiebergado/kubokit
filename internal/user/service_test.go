@@ -60,7 +60,7 @@ func TestService_ListSuccess(t *testing.T) {
 	}
 }
 
-func TestService_ListFails(t *testing.T) {
+func TestService_ListRepoError(t *testing.T) {
 	t.Parallel()
 
 	errMockRepoFailure := errors.New("query failed")

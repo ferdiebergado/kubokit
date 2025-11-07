@@ -20,7 +20,7 @@ const (
 	mockPassword = "test"
 )
 
-func TestIntegrationRepository_List(t *testing.T) {
+func TestIntegrationRepository_ListSuccess(t *testing.T) {
 	t.Parallel()
 
 	mockUsers, tx := setup(t)
@@ -43,7 +43,7 @@ func TestIntegrationRepository_List(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_FindReturnsUser(t *testing.T) {
+func TestIntegrationRepository_FindSuccess(t *testing.T) {
 	t.Parallel()
 
 	mockUsers, tx := setup(t)
@@ -61,7 +61,7 @@ func TestIntegrationRepository_FindReturnsUser(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_FindUserDontExistFails(t *testing.T) {
+func TestIntegrationRepository_FindUserNotFound(t *testing.T) {
 	t.Parallel()
 
 	_, tx := setup(t)
@@ -77,7 +77,7 @@ func TestIntegrationRepository_FindUserDontExistFails(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_FindByEmail(t *testing.T) {
+func TestIntegrationRepository_FindByEmailSuccess(t *testing.T) {
 	t.Parallel()
 
 	mockUsers, tx := setup(t)
@@ -130,7 +130,7 @@ func TestIntegrationRepository_CreateSuccess(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_CreateUserExistsFails(t *testing.T) {
+func TestIntegrationRepository_CreateUserExists(t *testing.T) {
 	t.Parallel()
 
 	mockUsers, tx := setup(t)
@@ -171,7 +171,7 @@ func TestIntegrationRepository_DeleteSuccess(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_DeleteUserDontExistFails(t *testing.T) {
+func TestIntegrationRepository_DeleteUserNotFound(t *testing.T) {
 	t.Parallel()
 
 	_, tx := setup(t)
@@ -229,7 +229,7 @@ func TestIntegrationRepository_UpdateSuccess(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_UpdateUserDontExistFails(t *testing.T) {
+func TestIntegrationRepository_UpdateUserNotFound(t *testing.T) {
 	t.Parallel()
 
 	_, tx := setup(t)

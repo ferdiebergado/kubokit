@@ -3,7 +3,6 @@
 package auth_test
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"testing"
@@ -16,7 +15,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func TestIntegrationRepository_VerifyUserExistsReturnsNoError(t *testing.T) {
+func TestIntegrationRepository_VerifySuccess(t *testing.T) {
 	t.Parallel()
 
 	mockUser, tx := setup(t)
@@ -45,7 +44,7 @@ func TestIntegrationRepository_VerifyUserExistsReturnsNoError(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_VerifyUserDontExistReturnsError(t *testing.T) {
+func TestIntegrationRepository_VerifyUserNotFound(t *testing.T) {
 	t.Parallel()
 
 	_, tx := setup(t)
@@ -62,7 +61,7 @@ func TestIntegrationRepository_VerifyUserDontExistReturnsError(t *testing.T) {
 	}
 }
 
-func TestIntegrationRepository_ChangePasswordUserExistsReturnsNoError(t *testing.T) {
+func TestIntegrationRepository_ChangePasswordSuccess(t *testing.T) {
 	t.Parallel()
 
 	mockUser, tx := setup(t)
@@ -88,26 +87,25 @@ func TestIntegrationRepository_ChangePasswordUserExistsReturnsNoError(t *testing
 	}
 }
 
-func TestIntegrationRepository_ChangePasswordUserDontExistReturnsError(t *testing.T) {
+func TestIntegrationRepository_ChangePasswordUserNotFound(t *testing.T) {
 	t.Parallel()
 
 	_, tx := setup(t)
 	repo := auth.NewRepository(tx)
-	ctx := context.Background()
 
 	const (
 		mockUserID       = "3d594650-3436-11e5-bf21-0800200c9a67"
 		mockPasswordHash = "mock_hashed"
 	)
 
-	err := repo.ChangePassword(ctx, mockUserID, mockPasswordHash)
+	err := repo.ChangePassword(t.Context(), mockUserID, mockPasswordHash)
 	if err == nil {
 		t.Fatal("repo.ChangePassword did not return an error")
 	}
 
 	wantErr := auth.ErrUserNotFound
 	if !errors.Is(err, wantErr) {
-		t.Errorf("repo.ChangePassword(ctx, %q, %q) = %v, want: %v", mockUserID, mockPasswordHash, err, wantErr)
+		t.Errorf("repo.ChangePassword(t.Context(), %q, %q) = %v, want: %v", mockUserID, mockPasswordHash, err, wantErr)
 	}
 }
 
