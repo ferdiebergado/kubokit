@@ -116,7 +116,6 @@ func (a *App) setupRoutes() {
 			middleware.ValidateInput[auth.ChangePasswordRequest](a.validator))
 
 		gr.Post("/reset", a.authHandler.ResetPassword,
-			auth.VerifyToken(a.signer),
 			middleware.DecodePayload[auth.ResetPasswordRequest](maxBodySize),
 			middleware.ValidateInput[auth.ResetPasswordRequest](a.validator))
 

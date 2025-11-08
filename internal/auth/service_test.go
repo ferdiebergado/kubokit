@@ -116,7 +116,7 @@ func TestService_RegisterFails(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "user exists returns error",
+			name: "user exists",
 			repo: &user.StubRepo{
 				FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
 					return &mockUser, nil
@@ -125,7 +125,7 @@ func TestService_RegisterFails(t *testing.T) {
 			wantErr: auth.ErrUserExists,
 		},
 		{
-			name: "repo failure returns error",
+			name: "repo failure",
 			repo: &user.StubRepo{
 				FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
 					return nil, user.ErrNotFound
@@ -213,13 +213,13 @@ func TestService_VerifyFails(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name:    "invalid verification token returns error",
+			name:    "invalid verification token",
 			repo:    &auth.StubRepo{},
 			token:   "mock_token",
 			wantErr: auth.ErrInvalidToken,
 		},
 		{
-			name: "user does not exist returns error",
+			name: "user does not exist",
 			repo: &auth.StubRepo{
 				VerifyFunc: func(ctx context.Context, userID string) error {
 					return auth.ErrUserNotFound
@@ -228,7 +228,7 @@ func TestService_VerifyFails(t *testing.T) {
 			wantErr: auth.ErrUserNotFound,
 		},
 		{
-			name: "repo failure returns error",
+			name: "repo failure",
 			repo: &auth.StubRepo{
 				VerifyFunc: func(ctx context.Context, userID string) error {
 					return errMockRepoFailure
@@ -284,18 +284,26 @@ func TestService_ResetPasswordSuccess(t *testing.T) {
 		},
 	}
 
+	signer := createSigner(t)
+
 	deps := &auth.Dependencies{
 		Repo:     repo,
 		CfgApp:   mockAppCfg,
 		CfgJWT:   mockJWTCfg,
 		CfgEmail: mockEmailCfg,
 		Hasher:   createHasher(t),
+		Signer:   signer,
 	}
 
 	svc := auth.NewService(deps)
 
+	mockToken, err := signer.Sign(mockUserID, []string{"/auth/reset"}, mockJWTCfg.TTL.Duration)
+	if err != nil {
+		t.Fatalf("failed to create mock token: %v", err)
+	}
+
 	mockParams := auth.ResetPasswordParams{
-		UserID:   mockUserID,
+		Token:    mockToken,
 		Password: "test",
 	}
 
@@ -307,26 +315,50 @@ func TestService_ResetPasswordSuccess(t *testing.T) {
 func TestService_ResetPasswordFails(t *testing.T) {
 	t.Parallel()
 
+	signer := createSigner(t)
+
+	mockToken, err := signer.Sign(mockUserID, []string{"/auth/reset"}, mockJWTCfg.TTL.Duration)
+	if err != nil {
+		t.Fatalf("failed to create mock token: %v", err)
+	}
+
 	tests := []struct {
 		name    string
 		repo    auth.Repository
+		params  auth.ResetPasswordParams
 		wantErr error
 	}{
 		{
-			name: "user does not exist returns error",
+			name: "user does not exist",
 			repo: &auth.StubRepo{
 				ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
 					return auth.ErrUserNotFound
 				},
 			},
+			params: auth.ResetPasswordParams{
+				Token:    mockToken,
+				Password: mockPassword,
+			},
 			wantErr: auth.ErrUserNotFound,
 		},
 		{
-			name: "repo failure returns error",
+			name: "invalid token",
+			params: auth.ResetPasswordParams{
+				Token:    "123",
+				Password: mockPassword,
+			},
+			wantErr: auth.ErrInvalidToken,
+		},
+		{
+			name: "repo failure",
 			repo: &auth.StubRepo{
 				ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
 					return errMockRepoFailure
 				},
+			},
+			params: auth.ResetPasswordParams{
+				Token:    mockToken,
+				Password: mockPassword,
 			},
 			wantErr: errMockRepoFailure,
 		},
@@ -342,22 +374,18 @@ func TestService_ResetPasswordFails(t *testing.T) {
 				CfgJWT:   mockJWTCfg,
 				CfgEmail: mockEmailCfg,
 				Hasher:   createHasher(t),
+				Signer:   signer,
 			}
 
 			svc := auth.NewService(deps)
 
-			mockParams := auth.ResetPasswordParams{
-				UserID:   mockUserID,
-				Password: mockPassword,
-			}
-
-			err := svc.ResetPassword(t.Context(), mockParams)
+			err = svc.ResetPassword(t.Context(), tt.params)
 			if err == nil {
 				t.Fatal("svc.ResetPassword did not return an error")
 			}
 
 			if !errors.Is(err, tt.wantErr) {
-				t.Errorf("svc.Register(t.Context(), %+v) = %v, want %v", mockParams, err, tt.wantErr)
+				t.Errorf("svc.Register(t.Context(), %+v) = %v, want %v", tt.params, err, tt.wantErr)
 			}
 		})
 	}

@@ -350,16 +350,21 @@ func (s *service) RefreshToken(ctx context.Context, token string) (*Session, err
 }
 
 type ResetPasswordParams struct {
-	UserID, Password string
+	Token, Password string
 }
 
 func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams) error {
+	claims, err := s.signer.Verify(params.Token)
+	if err != nil {
+		return fmt.Errorf("verify token: %w: %v", ErrInvalidToken, err)
+	}
+
 	hashed, err := s.hasher.Hash(params.Password)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	if err := s.repo.ChangePassword(ctx, params.UserID, hashed); err != nil {
+	if err := s.repo.ChangePassword(ctx, claims.UserID, hashed); err != nil {
 		return fmt.Errorf("change password: %w", err)
 	}
 

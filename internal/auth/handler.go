@@ -52,12 +52,14 @@ func NewHandler(svc Service, cfgJWT *config.JWT, cfgCookie *config.Cookie) *Hand
 }
 
 type ResetPasswordRequest struct {
+	Token           string `json:"token,omitempty" validate:"required"`
 	Password        string `json:"password,omitempty" validate:"required"`
 	PasswordConfirm string `json:"password_confirm,omitempty" validate:"required,eqfield=Password"`
 }
 
 func (r *ResetPasswordRequest) LogValue() slog.Value {
 	return slog.GroupValue(
+		slog.String("token", maskChar),
 		slog.String("password", maskChar),
 		slog.String("password_confirm", maskChar),
 	)
@@ -72,18 +74,12 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := UserFromContext(ctx)
-	if err != nil {
-		web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
-		return
-	}
-
 	params := ResetPasswordParams{
-		UserID:   userID,
+		Token:    req.Token,
 		Password: req.Password,
 	}
 	if err = h.svc.ResetPassword(ctx, params); err != nil {
-		if errors.Is(err, ErrUserNotFound) {
+		if errors.Is(err, ErrUserNotFound) || errors.Is(err, ErrInvalidToken) {
 			web.RespondUnauthorized(w, err, MsgInvalidUser, nil)
 			return
 		}
