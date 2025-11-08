@@ -175,31 +175,64 @@ func TestService_RegisterFails(t *testing.T) {
 func TestService_VerifySuccess(t *testing.T) {
 	t.Parallel()
 
-	repo := &auth.StubRepo{
-		VerifyFunc: func(ctx context.Context, userID string) error {
-			return nil
+	now := time.Now()
+	verifiedUser := mockUser
+	verifiedUser.VerifiedAt = &now
+
+	tests := []struct {
+		name     string
+		repo     auth.Repository
+		userRepo user.Repository
+	}{
+		{
+			name: "user not yet verified",
+			repo: &auth.StubRepo{
+				VerifyFunc: func(ctx context.Context, userID string) error {
+					return nil
+				},
+			},
+			userRepo: &user.StubRepo{
+				FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+					return &mockUser, nil
+				},
+			},
+		},
+		{
+			name: "user already verified",
+			userRepo: &user.StubRepo{
+				FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+					return &verifiedUser, nil
+				},
+			},
 		},
 	}
 
-	signer := createSigner(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	mockDeps := &auth.Dependencies{
-		Repo:     repo,
-		CfgApp:   mockAppCfg,
-		CfgEmail: mockEmailCfg,
-		CfgJWT:   mockJWTCfg,
-		Signer:   signer,
-	}
+			signer := createSigner(t)
 
-	svc := auth.NewService(mockDeps)
+			mockDeps := &auth.Dependencies{
+				Repo:     tt.repo,
+				UserRepo: tt.userRepo,
+				CfgApp:   mockAppCfg,
+				CfgEmail: mockEmailCfg,
+				CfgJWT:   mockJWTCfg,
+				Signer:   signer,
+			}
 
-	mockToken, err := signer.Sign(mockUserID, []string{"/verify"}, mockJWTCfg.TTL.Duration)
-	if err != nil {
-		t.Fatalf("failed to sign token: %v", err)
-	}
+			svc := auth.NewService(mockDeps)
 
-	if err := svc.Verify(t.Context(), mockToken); err != nil {
-		t.Errorf("svc.Verify(t.Context(), mockToken) = %v, want: %v", err, nil)
+			mockToken, err := signer.Sign(mockUserID, []string{"/verify"}, mockJWTCfg.TTL.Duration)
+			if err != nil {
+				t.Fatalf("failed to sign token: %v", err)
+			}
+
+			if err := svc.Verify(t.Context(), mockToken); err != nil {
+				t.Errorf("svc.Verify(t.Context(), mockToken) = %v, want: %v", err, nil)
+			}
+		})
 	}
 }
 
@@ -207,22 +240,25 @@ func TestService_VerifyFails(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name    string
-		repo    auth.Repository
-		token   string
-		wantErr error
+		name     string
+		repo     auth.Repository
+		userRepo user.Repository
+		token    string
+		wantErr  error
 	}{
 		{
-			name:    "invalid verification token",
-			repo:    &auth.StubRepo{},
-			token:   "mock_token",
-			wantErr: auth.ErrInvalidToken,
+			name:     "invalid verification token",
+			repo:     &auth.StubRepo{},
+			userRepo: &user.StubRepo{},
+			token:    "mock_token",
+			wantErr:  auth.ErrInvalidToken,
 		},
 		{
 			name: "user does not exist",
-			repo: &auth.StubRepo{
-				VerifyFunc: func(ctx context.Context, userID string) error {
-					return auth.ErrUserNotFound
+			repo: &auth.StubRepo{},
+			userRepo: &user.StubRepo{
+				FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+					return nil, user.ErrNotFound
 				},
 			},
 			wantErr: auth.ErrUserNotFound,
@@ -232,6 +268,11 @@ func TestService_VerifyFails(t *testing.T) {
 			repo: &auth.StubRepo{
 				VerifyFunc: func(ctx context.Context, userID string) error {
 					return errMockRepoFailure
+				},
+			},
+			userRepo: &user.StubRepo{
+				FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+					return &mockUser, nil
 				},
 			},
 			wantErr: errMockRepoFailure,
@@ -246,6 +287,7 @@ func TestService_VerifyFails(t *testing.T) {
 
 			mockDeps := &auth.Dependencies{
 				Repo:     tt.repo,
+				UserRepo: tt.userRepo,
 				CfgApp:   mockAppCfg,
 				CfgEmail: mockEmailCfg,
 				CfgJWT:   mockJWTCfg,
