@@ -218,7 +218,7 @@ func (s *service) Login(ctx context.Context, params LoginParams) (*Session, erro
 		return nil, ErrIncorrectPassword
 	}
 
-	session, err := s.generateToken(u.ID, params.Email)
+	session, err := s.creatSession(u.ID, params.Email)
 	if err != nil {
 		return nil, fmt.Errorf("generate tokens: %w", err)
 	}
@@ -226,7 +226,7 @@ func (s *service) Login(ctx context.Context, params LoginParams) (*Session, erro
 	return session, nil
 }
 
-func (s *service) generateToken(userID, email string) (*Session, error) {
+func (s *service) creatSession(userID, email string) (*Session, error) {
 	jwtConfig := s.cfgJWT
 	ttl := time.Now().Add(jwtConfig.TTL.Duration).UnixNano()
 	accessToken, err := s.signer.Sign(userID, []string{jwtConfig.Issuer}, time.Duration(ttl))
@@ -241,7 +241,7 @@ func (s *service) generateToken(userID, email string) (*Session, error) {
 
 	expiresIn := ttl / int64(time.Millisecond)
 
-	userData := &UserInfo{
+	userInfo := &UserInfo{
 		ID:    userID,
 		Email: email,
 	}
@@ -251,7 +251,7 @@ func (s *service) generateToken(userID, email string) (*Session, error) {
 		RefreshToken: refreshToken,
 		ExpiresIn:    expiresIn,
 		TokenType:    TokenType,
-		User:         userData,
+		User:         userInfo,
 	}
 
 	return session, nil
@@ -346,7 +346,7 @@ func (s *service) RefreshToken(ctx context.Context, token string) (*Session, err
 		return nil, fmt.Errorf(format, err)
 	}
 
-	return s.generateToken(userID, u.Email)
+	return s.creatSession(userID, u.Email)
 }
 
 type ResetPasswordParams struct {
