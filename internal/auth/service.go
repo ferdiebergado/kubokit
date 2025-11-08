@@ -168,6 +168,18 @@ func (s *service) Verify(ctx context.Context, token string) error {
 		return fmt.Errorf("verify token: %w: %v", ErrInvalidToken, err)
 	}
 
+	u, err := s.userRepo.Find(ctx, claims.UserID)
+	if err != nil {
+		if errors.Is(err, user.ErrNotFound) {
+			return ErrUserNotFound
+		}
+		return fmt.Errorf("find user: %w", err)
+	}
+
+	if u.VerifiedAt != nil {
+		return nil
+	}
+
 	if err := s.repo.Verify(ctx, claims.UserID); err != nil {
 		const format = "verify user: %w"
 
