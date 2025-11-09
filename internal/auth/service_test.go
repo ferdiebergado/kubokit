@@ -63,10 +63,55 @@ var (
 	}
 )
 
+func TestService_ChangePasswordSuccess(t *testing.T) {
+	t.Parallel()
+
+	userRepo := &user.StubRepo{
+		FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+			return &mockUser, nil
+		},
+	}
+
+	hasher := &auth.StubHasher{
+		VerifyFunc: func(plain, hashed string) (bool, error) {
+			return true, nil
+		},
+		HashFunc: func(plain string) (string, error) {
+			return "hashed", nil
+		},
+	}
+
+	repo := &auth.StubRepo{
+		ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
+			return nil
+		},
+	}
+
+	deps := &auth.Dependencies{
+		Repo:     repo,
+		CfgApp:   mockAppCfg,
+		CfgJWT:   &config.JWT{},
+		CfgEmail: &config.Email{},
+		Hasher:   hasher,
+		Mailer:   &email.SMTPMailer{},
+		Signer:   nil,
+		Txmgr:    &db.TxManager{},
+		UserRepo: userRepo,
+	}
+	svc := auth.NewService(deps)
+	params := auth.ChangePasswordParams{}
+	if err := svc.ChangePassword(t.Context(), params); err != nil {
+		t.Errorf("svc.ChangePassword(t.Context(), params) = %v, want: %v", err, nil)
+	}
+}
+
 func TestService_LoginSuccess(t *testing.T) {
 	t.Parallel()
 
 	const mockToken = "mock_token"
+
+	verifiedUser := mockUser
+	verifiedUser.VerifiedAt = &now
 
 	hasher := &auth.StubHasher{
 		VerifyFunc: func(plain, hashed string) (bool, error) {
@@ -76,16 +121,7 @@ func TestService_LoginSuccess(t *testing.T) {
 
 	userRepo := &user.StubRepo{
 		FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
-			return &user.User{
-				Model: model.Model{
-					ID:        "1",
-					CreatedAt: now,
-					UpdatedAt: now,
-				},
-				Email:        mockEmail,
-				PasswordHash: "hashed",
-				VerifiedAt:   &now,
-			}, nil
+			return &verifiedUser, nil
 		},
 	}
 
@@ -146,6 +182,9 @@ func TestService_LoginSuccess(t *testing.T) {
 func TestService_LoginFails(t *testing.T) {
 	t.Parallel()
 
+	verifiedUser := mockUser
+	verifiedUser.VerifiedAt = &now
+
 	tests := []struct {
 		name    string
 		deps    *auth.Dependencies
@@ -176,15 +215,7 @@ func TestService_LoginFails(t *testing.T) {
 				CfgApp: mockAppCfg,
 				UserRepo: &user.StubRepo{
 					FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
-						return &user.User{
-							Model: model.Model{
-								ID:        "1",
-								CreatedAt: now,
-								UpdatedAt: now,
-							},
-							Email:        mockEmail,
-							PasswordHash: mockPassword,
-						}, nil
+						return &mockUser, nil
 					},
 				},
 				Repo:     nil,
@@ -203,16 +234,7 @@ func TestService_LoginFails(t *testing.T) {
 				CfgApp: mockAppCfg,
 				UserRepo: &user.StubRepo{
 					FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
-						return &user.User{
-							Model: model.Model{
-								ID:        "1",
-								CreatedAt: now,
-								UpdatedAt: now,
-							},
-							Email:        mockEmail,
-							PasswordHash: mockPassword,
-							VerifiedAt:   &now,
-						}, nil
+						return &verifiedUser, nil
 					},
 				},
 				Hasher: &auth.StubHasher{
@@ -246,7 +268,7 @@ func TestService_LoginFails(t *testing.T) {
 			}
 
 			if !errors.Is(err, tt.wantErr) {
-				t.Errorf("auth.NewService(tt.deps) = %v, want: %v", err, tt.wantErr)
+				t.Errorf("svc.Login(t.Context(), params) = %v, want: %v", err, tt.wantErr)
 			}
 		})
 	}
