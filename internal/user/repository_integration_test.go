@@ -5,10 +5,12 @@ package user_test
 import (
 	"database/sql"
 	"errors"
+	"os"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/ferdiebergado/kubokit/internal/pkg/logging"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/user"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -252,6 +254,8 @@ func TestIntegrationRepository_UpdateUserNotFound(t *testing.T) {
 
 func setup(t *testing.T) ([]user.User, *sql.Tx) {
 	t.Helper()
+
+	logging.SetupLogger("testing", "error", os.Stdout)
 
 	const (
 		numUsers = 3

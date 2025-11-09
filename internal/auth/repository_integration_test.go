@@ -5,10 +5,12 @@ package auth_test
 import (
 	"database/sql"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/auth"
+	"github.com/ferdiebergado/kubokit/internal/pkg/logging"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/user"
 
@@ -111,6 +113,8 @@ func TestIntegrationRepository_ChangePasswordUserNotFound(t *testing.T) {
 
 func setup(t *testing.T) (user.User, *sql.Tx) {
 	t.Helper()
+
+	logging.SetupLogger("testing", "error", os.Stdout)
 
 	_, tx := db.Setup(t)
 

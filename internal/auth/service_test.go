@@ -17,7 +17,11 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
-const mockAppEmail = "app@example.com"
+const (
+	mockEmail    = "test@example.com"
+	mockPassword = "test"
+	mockAppEmail = "app@example.com"
+)
 
 var (
 	errMockRepoFailure = errors.New("query failed")
