@@ -26,6 +26,89 @@ const (
 	mockUserID   = "1"
 )
 
+func TestHandler_ForgotPassword(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		svc        auth.Service
+		params     *auth.ForgotPasswordRequest
+		wantStatus int
+		wantBody   map[string]any
+	}{
+		{
+			name: "success",
+			params: &auth.ForgotPasswordRequest{
+				Email: mockEmail,
+			},
+			svc: &auth.StubService{
+				SendPasswordResetFunc: func(ctx context.Context, email string) error {
+					return nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody: map[string]any{
+				"message": message.ResetSent,
+			},
+		},
+		{
+			name:       "no params in context",
+			params:     nil,
+			svc:        nil,
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": auth.MsgInvalidUser,
+			},
+		},
+		{
+			name: "service error",
+			params: &auth.ForgotPasswordRequest{
+				Email: mockEmail,
+			},
+			svc: &auth.StubService{
+				SendPasswordResetFunc: func(ctx context.Context, email string) error {
+					return errors.New("service failed")
+				},
+			},
+			wantStatus: http.StatusUnauthorized,
+			wantBody: map[string]any{
+				"message": auth.MsgInvalidUser,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfgJWT := &config.JWT{}
+			cfgCookie := &config.Cookie{}
+			handler := auth.NewHandler(tt.svc, cfgJWT, cfgCookie)
+			ctx := t.Context()
+			if tt.params != nil {
+				ctx = web.NewContextWithParams(ctx, *tt.params)
+			}
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/forgot", http.NoBody)
+			rec := httptest.NewRecorder()
+			handler.ForgotPassword(rec, req)
+
+			res := rec.Result()
+			defer res.Body.Close()
+
+			if res.StatusCode != tt.wantStatus {
+				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
+			}
+
+			web.AssertContentType(t, res)
+
+			body := web.DecodeJSONResponse(t, res)
+			if !reflect.DeepEqual(body, tt.wantBody) {
+				t.Errorf("body = %v, want: %v", body, tt.wantBody)
+			}
+		})
+	}
+}
+
 func TestHandler_Register(t *testing.T) {
 	t.Parallel()
 
