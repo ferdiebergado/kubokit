@@ -71,6 +71,85 @@ var (
 	}
 )
 
+func TestService_LoginSuccess(t *testing.T) {
+	t.Parallel()
+
+	const mockToken = "mock_token"
+
+	now := time.Now()
+
+	hasher := createHasher(t)
+
+	mockPasswordHash, err := hasher.Hash(mockPassword)
+	if err != nil {
+		t.Fatalf("failed to hash password: %q: %v", mockPassword, err)
+	}
+
+	userRepo := &user.StubRepo{
+		FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+			return &user.User{
+				Model: model.Model{
+					ID:        "1",
+					CreatedAt: now,
+					UpdatedAt: now,
+				},
+				Email:        mockEmail,
+				PasswordHash: mockPasswordHash,
+				VerifiedAt:   &now,
+			}, nil
+		},
+	}
+
+	signer := &jwt.StubSigner{
+		SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+			return mockToken, nil
+		},
+	}
+
+	deps := &auth.Dependencies{
+		CfgApp:   mockAppCfg,
+		CfgJWT:   mockJWTCfg,
+		Hasher:   hasher,
+		UserRepo: userRepo,
+		Signer:   signer,
+	}
+	svc := auth.NewService(deps)
+	params := auth.LoginParams{
+		Email:    mockEmail,
+		Password: mockPassword,
+	}
+	session, err := svc.Login(t.Context(), params)
+	if err != nil {
+		t.Fatalf("svc.Login returned an error: %v", err)
+	}
+
+	if session.AccessToken != mockToken {
+		t.Errorf("session.AccessToken = %q, want: %q", session.AccessToken, mockToken)
+	}
+
+	if session.RefreshToken != mockToken {
+		t.Errorf("session.RefreshToken = %q, want: %q", session.RefreshToken, mockToken)
+	}
+
+	wantExp := now.Add(mockJWTCfg.TTL.Duration).UnixNano() / int64(time.Millisecond)
+	if session.ExpiresIn < wantExp {
+		t.Errorf("session.ExpiresIn = %d, want: > %d", session.ExpiresIn, wantExp)
+	}
+
+	if session.TokenType != auth.TokenType {
+		t.Errorf("session.TokenType = %q, want: %q", session.TokenType, auth.TokenType)
+	}
+
+	wantUser := auth.UserInfo{
+		ID:    "1",
+		Email: mockEmail,
+	}
+
+	if !reflect.DeepEqual(*session.User, wantUser) {
+		t.Errorf("session.User = %+v, want: %+v", *session.User, wantUser)
+	}
+}
+
 func TestService_RegisterSuccess(t *testing.T) {
 	t.Parallel()
 
