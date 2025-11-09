@@ -105,6 +105,135 @@ func TestService_ChangePasswordSuccess(t *testing.T) {
 	}
 }
 
+func TestService_ChangePasswordFails(t *testing.T) {
+	t.Parallel()
+
+	errReadData := errors.New("unable to read random data")
+	errQueryFailed := errors.New("query failed")
+
+	tests := []struct {
+		name    string
+		deps    *auth.Dependencies
+		wantErr error
+	}{
+		{
+			name: "user not found",
+			deps: &auth.Dependencies{
+				Repo:     nil,
+				CfgApp:   mockAppCfg,
+				CfgJWT:   &config.JWT{},
+				CfgEmail: &config.Email{},
+				Hasher:   nil,
+				Mailer:   &email.SMTPMailer{},
+				Signer:   nil,
+				Txmgr:    &db.TxManager{},
+				UserRepo: &user.StubRepo{
+					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+						return nil, user.ErrNotFound
+					},
+				},
+			},
+			wantErr: auth.ErrUserNotFound,
+		},
+		{
+			name: "incorrect password",
+			deps: &auth.Dependencies{
+				Repo:     nil,
+				CfgApp:   mockAppCfg,
+				CfgJWT:   &config.JWT{},
+				CfgEmail: &config.Email{},
+				Hasher: &auth.StubHasher{
+					VerifyFunc: func(plain, hashed string) (bool, error) {
+						return false, nil
+					},
+				},
+				Mailer: &email.SMTPMailer{},
+				Signer: nil,
+				Txmgr:  &db.TxManager{},
+				UserRepo: &user.StubRepo{
+					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+						return &mockUser, nil
+					},
+				},
+			},
+			wantErr: auth.ErrIncorrectPassword,
+		},
+		{
+			name: "hashing error",
+			deps: &auth.Dependencies{
+				Repo:     nil,
+				CfgApp:   mockAppCfg,
+				CfgJWT:   &config.JWT{},
+				CfgEmail: &config.Email{},
+				Hasher: &auth.StubHasher{
+					VerifyFunc: func(plain, hashed string) (bool, error) {
+						return true, nil
+					},
+					HashFunc: func(plain string) (string, error) {
+						return "", errReadData
+					},
+				},
+				Mailer: &email.SMTPMailer{},
+				Signer: nil,
+				Txmgr:  &db.TxManager{},
+				UserRepo: &user.StubRepo{
+					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+						return &mockUser, nil
+					},
+				},
+			},
+			wantErr: errReadData,
+		},
+		{
+			name: "repo failure",
+			deps: &auth.Dependencies{
+				Repo: &auth.StubRepo{
+					ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
+						return errQueryFailed
+					},
+				},
+				CfgApp:   mockAppCfg,
+				CfgJWT:   &config.JWT{},
+				CfgEmail: &config.Email{},
+				Hasher: &auth.StubHasher{
+					VerifyFunc: func(plain, hashed string) (bool, error) {
+						return true, nil
+					},
+					HashFunc: func(plain string) (string, error) {
+						return "hashed", nil
+					},
+				},
+				Mailer: &email.SMTPMailer{},
+				Signer: nil,
+				Txmgr:  &db.TxManager{},
+				UserRepo: &user.StubRepo{
+					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+						return &mockUser, nil
+					},
+				},
+			},
+			wantErr: errQueryFailed,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			svc := auth.NewService(tt.deps)
+			params := auth.ChangePasswordParams{}
+			err := svc.ChangePassword(t.Context(), params)
+			if err == nil {
+				t.Fatal("svc.ChangePassword did not return an error")
+			}
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("svc.ChangePassword(t.Context(),params) = %v, want: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestService_LoginSuccess(t *testing.T) {
 	t.Parallel()
 
