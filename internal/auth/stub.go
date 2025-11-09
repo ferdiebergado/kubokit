@@ -143,3 +143,24 @@ func (s *StubSigner) Verify(tokenString string) (*jwt.Claims, error) {
 	}
 	return s.VerifyFunc(tokenString)
 }
+
+type StubHasher struct {
+	HashFunc   func(plain string) (string, error)
+	VerifyFunc func(plain string, hashed string) (bool, error)
+}
+
+func (h *StubHasher) Hash(plain string) (string, error) {
+	if h.HashFunc == nil {
+		return "", errors.New("Hash not implemented by stub")
+	}
+
+	return h.HashFunc(plain)
+}
+
+func (h *StubHasher) Verify(plain string, hashed string) (bool, error) {
+	if h.VerifyFunc == nil {
+		return false, errors.New("Verify not implemented by stub")
+	}
+
+	return h.VerifyFunc(plain, hashed)
+}

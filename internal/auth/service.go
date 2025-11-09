@@ -9,7 +9,6 @@ import (
 
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/email"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
 	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
@@ -30,10 +29,15 @@ type Repository interface {
 	ChangePassword(ctx context.Context, userID, newPassword string) error
 }
 
+type Hasher interface {
+	Hash(plain string) (string, error)
+	Verify(plain, hashed string) (bool, error)
+}
+
 type service struct {
 	repo      Repository
 	userRepo  user.Repository
-	hasher    *security.Argon2Hasher
+	hasher    Hasher
 	signer    jwt.Signer
 	mailer    *email.SMTPMailer
 	cfgJWT    *config.JWT
@@ -49,7 +53,7 @@ type Dependencies struct {
 	CfgApp   *config.App
 	CfgJWT   *config.JWT
 	CfgEmail *config.Email
-	Hasher   *security.Argon2Hasher
+	Hasher   Hasher
 	Mailer   *email.SMTPMailer
 	Signer   jwt.Signer
 	Txmgr    *db.TxManager
