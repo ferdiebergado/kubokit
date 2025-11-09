@@ -76,8 +76,6 @@ func TestService_LoginSuccess(t *testing.T) {
 
 	const mockToken = "mock_token"
 
-	now := time.Now()
-
 	hasher := createHasher(t)
 
 	mockPasswordHash, err := hasher.Hash(mockPassword)
@@ -147,6 +145,95 @@ func TestService_LoginSuccess(t *testing.T) {
 
 	if !reflect.DeepEqual(*session.User, wantUser) {
 		t.Errorf("session.User = %+v, want: %+v", *session.User, wantUser)
+	}
+}
+
+func TestService_LoginFails(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		deps    *auth.Dependencies
+		wantErr error
+	}{
+		{
+			name: "user not found",
+			deps: &auth.Dependencies{
+				CfgApp: mockAppCfg,
+				UserRepo: &user.StubRepo{
+					FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+						return nil, user.ErrNotFound
+					},
+				},
+			},
+			wantErr: auth.ErrUserNotFound,
+		},
+		{
+			name: "user not verified",
+			deps: &auth.Dependencies{
+				CfgApp: mockAppCfg,
+				UserRepo: &user.StubRepo{
+					FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+						return &user.User{
+							Model: model.Model{
+								ID:        "1",
+								CreatedAt: now,
+								UpdatedAt: now,
+							},
+							Email:        mockEmail,
+							PasswordHash: mockPassword,
+						}, nil
+					},
+				},
+			},
+			wantErr: auth.ErrNotVerified,
+		},
+		{
+			name: "incorrect password",
+			deps: &auth.Dependencies{
+				CfgApp: mockAppCfg,
+				UserRepo: &user.StubRepo{
+					FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+						return &user.User{
+							Model: model.Model{
+								ID:        "1",
+								CreatedAt: now,
+								UpdatedAt: now,
+							},
+							Email:        mockEmail,
+							PasswordHash: mockPassword,
+							VerifiedAt:   &now,
+						}, nil
+					},
+				},
+				Hasher: &auth.StubHasher{
+					VerifyFunc: func(plain, hashed string) (bool, error) {
+						return false, nil
+					},
+				},
+			},
+			wantErr: auth.ErrIncorrectPassword,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			svc := auth.NewService(tt.deps)
+			params := auth.LoginParams{
+				Email:    mockEmail,
+				Password: mockPassword,
+			}
+			_, err := svc.Login(t.Context(), params)
+			if err == nil {
+				t.Fatal("svc.Login did not return an error")
+			}
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("auth.NewService(tt.deps) = %v, want: %v", err, tt.wantErr)
+			}
+		})
 	}
 }
 
