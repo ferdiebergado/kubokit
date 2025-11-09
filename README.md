@@ -1,13 +1,13 @@
 # kubokit
 
-[![CodeQL](https://github.com/ferdiebergado/kubokit/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/ferdiebergado/kubokit/actions/workflows/github-code-scanning/codeql)
+[![Test](https://github.com/ferdiebergado/kubokit/actions/workflows/go.yml/badge.svg)](https://github.com/ferdiebergado/kubokit/actions/workflows/go.yml) [![CodeQL](https://github.com/ferdiebergado/kubokit/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/ferdiebergado/kubokit/actions/workflows/github-code-scanning/codeql)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ferdiebergado/kubokit)](https://goreportcard.com/report/github.com/ferdiebergado/kubokit)
 
 A REST API starter kit with straightforward approach and minimal dependencies.
 
 ## Requirements
 
--   Go 1.23 or higher
+-   Go 1.24 or higher
 -   `docker` or `podman`
 
 ## Quick Start
