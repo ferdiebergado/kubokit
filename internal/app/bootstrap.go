@@ -63,7 +63,7 @@ func Run() error {
 
 	securityKey := cfg.App.Key
 	cfgJWT := cfg.JWT
-	signer := jwt.NewGolangJWTSigner(securityKey, cfgJWT.JTILength, cfgJWT.Issuer, cfg.App.ClientURL, cfgJWT.TTL.Duration)
+	signer := jwt.NewGolangJWTSigner(securityKey, cfgJWT.JTILength, cfgJWT.Issuer, cfg.App.ClientURL, security.STDRandomizer)
 
 	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
 	if err != nil {

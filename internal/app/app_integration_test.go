@@ -81,7 +81,8 @@ func setupApp(t *testing.T) *app.App {
 
 	securityKey := cfg.App.Key
 	cfgJWT := cfg.JWT
-	signer := jwt.NewGolangJWTSigner(securityKey, cfg.JTILength, cfgJWT.Issuer, cfg.App.ClientURL, cfg.JWT.TTL.Duration)
+
+	signer := jwt.NewGolangJWTSigner(securityKey, cfg.JTILength, cfgJWT.Issuer, cfg.App.ClientURL, security.STDRandomizer)
 	hasher := security.NewArgon2Hasher(cfg.Argon2, securityKey)
 	mailer := &email.SMTPMailer{}
 	validator := validation.NewGoPlaygroundValidator()
