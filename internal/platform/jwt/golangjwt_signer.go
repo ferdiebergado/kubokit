@@ -52,9 +52,9 @@ func (g *golangJWTSigner) Sign(claims map[string]any, ttl time.Duration) (string
 	tokenClaims["jti"] = jti
 	tokenClaims["iss"] = g.issuer
 	tokenClaims["aud"] = g.audience
-	tokenClaims["exp"] = jwt.NewNumericDate(now.Add(ttl))
-	tokenClaims["iat"] = jwt.NewNumericDate(now)
-	tokenClaims["nbf"] = jwt.NewNumericDate(now)
+	tokenClaims["exp"] = now.Add(ttl).Unix()
+	tokenClaims["iat"] = now.Unix()
+	tokenClaims["nbf"] = now.Unix()
 
 	token := jwt.NewWithClaims(g.method, tokenClaims)
 	signedToken, err := token.SignedString(g.key)
