@@ -79,8 +79,10 @@ func setupApp(t *testing.T) *app.App {
 		t.Fatalf("failed to connect to db: %v", err)
 	}
 
-	signer := jwt.NewGolangJWTSigner(cfg.JWT, "test")
-	hasher := security.NewArgon2Hasher(cfg.Argon2, "test")
+	securityKey := cfg.App.Key
+	cfgJWT := cfg.JWT
+	signer := jwt.NewGolangJWTSigner(securityKey, cfg.JTILength, cfgJWT.Issuer, cfg.App.ClientURL, cfg.JWT.TTL.Duration)
+	hasher := security.NewArgon2Hasher(cfg.Argon2, securityKey)
 	mailer := &email.SMTPMailer{}
 	validator := validation.NewGoPlaygroundValidator()
 	txMgr := db.NewTxManager(conn)

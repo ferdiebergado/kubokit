@@ -1,81 +1,88 @@
 package jwt
 
 import (
+	"encoding/hex"
+	"errors"
 	"fmt"
+	"maps"
 	"time"
 
-	"github.com/ferdiebergado/kubokit/internal/config"
+	"github.com/ferdiebergado/kubokit/internal/auth"
 	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// CustomClaims represents JWT with custom claims.
-type CustomClaims struct {
-	jwt.RegisteredClaims
-}
-
-// golangJWTSigner implements the Signer interface using the golang-jwt library.
 type golangJWTSigner struct {
-	method jwt.SigningMethod
-	key    string
-	jtiLen uint32
-	issuer string
+	method    jwt.SigningMethod
+	key       []byte
+	idLen     uint32
+	issuer    string
+	audience  string
+	expiresIn time.Duration
 }
 
-var _ Signer = (*golangJWTSigner)(nil)
-
-// NewGolangJWTSigner creates a new GolangJWTSigner with the provided JWT config and signing key.
-func NewGolangJWTSigner(cfg *config.JWT, key string) Signer {
+// NewGolangJWTSigner returns a new GolangJWTSigner instance with the given options.
+func NewGolangJWTSigner(key string, idLen uint32, issuer, audience string, expiresIn time.Duration) auth.Signer {
 	return &golangJWTSigner{
-		method: jwt.SigningMethodHS256,
-		key:    key,
-		jtiLen: cfg.JTILength,
-		issuer: cfg.Issuer,
+		method:    jwt.SigningMethodHS256,
+		key:       []byte(key),
+		idLen:     idLen,
+		issuer:    issuer,
+		audience:  audience,
+		expiresIn: expiresIn,
 	}
 }
 
-// Sign generates a signed JWT token with the given subject, audience, and duration.
-func (s *golangJWTSigner) Sign(sub string, audience []string, duration time.Duration) (string, error) {
-	jti, err := security.GenerateRandomBytesURLEncoded(s.jtiLen)
-	if err != nil {
-		return "", fmt.Errorf("generate jti with length %d: %w", s.jtiLen, err)
+var _ auth.Signer = (*golangJWTSigner)(nil)
+
+// Sign creates a signed JWT token string from the provided claims.
+func (g *golangJWTSigner) Sign(claims map[string]any) (string, error) {
+	tokenClaims := make(jwt.MapClaims, len(claims))
+
+	// Copy claims and add standard claims if missing (example: exp).
+	maps.Copy(tokenClaims, claims)
+
+	// Set token expiration if not present.
+	if _, ok := tokenClaims["exp"]; !ok {
+		tokenClaims["exp"] = time.Now().Add(g.expiresIn).Unix()
 	}
 
-	claims := &CustomClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
-			Issuer:    s.issuer,
-			Audience:  audience,
-			Subject:   sub,
-			ID:        jti,
-		},
+	// Generate jti.
+	jti, err := security.GenerateRandomBytes(g.idLen)
+	if err != nil {
+		return "", fmt.Errorf("generate jti: %w", err)
 	}
 
-	token := jwt.NewWithClaims(s.method, claims)
-	signedToken, err := token.SignedString([]byte(s.key))
+	tokenClaims["jti"] = hex.EncodeToString(jti)
+	tokenClaims["iss"] = g.issuer
+	tokenClaims["aud"] = g.audience
+
+	token := jwt.NewWithClaims(g.method, tokenClaims)
+	signedToken, err := token.SignedString(g.key)
 	if err != nil {
-		return "", fmt.Errorf("sign token: %w", err)
+		return "", fmt.Errorf("create signed jwt: %w", err)
 	}
+
 	return signedToken, nil
 }
 
-// Verify parses and validates a JWT token string and returns the associated Claims if valid.
-func (s *golangJWTSigner) Verify(tokenString string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(_ *jwt.Token) (any, error) {
-		return []byte(s.key), nil
-	}, jwt.WithValidMethods([]string{s.method.Alg()}))
+// Verify parses and validates the JWT token string and returns claims if valid.
+func (g *golangJWTSigner) Verify(tokenString string) (map[string]any, error) {
+	token, err := jwt.Parse(tokenString, func(_ *jwt.Token) (any, error) {
+		return g.key, nil
+	}, jwt.WithValidMethods([]string{g.method.Alg()}))
+
 	if err != nil {
-		return nil, fmt.Errorf("parse with claims: %w", err)
+		return nil, fmt.Errorf("parse jwt: %w", err)
 	}
 
-	customClaims, ok := token.Claims.(*CustomClaims)
-	if !ok {
-		return nil, fmt.Errorf("unknown claims type: %T", token.Claims)
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		result := make(map[string]any, len(claims))
+		for k, v := range claims {
+			result[k] = v
+		}
+		return result, nil
 	}
 
-	claims := &Claims{
-		UserID: customClaims.Subject,
-	}
-
-	return claims, nil
+	return nil, errors.New("invalid token")
 }

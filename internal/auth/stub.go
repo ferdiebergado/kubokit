@@ -3,9 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
-	"time"
 
-	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -124,24 +122,26 @@ func (r *StubRepo) ChangePassword(ctx context.Context, email, newPassword string
 }
 
 type StubSigner struct {
-	SignFunc   func(subject string, audience []string, duration time.Duration) (string, error)
-	VerifyFunc func(tokenString string) (*jwt.Claims, error)
+	SignFunc   func(claims map[string]any) (string, error)
+	VerifyFunc func(token string) (map[string]any, error)
 }
 
-var _ jwt.Signer = (*StubSigner)(nil)
+var _ Signer = (*StubSigner)(nil)
 
-func (s *StubSigner) Sign(subject string, audience []string, duration time.Duration) (string, error) {
+func (s *StubSigner) Sign(claims map[string]any) (string, error) {
 	if s.SignFunc == nil {
 		return "", errors.New("Sign not implemented by stub")
 	}
-	return s.SignFunc(subject, audience, duration)
+
+	return s.SignFunc(claims)
 }
 
-func (s *StubSigner) Verify(tokenString string) (*jwt.Claims, error) {
+func (s *StubSigner) Verify(token string) (map[string]any, error) {
 	if s.VerifyFunc == nil {
 		return nil, errors.New("Verify not implemented by stub")
 	}
-	return s.VerifyFunc(tokenString)
+
+	return s.VerifyFunc(token)
 }
 
 type StubHasher struct {

@@ -10,7 +10,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/config"
 	"github.com/ferdiebergado/kubokit/internal/pkg/email"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
-	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -22,23 +21,38 @@ var (
 	ErrUserNotFound      = errors.New("user not found")
 	ErrUserExists        = errors.New("user already exists")
 	ErrInvalidToken      = errors.New("invalid token")
+	ErrInvalidSubject    = errors.New("claims.sub is not a string")
 )
 
+// Repository defines an interface for managing authentication data.
 type Repository interface {
 	Verify(ctx context.Context, userID string) error
 	ChangePassword(ctx context.Context, userID, newPassword string) error
 }
 
+// Hasher defines an interface for creating and verifying hashes.
 type Hasher interface {
+	// Hash takes a plain text and creates a hash of it.
 	Hash(plain string) (string, error)
+
+	// Verify takes the plain text and hash then checks them if they match.
 	Verify(plain, hashed string) (bool, error)
+}
+
+// Signer defines an interface for signing and verifying JWT tokens.
+type Signer interface {
+	// Sign takes a payload and returns a signed JWT string or an error.
+	Sign(claims map[string]any) (string, error)
+
+	// Verify takes a signed JWT token string and returns the decoded claims or an error.
+	Verify(token string) (map[string]any, error)
 }
 
 type service struct {
 	repo      Repository
 	userRepo  user.Repository
 	hasher    Hasher
-	signer    jwt.Signer
+	signer    Signer
 	mailer    *email.SMTPMailer
 	cfgJWT    *config.JWT
 	cfgEmail  *config.Email
@@ -55,7 +69,7 @@ type Dependencies struct {
 	CfgEmail *config.Email
 	Hasher   Hasher
 	Mailer   *email.SMTPMailer
-	Signer   jwt.Signer
+	Signer   Signer
 	Txmgr    *db.TxManager
 	UserRepo user.Repository
 }
@@ -116,21 +130,25 @@ type HTMLEmail struct {
 }
 
 func (s *service) sendVerificationEmail(email, userID string) error {
-	audience := s.clientURL + verificationPath
+	expiresIn := time.Now().Add(s.cfgEmail.VerifyTTL.Duration).Unix()
 
-	// TODO: add purpose claim
-	ttl := s.cfgEmail.VerifyTTL.Duration
-	token, err := s.signer.Sign(userID, []string{audience}, ttl)
+	claims := map[string]any{
+		"sub":     userID,
+		"exp":     expiresIn,
+		"purpose": "verify",
+	}
+	token, err := s.signer.Sign(claims)
 	if err != nil {
 		return fmt.Errorf("sign verification token: %w", err)
 	}
 
+	url := s.clientURL + verificationPath
 	verificationEmail := &HTMLEmail{
 		Address:  email,
 		Subject:  "Verify your email",
 		Title:    "Email verification",
 		Template: "verification",
-		Link:     audience + "?token=" + token,
+		Link:     url + "?token=" + token,
 	}
 
 	go s.sendEmail(verificationEmail)
@@ -172,7 +190,12 @@ func (s *service) Verify(ctx context.Context, token string) error {
 		return fmt.Errorf("verify token: %w: %v", ErrInvalidToken, err)
 	}
 
-	u, err := s.userRepo.Find(ctx, claims.UserID)
+	userID, ok := claims["sub"].(string)
+	if !ok {
+		return ErrInvalidSubject
+	}
+
+	u, err := s.userRepo.Find(ctx, userID)
 	if err != nil {
 		if errors.Is(err, user.ErrNotFound) {
 			return ErrUserNotFound
@@ -184,7 +207,7 @@ func (s *service) Verify(ctx context.Context, token string) error {
 		return nil
 	}
 
-	if err := s.repo.Verify(ctx, claims.UserID); err != nil {
+	if err := s.repo.Verify(ctx, userID); err != nil {
 		const format = "verify user: %w"
 
 		if errors.Is(err, user.ErrNotFound) {
@@ -244,18 +267,23 @@ func (s *service) Login(ctx context.Context, params LoginParams) (*Session, erro
 
 func (s *service) creatSession(userID, email string) (*Session, error) {
 	jwtConfig := s.cfgJWT
-	ttl := time.Now().Add(jwtConfig.TTL.Duration).UnixNano()
-	accessToken, err := s.signer.Sign(userID, []string{jwtConfig.Issuer}, time.Duration(ttl))
+	expiresIn := time.Now().Add(jwtConfig.TTL.Duration).Unix()
+
+	claims := map[string]any{
+		"sub":     userID,
+		"purpose": "session",
+	}
+	accessToken, err := s.signer.Sign(claims)
 	if err != nil {
 		return nil, fmt.Errorf("sign access token: %w", err)
 	}
 
-	refreshToken, err := s.signer.Sign(userID, []string{jwtConfig.Issuer}, jwtConfig.RefreshTTL.Duration)
+	claims["purpose"] = "refresh"
+	claims["exp"] = time.Now().Add(jwtConfig.RefreshTTL.Duration).Unix()
+	refreshToken, err := s.signer.Sign(claims)
 	if err != nil {
 		return nil, fmt.Errorf("sign refresh token: %w", err)
 	}
-
-	expiresIn := ttl / int64(time.Millisecond)
 
 	userInfo := &UserInfo{
 		ID:    userID,
@@ -285,10 +313,15 @@ func (s *service) SendPasswordReset(ctx context.Context, email string) error {
 		return fmt.Errorf(format, err)
 	}
 
-	audience := s.clientURL + "/account/reset-password"
+	url := s.clientURL + "/account/reset-password"
 
-	ttl := s.cfgEmail.VerifyTTL.Duration
-	token, err := s.signer.Sign(u.ID, []string{audience}, ttl)
+	expiresIn := time.Now().Add(s.cfgEmail.VerifyTTL.Duration).Unix()
+	claims := map[string]any{
+		"sub":     u.ID,
+		"exp":     expiresIn,
+		"purpose": "verify",
+	}
+	token, err := s.signer.Sign(claims)
 	if err != nil {
 		return fmt.Errorf("sign verification token: %w", err)
 	}
@@ -297,7 +330,7 @@ func (s *service) SendPasswordReset(ctx context.Context, email string) error {
 		Address:  email,
 		Subject:  "Reset Your Password",
 		Title:    "Password Reset",
-		Link:     audience + "?token=" + token,
+		Link:     url + "?token=" + token,
 		Template: "reset_password",
 	}
 
@@ -350,7 +383,11 @@ func (s *service) RefreshToken(ctx context.Context, token string) (*Session, err
 		return nil, fmt.Errorf("verify refresh token: %w", err)
 	}
 
-	userID := claims.UserID
+	userID, ok := claims["sub"].(string)
+	if !ok {
+		return nil, ErrInvalidSubject
+	}
+
 	u, err := s.userRepo.Find(ctx, userID)
 	if err != nil {
 		const format = "find user: %w"
@@ -380,7 +417,12 @@ func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	if err := s.repo.ChangePassword(ctx, claims.UserID, hashed); err != nil {
+	userID, ok := claims["sub"].(string)
+	if !ok {
+		return ErrInvalidSubject
+	}
+
+	if err := s.repo.ChangePassword(ctx, userID, hashed); err != nil {
 		return fmt.Errorf("change password: %w", err)
 	}
 

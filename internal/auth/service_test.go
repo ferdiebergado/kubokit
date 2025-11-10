@@ -13,7 +13,6 @@ import (
 	"github.com/ferdiebergado/kubokit/internal/pkg/email"
 	timex "github.com/ferdiebergado/kubokit/internal/pkg/time"
 	"github.com/ferdiebergado/kubokit/internal/platform/db"
-	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
 
@@ -254,8 +253,8 @@ func TestService_LoginSuccess(t *testing.T) {
 		},
 	}
 
-	signer := &jwt.StubSigner{
-		SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+	signer := &auth.StubSigner{
+		SignFunc: func(claims map[string]any) (string, error) {
 			return mockToken, nil
 		},
 	}
@@ -289,7 +288,7 @@ func TestService_LoginSuccess(t *testing.T) {
 		t.Errorf("session.RefreshToken = %q, want: %q", session.RefreshToken, mockToken)
 	}
 
-	wantExp := now.Add(mockJWTCfg.TTL.Duration).UnixNano() / int64(time.Millisecond)
+	wantExp := now.Add(mockJWTCfg.TTL.Duration).Unix()
 	if session.ExpiresIn < wantExp {
 		t.Errorf("session.ExpiresIn = %d, want: > %d", session.ExpiresIn, wantExp)
 	}
@@ -421,6 +420,12 @@ func TestService_RegisterSuccess(t *testing.T) {
 		},
 	}
 
+	signer := &auth.StubSigner{
+		SignFunc: func(claims map[string]any) (string, error) {
+			return "mock_token", nil
+		},
+	}
+
 	mockDeps := &auth.Dependencies{
 		Repo:     &auth.StubRepo{},
 		CfgApp:   mockAppCfg,
@@ -428,7 +433,7 @@ func TestService_RegisterSuccess(t *testing.T) {
 		CfgEmail: mockEmailCfg,
 		Hasher:   hasher,
 		Mailer:   createMailer(t),
-		Signer:   createSigner(t),
+		Signer:   signer,
 		UserRepo: userRepo,
 		Txmgr:    &db.TxManager{},
 	}
@@ -596,7 +601,13 @@ func TestService_VerifySuccess(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			signer := createSigner(t)
+			signer := &auth.StubSigner{
+				VerifyFunc: func(token string) (map[string]any, error) {
+					return map[string]any{
+						"sub": "1",
+					}, nil
+				},
+			}
 
 			mockDeps := &auth.Dependencies{
 				Repo:     tt.repo,
@@ -612,12 +623,7 @@ func TestService_VerifySuccess(t *testing.T) {
 
 			svc := auth.NewService(mockDeps)
 
-			mockToken, err := signer.Sign(mockUserID, []string{"/verify"}, mockJWTCfg.TTL.Duration)
-			if err != nil {
-				t.Fatalf("failed to sign token: %v", err)
-			}
-
-			if err := svc.Verify(t.Context(), mockToken); err != nil {
+			if err := svc.Verify(t.Context(), "mock_token"); err != nil {
 				t.Errorf("svc.Verify(t.Context(), mockToken) = %v, want: %v", err, nil)
 			}
 		})
@@ -628,39 +634,87 @@ func TestService_VerifyFails(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name     string
-		repo     auth.Repository
-		userRepo user.Repository
-		token    string
-		wantErr  error
+		name    string
+		deps    *auth.Dependencies
+		wantErr error
 	}{
 		{
-			name:     "invalid verification token",
-			repo:     &auth.StubRepo{},
-			userRepo: &user.StubRepo{},
-			token:    "mock_token",
-			wantErr:  auth.ErrInvalidToken,
+			name: "invalid verification token",
+			deps: &auth.Dependencies{
+				Repo: &auth.StubRepo{
+					VerifyFunc: func(ctx context.Context, userID string) error {
+						return nil
+					},
+				},
+				CfgApp:   &config.App{},
+				CfgJWT:   &config.JWT{},
+				CfgEmail: &config.Email{},
+				Hasher:   nil,
+				Mailer:   &email.SMTPMailer{},
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return nil, errors.New("invalid token")
+					},
+				},
+				Txmgr: &db.TxManager{},
+				UserRepo: &user.StubRepo{
+					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+						return &mockUser, nil
+					},
+				},
+			},
+			wantErr: auth.ErrInvalidToken,
 		},
 		{
 			name: "user does not exist",
-			repo: &auth.StubRepo{},
-			userRepo: &user.StubRepo{
-				FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
-					return nil, user.ErrNotFound
+			deps: &auth.Dependencies{
+				Repo:     nil,
+				CfgApp:   &config.App{},
+				CfgJWT:   &config.JWT{},
+				CfgEmail: &config.Email{},
+				Hasher:   nil,
+				Mailer:   &email.SMTPMailer{},
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return map[string]any{
+							"sub": "1",
+						}, nil
+					},
+				},
+				Txmgr: &db.TxManager{},
+				UserRepo: &user.StubRepo{
+					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+						return nil, user.ErrNotFound
+					},
 				},
 			},
 			wantErr: auth.ErrUserNotFound,
 		},
 		{
 			name: "repo failure",
-			repo: &auth.StubRepo{
-				VerifyFunc: func(ctx context.Context, userID string) error {
-					return errMockRepoFailure
+			deps: &auth.Dependencies{
+				Repo: &auth.StubRepo{
+					VerifyFunc: func(ctx context.Context, userID string) error {
+						return errMockRepoFailure
+					},
 				},
-			},
-			userRepo: &user.StubRepo{
-				FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
-					return &mockUser, nil
+				CfgApp:   &config.App{},
+				CfgJWT:   &config.JWT{},
+				CfgEmail: &config.Email{},
+				Hasher:   nil,
+				Mailer:   &email.SMTPMailer{},
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return map[string]any{
+							"sub": "1",
+						}, nil
+					},
+				},
+				Txmgr: &db.TxManager{},
+				UserRepo: &user.StubRepo{
+					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+						return &mockUser, nil
+					},
 				},
 			},
 			wantErr: errMockRepoFailure,
@@ -671,32 +725,8 @@ func TestService_VerifyFails(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			signer := createSigner(t)
-
-			mockDeps := &auth.Dependencies{
-				Repo:     tt.repo,
-				UserRepo: tt.userRepo,
-				CfgApp:   mockAppCfg,
-				CfgEmail: mockEmailCfg,
-				CfgJWT:   mockJWTCfg,
-				Signer:   signer,
-				Hasher:   nil,
-				Mailer:   &email.SMTPMailer{},
-				Txmgr:    &db.TxManager{},
-			}
-
-			svc := auth.NewService(mockDeps)
-
-			var err error
-			mockToken := tt.token
-			if mockToken == "" {
-				mockToken, err = signer.Sign(mockUserID, []string{"/verify"}, mockJWTCfg.TTL.Duration)
-				if err != nil {
-					t.Fatalf("failed to sign token: %v", err)
-				}
-			}
-
-			err = svc.Verify(t.Context(), mockToken)
+			svc := auth.NewService(tt.deps)
+			err := svc.Verify(t.Context(), "mock_token")
 			if err == nil {
 				t.Fatal("svc.Verify did not return an error")
 			}
@@ -723,7 +753,13 @@ func TestService_ResetPasswordSuccess(t *testing.T) {
 		},
 	}
 
-	signer := createSigner(t)
+	signer := &auth.StubSigner{
+		VerifyFunc: func(token string) (map[string]any, error) {
+			return map[string]any{
+				"sub": "1",
+			}, nil
+		},
+	}
 
 	deps := &auth.Dependencies{
 		Repo:     repo,
@@ -738,14 +774,8 @@ func TestService_ResetPasswordSuccess(t *testing.T) {
 	}
 
 	svc := auth.NewService(deps)
-
-	mockToken, err := signer.Sign(mockUserID, []string{"/auth/reset"}, mockJWTCfg.TTL.Duration)
-	if err != nil {
-		t.Fatalf("failed to create mock token: %v", err)
-	}
-
 	mockParams := auth.ResetPasswordParams{
-		Token:    mockToken,
+		Token:    "mock_token",
 		Password: "test",
 	}
 
@@ -757,11 +787,12 @@ func TestService_ResetPasswordSuccess(t *testing.T) {
 func TestService_ResetPasswordFails(t *testing.T) {
 	t.Parallel()
 
-	signer := createSigner(t)
-
-	mockToken, err := signer.Sign(mockUserID, []string{"/auth/reset"}, mockJWTCfg.TTL.Duration)
-	if err != nil {
-		t.Fatalf("failed to create mock token: %v", err)
+	signer := &auth.StubSigner{
+		VerifyFunc: func(token string) (map[string]any, error) {
+			return map[string]any{
+				"sub": "1",
+			}, nil
+		},
 	}
 
 	tests := []struct {
@@ -792,7 +823,7 @@ func TestService_ResetPasswordFails(t *testing.T) {
 				UserRepo: nil,
 			},
 			params: auth.ResetPasswordParams{
-				Token:    mockToken,
+				Token:    "mock_token",
 				Password: mockPassword,
 			},
 			wantErr: auth.ErrUserNotFound,
@@ -813,8 +844,12 @@ func TestService_ResetPasswordFails(t *testing.T) {
 						return "hashed", nil
 					},
 				},
-				Mailer:   &email.SMTPMailer{},
-				Signer:   signer,
+				Mailer: &email.SMTPMailer{},
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return nil, errors.New("invalid token")
+					},
+				},
 				Txmgr:    &db.TxManager{},
 				UserRepo: nil,
 			},
@@ -846,7 +881,7 @@ func TestService_ResetPasswordFails(t *testing.T) {
 				UserRepo: nil,
 			},
 			params: auth.ResetPasswordParams{
-				Token:    mockToken,
+				Token:    "mock_token",
 				Password: mockPassword,
 			},
 			wantErr: errMockRepoFailure,
@@ -858,7 +893,7 @@ func TestService_ResetPasswordFails(t *testing.T) {
 			t.Parallel()
 
 			svc := auth.NewService(tt.deps)
-			err = svc.ResetPassword(t.Context(), tt.params)
+			err := svc.ResetPassword(t.Context(), tt.params)
 			if err == nil {
 				t.Fatal("svc.ResetPassword did not return an error")
 			}
@@ -879,10 +914,4 @@ func createMailer(t *testing.T) *email.SMTPMailer {
 	}
 
 	return mailer
-}
-
-func createSigner(t *testing.T) jwt.Signer {
-	t.Helper()
-
-	return jwt.NewGolangJWTSigner(mockJWTCfg, mockAppCfg.Key)
 }

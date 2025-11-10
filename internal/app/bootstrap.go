@@ -62,7 +62,8 @@ func Run() error {
 	defer dbConn.Close()
 
 	securityKey := cfg.App.Key
-	signer := jwt.NewGolangJWTSigner(cfg.JWT, securityKey)
+	cfgJWT := cfg.JWT
+	signer := jwt.NewGolangJWTSigner(securityKey, cfgJWT.JTILength, cfgJWT.Issuer, cfg.App.ClientURL, cfgJWT.TTL.Duration)
 
 	mailer, err := email.NewSMTPMailer(cfg.SMTP, cfg.Email)
 	if err != nil {

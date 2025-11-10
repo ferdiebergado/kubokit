@@ -4,10 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/auth"
-	"github.com/ferdiebergado/kubokit/internal/platform/jwt"
 )
 
 func TestMiddleware_RequireToken(t *testing.T) {
@@ -17,19 +15,19 @@ func TestMiddleware_RequireToken(t *testing.T) {
 
 	tests := []struct {
 		name, accessToken, headerCalled string
-		signer                          jwt.Signer
+		signer                          auth.Signer
 		code                            int
 	}{
 		{
 			name:        "With valid token",
 			accessToken: "access_token",
 			signer: &auth.StubSigner{
-				SignFunc: func(subject string, audience []string, duration time.Duration) (string, error) {
+				SignFunc: func(claims map[string]any) (string, error) {
 					return "access_token", nil
 				},
-				VerifyFunc: func(tokenString string) (*jwt.Claims, error) {
-					return &jwt.Claims{
-						UserID: "1",
+				VerifyFunc: func(tokenString string) (map[string]any, error) {
+					return map[string]any{
+						"sub": "1",
 					}, nil
 				},
 			},
