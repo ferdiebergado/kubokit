@@ -54,6 +54,11 @@ func RequireToken(signer Signer) func(http.Handler) http.Handler {
 				return
 			}
 
+			if purpose, ok := claims["purpose"].(string); !ok || purpose != "session" {
+				web.RespondUnauthorized(w, ErrInvalidToken, MsgInvalidUser, nil)
+				return
+			}
+
 			userID, ok := claims["sub"].(string)
 			if !ok {
 				web.RespondUnauthorized(w, ErrInvalidToken, MsgInvalidUser, nil)

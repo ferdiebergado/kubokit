@@ -187,6 +187,11 @@ func (s *service) Verify(ctx context.Context, token string) error {
 		return fmt.Errorf("verify token: %w: %v", ErrInvalidToken, err)
 	}
 
+	purpose, ok := claims["purpose"].(string)
+	if !ok || purpose != "verify" {
+		return ErrInvalidToken
+	}
+
 	userID, ok := claims["sub"].(string)
 	if !ok {
 		return ErrInvalidSubject
@@ -316,11 +321,11 @@ func (s *service) SendPasswordReset(ctx context.Context, email string) error {
 
 	claims := map[string]any{
 		"sub":     u.ID,
-		"purpose": "verify",
+		"purpose": "reset",
 	}
 	token, err := s.signer.Sign(claims, s.cfgEmail.VerifyTTL.Duration)
 	if err != nil {
-		return fmt.Errorf("sign verification token: %w", err)
+		return fmt.Errorf("sign password reset token: %w", err)
 	}
 
 	resetEmail := &HTMLEmail{
@@ -380,6 +385,10 @@ func (s *service) RefreshToken(ctx context.Context, token string) (*Session, err
 		return nil, fmt.Errorf("verify refresh token: %w: %v", ErrInvalidToken, err)
 	}
 
+	if purpose, ok := claims["purpose"].(string); !ok || purpose != "refresh" {
+		return nil, ErrInvalidToken
+	}
+
 	userID, ok := claims["sub"].(string)
 	if !ok {
 		return nil, ErrInvalidSubject
@@ -409,14 +418,18 @@ func (s *service) ResetPassword(ctx context.Context, params ResetPasswordParams)
 		return fmt.Errorf("verify token: %w: %v", ErrInvalidToken, err)
 	}
 
-	hashed, err := s.hasher.Hash(params.Password)
-	if err != nil {
-		return fmt.Errorf("hash password: %w", err)
+	if purpose, ok := claims["purpose"].(string); !ok || purpose != "reset" {
+		return ErrInvalidToken
 	}
 
 	userID, ok := claims["sub"].(string)
 	if !ok {
 		return ErrInvalidSubject
+	}
+
+	hashed, err := s.hasher.Hash(params.Password)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
 	}
 
 	if err := s.repo.ChangePassword(ctx, userID, hashed); err != nil {

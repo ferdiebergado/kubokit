@@ -17,6 +17,7 @@ func TestSignAndVerify_Success(t *testing.T) {
 		audience = "you"
 		idLen    = 8
 		jti      = "abc"
+		purpose  = "test"
 	)
 
 	randomizer := security.RandomizeFunc(func(length uint32) (string, error) {
@@ -26,7 +27,8 @@ func TestSignAndVerify_Success(t *testing.T) {
 	signer := jwt.NewGolangJWTSigner(key, idLen, issuer, audience, randomizer)
 
 	claims := map[string]any{
-		"sub": userID,
+		"sub":     userID,
+		"purpose": purpose,
 	}
 
 	ttl := 5 * time.Minute
@@ -47,13 +49,14 @@ func TestSignAndVerify_Success(t *testing.T) {
 	}
 
 	wantClaims := map[string]any{
-		"jti": jti,
-		"sub": userID,
-		"iss": issuer,
-		"aud": audience,
-		"exp": float64(exp.Unix()),
-		"iat": float64(now.Unix()),
-		"nbf": float64(now.Unix()),
+		"jti":     jti,
+		"sub":     userID,
+		"iss":     issuer,
+		"aud":     audience,
+		"exp":     float64(exp.Unix()),
+		"iat":     float64(now.Unix()),
+		"nbf":     float64(now.Unix()),
+		"purpose": purpose,
 	}
 
 	if !reflect.DeepEqual(res, wantClaims) {
