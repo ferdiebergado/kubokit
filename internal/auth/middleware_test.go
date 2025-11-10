@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/auth"
 )
@@ -22,8 +23,8 @@ func TestMiddleware_RequireToken(t *testing.T) {
 			name:        "With valid token",
 			accessToken: "access_token",
 			signer: &auth.StubSigner{
-				SignFunc: func(claims map[string]any) (string, error) {
-					return "access_token", nil
+				SignFunc: func(claims map[string]any, ttl time.Duration) (string, error) {
+					return "mock_token", nil
 				},
 				VerifyFunc: func(tokenString string) (map[string]any, error) {
 					return map[string]any{

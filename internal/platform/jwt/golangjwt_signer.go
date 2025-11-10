@@ -1,61 +1,60 @@
 package jwt
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"maps"
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/auth"
-	"github.com/ferdiebergado/kubokit/internal/pkg/security"
 	"github.com/golang-jwt/jwt/v5"
 )
 
+type Randomizer interface {
+	Randomize(length uint32) (string, error)
+}
+
 type golangJWTSigner struct {
-	method    jwt.SigningMethod
-	key       []byte
-	idLen     uint32
-	issuer    string
-	audience  string
-	expiresIn time.Duration
+	method     jwt.SigningMethod
+	key        []byte
+	idLen      uint32
+	issuer     string
+	audience   string
+	randomizer Randomizer
 }
 
 // NewGolangJWTSigner returns a new GolangJWTSigner instance with the given options.
-func NewGolangJWTSigner(key string, idLen uint32, issuer, audience string, expiresIn time.Duration) auth.Signer {
+func NewGolangJWTSigner(key string, idLen uint32, issuer, audience string, randomizer Randomizer) auth.Signer {
 	return &golangJWTSigner{
-		method:    jwt.SigningMethodHS256,
-		key:       []byte(key),
-		idLen:     idLen,
-		issuer:    issuer,
-		audience:  audience,
-		expiresIn: expiresIn,
+		method:     jwt.SigningMethodHS256,
+		key:        []byte(key),
+		idLen:      idLen,
+		issuer:     issuer,
+		audience:   audience,
+		randomizer: randomizer,
 	}
 }
 
 var _ auth.Signer = (*golangJWTSigner)(nil)
 
 // Sign creates a signed JWT token string from the provided claims.
-func (g *golangJWTSigner) Sign(claims map[string]any) (string, error) {
-	tokenClaims := make(jwt.MapClaims, len(claims))
+func (g *golangJWTSigner) Sign(claims map[string]any, ttl time.Duration) (string, error) {
+	now := time.Now()
 
-	// Copy claims and add standard claims if missing (example: exp).
+	tokenClaims := jwt.MapClaims{}
 	maps.Copy(tokenClaims, claims)
 
-	// Set token expiration if not present.
-	if _, ok := tokenClaims["exp"]; !ok {
-		tokenClaims["exp"] = time.Now().Add(g.expiresIn).Unix()
-	}
-
-	// Generate jti.
-	jti, err := security.GenerateRandomBytes(g.idLen)
+	jti, err := g.randomizer.Randomize(g.idLen)
 	if err != nil {
 		return "", fmt.Errorf("generate jti: %w", err)
 	}
 
-	tokenClaims["jti"] = hex.EncodeToString(jti)
+	tokenClaims["jti"] = jti
 	tokenClaims["iss"] = g.issuer
 	tokenClaims["aud"] = g.audience
+	tokenClaims["exp"] = jwt.NewNumericDate(now.Add(ttl))
+	tokenClaims["iat"] = jwt.NewNumericDate(now)
+	tokenClaims["nbf"] = jwt.NewNumericDate(now)
 
 	token := jwt.NewWithClaims(g.method, tokenClaims)
 	signedToken, err := token.SignedString(g.key)
@@ -70,7 +69,7 @@ func (g *golangJWTSigner) Sign(claims map[string]any) (string, error) {
 func (g *golangJWTSigner) Verify(tokenString string) (map[string]any, error) {
 	token, err := jwt.Parse(tokenString, func(_ *jwt.Token) (any, error) {
 		return g.key, nil
-	}, jwt.WithValidMethods([]string{g.method.Alg()}))
+	}, jwt.WithValidMethods([]string{g.method.Alg()}), jwt.WithIssuer(g.issuer), jwt.WithAudience(g.audience))
 
 	if err != nil {
 		return nil, fmt.Errorf("parse jwt: %w", err)
@@ -78,9 +77,7 @@ func (g *golangJWTSigner) Verify(tokenString string) (map[string]any, error) {
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		result := make(map[string]any, len(claims))
-		for k, v := range claims {
-			result[k] = v
-		}
+		maps.Copy(result, claims)
 		return result, nil
 	}
 

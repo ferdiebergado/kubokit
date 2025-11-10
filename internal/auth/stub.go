@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
@@ -122,23 +123,23 @@ func (r *StubRepo) ChangePassword(ctx context.Context, email, newPassword string
 }
 
 type StubSigner struct {
-	SignFunc   func(claims map[string]any) (string, error)
+	SignFunc   func(claims map[string]any, ttl time.Duration) (string, error)
 	VerifyFunc func(token string) (map[string]any, error)
 }
 
 var _ Signer = (*StubSigner)(nil)
 
-func (s *StubSigner) Sign(claims map[string]any) (string, error) {
+func (s *StubSigner) Sign(claims map[string]any, ttl time.Duration) (string, error) {
 	if s.SignFunc == nil {
-		return "", errors.New("Sign not implemented by stub")
+		return "", errors.New("Sign() not implemented by StubSigner")
 	}
 
-	return s.SignFunc(claims)
+	return s.SignFunc(claims, ttl)
 }
 
 func (s *StubSigner) Verify(token string) (map[string]any, error) {
 	if s.VerifyFunc == nil {
-		return nil, errors.New("Verify not implemented by stub")
+		return nil, errors.New("Verify() not implemented by StubSigner")
 	}
 
 	return s.VerifyFunc(token)

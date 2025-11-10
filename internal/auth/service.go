@@ -41,8 +41,8 @@ type Hasher interface {
 
 // Signer defines an interface for signing and verifying JWT tokens.
 type Signer interface {
-	// Sign takes a payload and returns a signed JWT string or an error.
-	Sign(claims map[string]any) (string, error)
+	// Sign takes a payload and ttl then returns a signed JWT string or an error.
+	Sign(claims map[string]any, ttl time.Duration) (string, error)
 
 	// Verify takes a signed JWT token string and returns the decoded claims or an error.
 	Verify(token string) (map[string]any, error)
@@ -130,14 +130,11 @@ type HTMLEmail struct {
 }
 
 func (s *service) sendVerificationEmail(email, userID string) error {
-	expiresIn := time.Now().Add(s.cfgEmail.VerifyTTL.Duration).Unix()
-
 	claims := map[string]any{
 		"sub":     userID,
-		"exp":     expiresIn,
 		"purpose": "verify",
 	}
-	token, err := s.signer.Sign(claims)
+	token, err := s.signer.Sign(claims, s.cfgEmail.VerifyTTL.Duration)
 	if err != nil {
 		return fmt.Errorf("sign verification token: %w", err)
 	}
@@ -269,18 +266,20 @@ func (s *service) creatSession(userID, email string) (*Session, error) {
 	jwtConfig := s.cfgJWT
 	expiresIn := time.Now().Add(jwtConfig.TTL.Duration).Unix()
 
-	claims := map[string]any{
+	sessClaims := map[string]any{
 		"sub":     userID,
 		"purpose": "session",
 	}
-	accessToken, err := s.signer.Sign(claims)
+	accessToken, err := s.signer.Sign(sessClaims, jwtConfig.TTL.Duration)
 	if err != nil {
 		return nil, fmt.Errorf("sign access token: %w", err)
 	}
 
-	claims["purpose"] = "refresh"
-	claims["exp"] = time.Now().Add(jwtConfig.RefreshTTL.Duration).Unix()
-	refreshToken, err := s.signer.Sign(claims)
+	refClaims := map[string]any{
+		"sub":     userID,
+		"purpose": "refresh",
+	}
+	refreshToken, err := s.signer.Sign(refClaims, jwtConfig.RefreshTTL.Duration)
 	if err != nil {
 		return nil, fmt.Errorf("sign refresh token: %w", err)
 	}
@@ -315,13 +314,11 @@ func (s *service) SendPasswordReset(ctx context.Context, email string) error {
 
 	url := s.clientURL + "/account/reset-password"
 
-	expiresIn := time.Now().Add(s.cfgEmail.VerifyTTL.Duration).Unix()
 	claims := map[string]any{
 		"sub":     u.ID,
-		"exp":     expiresIn,
 		"purpose": "verify",
 	}
-	token, err := s.signer.Sign(claims)
+	token, err := s.signer.Sign(claims, s.cfgEmail.VerifyTTL.Duration)
 	if err != nil {
 		return fmt.Errorf("sign verification token: %w", err)
 	}
@@ -380,7 +377,7 @@ func (s *service) ChangePassword(ctx context.Context, params ChangePasswordParam
 func (s *service) RefreshToken(ctx context.Context, token string) (*Session, error) {
 	claims, err := s.signer.Verify(token)
 	if err != nil {
-		return nil, fmt.Errorf("verify refresh token: %w", err)
+		return nil, fmt.Errorf("verify refresh token: %w: %v", ErrInvalidToken, err)
 	}
 
 	userID, ok := claims["sub"].(string)

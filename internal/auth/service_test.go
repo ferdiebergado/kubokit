@@ -254,7 +254,7 @@ func TestService_LoginSuccess(t *testing.T) {
 	}
 
 	signer := &auth.StubSigner{
-		SignFunc: func(claims map[string]any) (string, error) {
+		SignFunc: func(claims map[string]any, ttl time.Duration) (string, error) {
 			return mockToken, nil
 		},
 	}
@@ -421,7 +421,7 @@ func TestService_RegisterSuccess(t *testing.T) {
 	}
 
 	signer := &auth.StubSigner{
-		SignFunc: func(claims map[string]any) (string, error) {
+		SignFunc: func(claims map[string]any, ttl time.Duration) (string, error) {
 			return "mock_token", nil
 		},
 	}
