@@ -1,8 +1,6 @@
 module github.com/ferdiebergado/kubokit
 
-go 1.24.0
-
-toolchain go1.24.8
+go 1.24.9
 
 require (
 	github.com/ferdiebergado/goexpress v0.3.9
