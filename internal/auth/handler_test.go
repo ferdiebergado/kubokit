@@ -93,7 +93,7 @@ func TestHandler_ForgotPassword(t *testing.T) {
 			handler.ForgotPassword(rec, req)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer closeBody(t, res)
 
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
@@ -190,7 +190,7 @@ func TestHandler_Register(t *testing.T) {
 			handler.Register(rec, req)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer closeBody(t, res)
 
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
@@ -332,7 +332,7 @@ func TestHandler_Login(t *testing.T) {
 			handler.Login(rec, req)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer closeBody(t, res)
 
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
@@ -412,7 +412,7 @@ func TestHandler_Verify(t *testing.T) {
 			handler.Verify(rec, req)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer closeBody(t, res)
 
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
@@ -518,7 +518,7 @@ func TestHandler_ChangePassword(t *testing.T) {
 			handler.ChangePassword(rec, req)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer closeBody(t, res)
 
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
@@ -679,7 +679,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			handler.RefreshToken(rec, req)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer closeBody(t, res)
 
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
@@ -755,7 +755,7 @@ func TestHandler_Logout(t *testing.T) {
 			handler.Logout(rec, req)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer closeBody(t, res)
 
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
@@ -826,7 +826,7 @@ func TestHandler_ResetPassword(t *testing.T) {
 			handler.ResetPassword(rec, req)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer closeBody(t, res)
 
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("res.StatusCode = %d, want: %d", res.StatusCode, tt.wantStatus)
@@ -876,5 +876,13 @@ func assertCookies(t *testing.T, res *http.Response, wantCookie *http.Cookie) {
 		}
 	} else if numCookies > 0 {
 		t.Fatal("there should be no cookies in the response")
+	}
+}
+
+func closeBody(t *testing.T, res *http.Response) {
+	t.Helper()
+
+	if err := res.Body.Close(); err != nil {
+		t.Logf("failed to close response body: %v", err)
 	}
 }

@@ -102,7 +102,7 @@ func TestHandler_List(t *testing.T) {
 			h.List(rec, req)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer closeBody(t, res)
 
 			gotStatusCode := res.StatusCode
 			if gotStatusCode != tt.wantStatusCode {
@@ -125,5 +125,13 @@ func TestHandler_List(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func closeBody(t *testing.T, res *http.Response) {
+	t.Helper()
+
+	if err := res.Body.Close(); err != nil {
+		t.Logf("failed to close response body: %v", err)
 	}
 }
