@@ -48,6 +48,10 @@ type Signer interface {
 	Verify(token string) (map[string]any, error)
 }
 
+type TxManager interface {
+	RunInTx(ctx context.Context, fn func(tx db.Executor) error) error
+}
+
 type service struct {
 	repo      Repository
 	userRepo  user.Repository
@@ -57,7 +61,7 @@ type service struct {
 	cfgJWT    *config.JWT
 	cfgEmail  *config.Email
 	clientURL string
-	txManager *db.TxManager
+	txManager TxManager
 }
 
 var _ Service = (*service)(nil)
@@ -70,7 +74,7 @@ type Dependencies struct {
 	Hasher   Hasher
 	Mailer   *email.SMTPMailer
 	Signer   Signer
-	Txmgr    *db.TxManager
+	Txmgr    TxManager
 	UserRepo user.Repository
 }
 
@@ -197,26 +201,38 @@ func (s *service) Verify(ctx context.Context, token string) error {
 		return ErrInvalidSubject
 	}
 
-	u, err := s.userRepo.Find(ctx, userID)
-	if err != nil {
-		if errors.Is(err, user.ErrNotFound) {
-			return ErrUserNotFound
-		}
-		return fmt.Errorf("find user: %w", err)
-	}
+	err = s.txManager.RunInTx(ctx, func(tx db.Executor) error {
+		userRepo := user.NewRepository(tx)
 
-	if u.VerifiedAt != nil {
+		u, userRepoErr := userRepo.Find(ctx, userID)
+		if userRepoErr != nil {
+			if errors.Is(userRepoErr, user.ErrNotFound) {
+				return ErrUserNotFound
+			}
+			return fmt.Errorf("find user: %w", userRepoErr)
+		}
+
+		if u.VerifiedAt != nil {
+			return nil
+		}
+
+		repo := NewRepository(tx)
+
+		if repoErr := repo.Verify(ctx, userID); repoErr != nil {
+			const format = "verify user: %w"
+
+			if errors.Is(repoErr, user.ErrNotFound) {
+				return fmt.Errorf(format, ErrUserNotFound)
+			}
+
+			return fmt.Errorf(format, repoErr)
+		}
+
 		return nil
-	}
+	})
 
-	if err := s.repo.Verify(ctx, userID); err != nil {
-		const format = "verify user: %w"
-
-		if errors.Is(err, user.ErrNotFound) {
-			return fmt.Errorf(format, ErrUserNotFound)
-		}
-
-		return fmt.Errorf(format, err)
+	if err != nil {
+		return fmt.Errorf("run in tx: %w", err)
 	}
 
 	return nil
