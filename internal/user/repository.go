@@ -20,8 +20,8 @@ type repo struct {
 
 var _ Repository = (*repo)(nil)
 
-func NewRepository(db db.Executor) Repository {
-	return &repo{db: db}
+func NewRepository(executor db.Executor) Repository {
+	return &repo{db: executor}
 }
 
 type CreateParams struct {

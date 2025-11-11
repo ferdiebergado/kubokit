@@ -570,7 +570,6 @@ func TestService_RegisterFails(t *testing.T) {
 func TestService_VerifySuccess(t *testing.T) {
 	t.Parallel()
 
-	now := time.Now()
 	verifiedUser := mockUser
 	verifiedUser.VerifiedAt = &now
 
