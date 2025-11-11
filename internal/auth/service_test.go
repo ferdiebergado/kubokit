@@ -281,6 +281,10 @@ func TestService_LoginSuccess(t *testing.T) {
 		t.Fatalf("svc.Login returned an error: %v", err)
 	}
 
+	if session == nil {
+		t.Fatalf("session = %v, want: not nil", session)
+	}
+
 	if session.AccessToken != mockToken {
 		t.Errorf("session.AccessToken = %q, want: %q", session.AccessToken, mockToken)
 	}
@@ -908,6 +912,79 @@ func TestService_ResetPasswordFails(t *testing.T) {
 				t.Errorf("svc.ResetPassword(t.Context(), %+v) = %v, want %v", tt.params, err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestService_RefreshTokenSuccess(t *testing.T) {
+	t.Parallel()
+
+	const refreshToken = "new_mock_refresh_token"
+
+	signer := &auth.StubSigner{
+		VerifyFunc: func(token string) (map[string]any, error) {
+			return map[string]any{
+				"sub":     mockUser.ID,
+				"purpose": "refresh",
+			}, nil
+		},
+		SignFunc: func(claims map[string]any, ttl time.Duration) (string, error) {
+			return refreshToken, nil
+		},
+	}
+
+	userRepo := &user.StubRepo{
+		FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+			return &mockUser, nil
+		},
+	}
+
+	deps := &auth.Dependencies{
+		Repo:     nil,
+		CfgApp:   &config.App{},
+		CfgJWT:   mockJWTCfg,
+		CfgEmail: &config.Email{},
+		Hasher:   nil,
+		Mailer:   &email.SMTPMailer{},
+		Signer:   signer,
+		Txmgr:    &db.TxManager{},
+		UserRepo: userRepo,
+	}
+
+	svc := auth.NewService(deps)
+	const mockToken = "mock_refresh_token"
+	session, err := svc.RefreshToken(t.Context(), mockToken)
+	if err != nil {
+		t.Fatalf("err = %v, want: %v", err, nil)
+	}
+
+	if session == nil {
+		t.Fatalf("session = %v, want: not nil", session)
+	}
+
+	if session.AccessToken != refreshToken {
+		t.Errorf("session.AccessToken = %q, want: %q", session.AccessToken, refreshToken)
+	}
+
+	if session.RefreshToken != refreshToken {
+		t.Errorf("session.RefreshToken = %q, want: %q", session.RefreshToken, refreshToken)
+	}
+
+	wantExp := now.Add(mockJWTCfg.TTL.Duration).Unix()
+	if session.ExpiresIn < wantExp {
+		t.Errorf("session.ExpiresIn = %d, want: > %d", session.ExpiresIn, wantExp)
+	}
+
+	if session.TokenType != auth.TokenType {
+		t.Errorf("session.TokenType = %q, want: %q", session.TokenType, auth.TokenType)
+	}
+
+	wantUser := auth.UserInfo{
+		ID:    mockUser.ID,
+		Email: mockEmail,
+	}
+
+	if !reflect.DeepEqual(*session.User, wantUser) {
+		t.Errorf("session.User = %+v, want: %+v", *session.User, wantUser)
 	}
 }
 
