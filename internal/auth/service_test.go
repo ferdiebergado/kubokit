@@ -20,6 +20,7 @@ const (
 	mockEmail    = "test@example.com"
 	mockPassword = "test"
 	mockAppEmail = "app@example.com"
+	mockHashed   = "hashed"
 )
 
 var (
@@ -76,7 +77,7 @@ func TestService_ChangePasswordSuccess(t *testing.T) {
 			return true, nil
 		},
 		HashFunc: func(plain string) (string, error) {
-			return "hashed", nil
+			return mockHashed, nil
 		},
 	}
 
@@ -199,7 +200,7 @@ func TestService_ChangePasswordFails(t *testing.T) {
 						return true, nil
 					},
 					HashFunc: func(plain string) (string, error) {
-						return "hashed", nil
+						return mockHashed, nil
 					},
 				},
 				Mailer: &email.SMTPMailer{},
@@ -416,7 +417,7 @@ func TestService_RegisterSuccess(t *testing.T) {
 
 	hasher := &auth.StubHasher{
 		HashFunc: func(plain string) (string, error) {
-			return "hashed", nil
+			return mockHashed, nil
 		},
 	}
 
@@ -473,7 +474,7 @@ func TestService_RegisterFails(t *testing.T) {
 				CfgEmail: &config.Email{},
 				Hasher: &auth.StubHasher{
 					HashFunc: func(plain string) (string, error) {
-						return "hashed", nil
+						return mockHashed, nil
 					},
 				},
 				Mailer: &email.SMTPMailer{},
@@ -520,7 +521,7 @@ func TestService_RegisterFails(t *testing.T) {
 				CfgEmail: &config.Email{},
 				Hasher: &auth.StubHasher{
 					HashFunc: func(plain string) (string, error) {
-						return "hashed", nil
+						return mockHashed, nil
 					},
 				},
 				Mailer: &email.SMTPMailer{},
@@ -752,7 +753,7 @@ func TestService_ResetPasswordSuccess(t *testing.T) {
 
 	hasher := &auth.StubHasher{
 		HashFunc: func(plain string) (string, error) {
-			return "hashed", nil
+			return mockHashed, nil
 		},
 	}
 
@@ -819,7 +820,7 @@ func TestService_ResetPasswordFails(t *testing.T) {
 				CfgEmail: &config.Email{},
 				Hasher: &auth.StubHasher{
 					HashFunc: func(plain string) (string, error) {
-						return "hashed", nil
+						return mockHashed, nil
 					},
 				},
 				Mailer:   &email.SMTPMailer{},
@@ -846,7 +847,7 @@ func TestService_ResetPasswordFails(t *testing.T) {
 				CfgEmail: &config.Email{},
 				Hasher: &auth.StubHasher{
 					HashFunc: func(plain string) (string, error) {
-						return "hashed", nil
+						return mockHashed, nil
 					},
 				},
 				Mailer: &email.SMTPMailer{},
@@ -877,7 +878,7 @@ func TestService_ResetPasswordFails(t *testing.T) {
 				CfgEmail: &config.Email{},
 				Hasher: &auth.StubHasher{
 					HashFunc: func(plain string) (string, error) {
-						return "hashed", nil
+						return mockHashed, nil
 					},
 				},
 				Mailer:   &email.SMTPMailer{},
