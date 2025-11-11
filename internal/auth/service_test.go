@@ -95,7 +95,7 @@ func TestService_ChangePasswordSuccess(t *testing.T) {
 		Hasher:   hasher,
 		Mailer:   &email.SMTPMailer{},
 		Signer:   nil,
-		Txmgr:    &db.TxManager{},
+		Txmgr:    &db.SQLTxManager{},
 		UserRepo: userRepo,
 	}
 	svc := auth.NewService(deps)
@@ -126,7 +126,7 @@ func TestService_ChangePasswordFails(t *testing.T) {
 				Hasher:   nil,
 				Mailer:   &email.SMTPMailer{},
 				Signer:   nil,
-				Txmgr:    &db.TxManager{},
+				Txmgr:    &db.SQLTxManager{},
 				UserRepo: &user.StubRepo{
 					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
 						return nil, user.ErrNotFound
@@ -149,7 +149,7 @@ func TestService_ChangePasswordFails(t *testing.T) {
 				},
 				Mailer: &email.SMTPMailer{},
 				Signer: nil,
-				Txmgr:  &db.TxManager{},
+				Txmgr:  &db.SQLTxManager{},
 				UserRepo: &user.StubRepo{
 					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
 						return &mockUser, nil
@@ -175,7 +175,7 @@ func TestService_ChangePasswordFails(t *testing.T) {
 				},
 				Mailer: &email.SMTPMailer{},
 				Signer: nil,
-				Txmgr:  &db.TxManager{},
+				Txmgr:  &db.SQLTxManager{},
 				UserRepo: &user.StubRepo{
 					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
 						return &mockUser, nil
@@ -205,7 +205,7 @@ func TestService_ChangePasswordFails(t *testing.T) {
 				},
 				Mailer: &email.SMTPMailer{},
 				Signer: nil,
-				Txmgr:  &db.TxManager{},
+				Txmgr:  &db.SQLTxManager{},
 				UserRepo: &user.StubRepo{
 					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
 						return &mockUser, nil
@@ -269,7 +269,7 @@ func TestService_LoginSuccess(t *testing.T) {
 		Repo:     nil,
 		CfgEmail: &config.Email{},
 		Mailer:   &email.SMTPMailer{},
-		Txmgr:    &db.TxManager{},
+		Txmgr:    &db.SQLTxManager{},
 	}
 	svc := auth.NewService(deps)
 	params := auth.LoginParams{
@@ -338,7 +338,7 @@ func TestService_LoginFails(t *testing.T) {
 				Hasher:   nil,
 				Mailer:   &email.SMTPMailer{},
 				Signer:   nil,
-				Txmgr:    &db.TxManager{},
+				Txmgr:    &db.SQLTxManager{},
 			},
 			wantErr: auth.ErrUserNotFound,
 		},
@@ -357,7 +357,7 @@ func TestService_LoginFails(t *testing.T) {
 				Hasher:   nil,
 				Mailer:   &email.SMTPMailer{},
 				Signer:   nil,
-				Txmgr:    &db.TxManager{},
+				Txmgr:    &db.SQLTxManager{},
 			},
 			wantErr: auth.ErrNotVerified,
 		},
@@ -380,7 +380,7 @@ func TestService_LoginFails(t *testing.T) {
 				CfgEmail: &config.Email{},
 				Mailer:   &email.SMTPMailer{},
 				Signer:   nil,
-				Txmgr:    &db.TxManager{},
+				Txmgr:    &db.SQLTxManager{},
 			},
 			wantErr: auth.ErrIncorrectPassword,
 		},
@@ -440,7 +440,7 @@ func TestService_RegisterSuccess(t *testing.T) {
 		Mailer:   createMailer(t),
 		Signer:   signer,
 		UserRepo: userRepo,
-		Txmgr:    &db.TxManager{},
+		Txmgr:    &db.SQLTxManager{},
 	}
 
 	svc := auth.NewService(mockDeps)
@@ -483,7 +483,7 @@ func TestService_RegisterFails(t *testing.T) {
 				},
 				Mailer: &email.SMTPMailer{},
 				Signer: nil,
-				Txmgr:  &db.TxManager{},
+				Txmgr:  &db.SQLTxManager{},
 				UserRepo: &user.StubRepo{
 					FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
 						return &mockUser, nil
@@ -507,7 +507,7 @@ func TestService_RegisterFails(t *testing.T) {
 				},
 				Mailer: &email.SMTPMailer{},
 				Signer: nil,
-				Txmgr:  &db.TxManager{},
+				Txmgr:  &db.SQLTxManager{},
 				UserRepo: &user.StubRepo{
 					FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
 						return nil, user.ErrNotFound
@@ -530,7 +530,7 @@ func TestService_RegisterFails(t *testing.T) {
 				},
 				Mailer: &email.SMTPMailer{},
 				Signer: nil,
-				Txmgr:  &db.TxManager{},
+				Txmgr:  &db.SQLTxManager{},
 				UserRepo: &user.StubRepo{
 					FindByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
 						return nil, user.ErrNotFound
@@ -570,68 +570,31 @@ func TestService_RegisterFails(t *testing.T) {
 func TestService_VerifySuccess(t *testing.T) {
 	t.Parallel()
 
-	verifiedUser := mockUser
-	verifiedUser.VerifiedAt = &now
-
-	tests := []struct {
-		name     string
-		repo     auth.Repository
-		userRepo user.Repository
-	}{
-		{
-			name: "user not yet verified",
-			repo: &auth.StubRepo{
-				VerifyFunc: func(ctx context.Context, userID string) error {
-					return nil
-				},
-			},
-			userRepo: &user.StubRepo{
-				FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
-					return &mockUser, nil
-				},
-			},
-		},
-		{
-			name: "user already verified",
-			userRepo: &user.StubRepo{
-				FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
-					return &verifiedUser, nil
-				},
-			},
+	signer := &auth.StubSigner{
+		VerifyFunc: func(_ string) (map[string]any, error) {
+			return map[string]any{
+				"sub":     "1",
+				"purpose": "verify",
+			}, nil
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+	txmgr := &db.StubTxManager{
+		RunInTxFunc: func(ctx context.Context, f func(db.Executor) error) error {
+			return nil
+		},
+	}
 
-			signer := &auth.StubSigner{
-				VerifyFunc: func(token string) (map[string]any, error) {
-					return map[string]any{
-						"sub":     "1",
-						"purpose": "verify",
-					}, nil
-				},
-			}
+	deps := &auth.Dependencies{
+		CfgApp: mockAppCfg,
+		Signer: signer,
+		Txmgr:  txmgr,
+	}
 
-			mockDeps := &auth.Dependencies{
-				Repo:     tt.repo,
-				UserRepo: tt.userRepo,
-				CfgApp:   mockAppCfg,
-				CfgEmail: mockEmailCfg,
-				CfgJWT:   mockJWTCfg,
-				Signer:   signer,
-				Hasher:   nil,
-				Mailer:   &email.SMTPMailer{},
-				Txmgr:    &db.TxManager{},
-			}
+	svc := auth.NewService(deps)
 
-			svc := auth.NewService(mockDeps)
-
-			if err := svc.Verify(t.Context(), "mock_token"); err != nil {
-				t.Errorf("svc.Verify(t.Context(), mockToken) = %v, want: %v", err, nil)
-			}
-		})
+	if err := svc.Verify(t.Context(), "mock_token"); err != nil {
+		t.Errorf("svc.Verify(t.Context(), mockToken) = %v, want: %v", err, nil)
 	}
 }
 
@@ -646,31 +609,19 @@ func TestService_VerifyFails(t *testing.T) {
 		{
 			name: "invalid verification token",
 			deps: &auth.Dependencies{
-				Repo:     nil,
-				CfgApp:   &config.App{},
-				CfgJWT:   nil,
-				CfgEmail: nil,
-				Hasher:   nil,
-				Mailer:   nil,
+				CfgApp: &config.App{},
 				Signer: &auth.StubSigner{
 					VerifyFunc: func(_ string) (map[string]any, error) {
 						return nil, errors.New("invalid token")
 					},
 				},
-				Txmgr:    nil,
-				UserRepo: nil,
 			},
 			wantErr: auth.ErrInvalidToken,
 		},
 		{
 			name: "missing purpose claim",
 			deps: &auth.Dependencies{
-				Repo:     nil,
-				CfgApp:   &config.App{},
-				CfgJWT:   nil,
-				CfgEmail: nil,
-				Hasher:   nil,
-				Mailer:   nil,
+				CfgApp: &config.App{},
 				Signer: &auth.StubSigner{
 					VerifyFunc: func(_ string) (map[string]any, error) {
 						return map[string]any{
@@ -678,20 +629,13 @@ func TestService_VerifyFails(t *testing.T) {
 						}, nil
 					},
 				},
-				Txmgr:    nil,
-				UserRepo: nil,
 			},
 			wantErr: auth.ErrInvalidToken,
 		},
 		{
 			name: "incorrect purpose claim",
 			deps: &auth.Dependencies{
-				Repo:     nil,
-				CfgApp:   &config.App{},
-				CfgJWT:   nil,
-				CfgEmail: nil,
-				Hasher:   nil,
-				Mailer:   nil,
+				CfgApp: &config.App{},
 				Signer: &auth.StubSigner{
 					VerifyFunc: func(_ string) (map[string]any, error) {
 						return map[string]any{
@@ -700,20 +644,13 @@ func TestService_VerifyFails(t *testing.T) {
 						}, nil
 					},
 				},
-				Txmgr:    nil,
-				UserRepo: nil,
 			},
 			wantErr: auth.ErrInvalidToken,
 		},
 		{
 			name: "missing sub claim",
 			deps: &auth.Dependencies{
-				Repo:     nil,
-				CfgApp:   &config.App{},
-				CfgJWT:   nil,
-				CfgEmail: nil,
-				Hasher:   nil,
-				Mailer:   nil,
+				CfgApp: &config.App{},
 				Signer: &auth.StubSigner{
 					VerifyFunc: func(_ string) (map[string]any, error) {
 						return map[string]any{
@@ -721,20 +658,13 @@ func TestService_VerifyFails(t *testing.T) {
 						}, nil
 					},
 				},
-				Txmgr:    nil,
-				UserRepo: nil,
 			},
 			wantErr: auth.ErrInvalidSubject,
 		},
 		{
 			name: "user not found in user repo",
 			deps: &auth.Dependencies{
-				Repo:     nil,
-				CfgApp:   &config.App{},
-				CfgJWT:   nil,
-				CfgEmail: nil,
-				Hasher:   nil,
-				Mailer:   nil,
+				CfgApp: &config.App{},
 				Signer: &auth.StubSigner{
 					VerifyFunc: func(_ string) (map[string]any, error) {
 						return map[string]any{
@@ -743,10 +673,9 @@ func TestService_VerifyFails(t *testing.T) {
 						}, nil
 					},
 				},
-				Txmgr: nil,
-				UserRepo: &user.StubRepo{
-					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
-						return nil, user.ErrNotFound
+				Txmgr: &db.StubTxManager{
+					RunInTxFunc: func(ctx context.Context, f func(db.Executor) error) error {
+						return auth.ErrUserNotFound
 					},
 				},
 			},
@@ -755,12 +684,7 @@ func TestService_VerifyFails(t *testing.T) {
 		{
 			name: "user repo error",
 			deps: &auth.Dependencies{
-				Repo:     nil,
-				CfgApp:   &config.App{},
-				CfgJWT:   nil,
-				CfgEmail: nil,
-				Hasher:   nil,
-				Mailer:   nil,
+				CfgApp: &config.App{},
 				Signer: &auth.StubSigner{
 					VerifyFunc: func(_ string) (map[string]any, error) {
 						return map[string]any{
@@ -769,10 +693,9 @@ func TestService_VerifyFails(t *testing.T) {
 						}, nil
 					},
 				},
-				Txmgr: nil,
-				UserRepo: &user.StubRepo{
-					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
-						return nil, errMockRepoFailure
+				Txmgr: &db.StubTxManager{
+					RunInTxFunc: func(ctx context.Context, f func(db.Executor) error) error {
+						return errMockRepoFailure
 					},
 				},
 			},
@@ -781,16 +704,7 @@ func TestService_VerifyFails(t *testing.T) {
 		{
 			name: "user not found in repo",
 			deps: &auth.Dependencies{
-				Repo: &auth.StubRepo{
-					VerifyFunc: func(ctx context.Context, userID string) error {
-						return auth.ErrUserNotFound
-					},
-				},
-				CfgApp:   &config.App{},
-				CfgJWT:   nil,
-				CfgEmail: nil,
-				Hasher:   nil,
-				Mailer:   nil,
+				CfgApp: &config.App{},
 				Signer: &auth.StubSigner{
 					VerifyFunc: func(_ string) (map[string]any, error) {
 						return map[string]any{
@@ -799,10 +713,9 @@ func TestService_VerifyFails(t *testing.T) {
 						}, nil
 					},
 				},
-				Txmgr: nil,
-				UserRepo: &user.StubRepo{
-					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
-						return &mockUser, nil
+				Txmgr: &db.StubTxManager{
+					RunInTxFunc: func(ctx context.Context, f func(db.Executor) error) error {
+						return auth.ErrUserNotFound
 					},
 				},
 			},
@@ -816,11 +729,7 @@ func TestService_VerifyFails(t *testing.T) {
 						return errMockRepoFailure
 					},
 				},
-				CfgApp:   &config.App{},
-				CfgJWT:   nil,
-				CfgEmail: nil,
-				Hasher:   nil,
-				Mailer:   nil,
+				CfgApp: &config.App{},
 				Signer: &auth.StubSigner{
 					VerifyFunc: func(_ string) (map[string]any, error) {
 						return map[string]any{
@@ -829,10 +738,9 @@ func TestService_VerifyFails(t *testing.T) {
 						}, nil
 					},
 				},
-				Txmgr: nil,
-				UserRepo: &user.StubRepo{
-					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
-						return &mockUser, nil
+				Txmgr: &db.StubTxManager{
+					RunInTxFunc: func(ctx context.Context, f func(db.Executor) error) error {
+						return errMockRepoFailure
 					},
 				},
 			},
@@ -889,7 +797,7 @@ func TestService_ResetPasswordSuccess(t *testing.T) {
 		Hasher:   hasher,
 		Signer:   signer,
 		Mailer:   &email.SMTPMailer{},
-		Txmgr:    &db.TxManager{},
+		Txmgr:    &db.SQLTxManager{},
 		UserRepo: nil,
 	}
 
