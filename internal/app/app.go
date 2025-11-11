@@ -42,12 +42,12 @@ type Dependencies struct {
 
 func New(deps *Dependencies) (*App, error) {
 	cfgServer := deps.CfgServer
-	router := deps.Router
+	r := deps.Router
 
 	serverCtx, stop := context.WithCancel(context.Background())
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfgServer.Port),
-		Handler: router,
+		Handler: r,
 		BaseContext: func(_ net.Listener) context.Context {
 			return serverCtx
 		},
@@ -64,7 +64,7 @@ func New(deps *Dependencies) (*App, error) {
 		cfgServer:       cfgServer,
 		signer:          deps.Signer,
 		validator:       deps.Validator,
-		router:          router,
+		router:          r,
 		userHandler:     deps.UserHandler,
 		authHandler:     deps.AuthHandler,
 	}, nil

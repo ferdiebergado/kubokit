@@ -98,8 +98,8 @@ func (p *RegisterParams) LogValue() slog.Value {
 }
 
 func (s *service) Register(ctx context.Context, params RegisterParams) (user.User, error) {
-	email := params.Email
-	existing, err := s.userRepo.FindByEmail(ctx, email)
+	emailAdd := params.Email
+	existing, err := s.userRepo.FindByEmail(ctx, emailAdd)
 	if err != nil && !errors.Is(err, user.ErrNotFound) {
 		return user.User{}, fmt.Errorf("find user by email: %w", err)
 	}
@@ -113,7 +113,7 @@ func (s *service) Register(ctx context.Context, params RegisterParams) (user.Use
 		return user.User{}, fmt.Errorf("hash password: %w", err)
 	}
 
-	newUser, err := s.userRepo.Create(ctx, user.CreateParams{Email: email, PasswordHash: hash})
+	newUser, err := s.userRepo.Create(ctx, user.CreateParams{Email: emailAdd, PasswordHash: hash})
 	if err != nil {
 		return user.User{}, fmt.Errorf("create user: %w", err)
 	}
@@ -129,7 +129,7 @@ type HTMLEmail struct {
 	Address, Subject, Title, Template, Link string
 }
 
-func (s *service) sendVerificationEmail(email, userID string) error {
+func (s *service) sendVerificationEmail(emailAdd, userID string) error {
 	claims := map[string]any{
 		"sub":     userID,
 		"purpose": "verify",
@@ -141,7 +141,7 @@ func (s *service) sendVerificationEmail(email, userID string) error {
 
 	url := s.clientURL + verificationPath
 	verificationEmail := &HTMLEmail{
-		Address:  email,
+		Address:  emailAdd,
 		Subject:  "Verify your email",
 		Title:    "Email verification",
 		Template: "verification",
@@ -153,8 +153,8 @@ func (s *service) sendVerificationEmail(email, userID string) error {
 	return nil
 }
 
-func (s *service) ResendVerificationEmail(ctx context.Context, email string) error {
-	u, err := s.userRepo.FindByEmail(ctx, email)
+func (s *service) ResendVerificationEmail(ctx context.Context, emailAdd string) error {
+	u, err := s.userRepo.FindByEmail(ctx, emailAdd)
 	if err != nil {
 		const format = "find user by email: %w"
 
@@ -167,15 +167,15 @@ func (s *service) ResendVerificationEmail(ctx context.Context, email string) err
 	return s.sendVerificationEmail(u.Email, u.ID)
 }
 
-func (s *service) sendEmail(email *HTMLEmail) {
+func (s *service) sendEmail(envelope *HTMLEmail) {
 	data := map[string]string{
-		"Title":  email.Title,
-		"Header": email.Subject,
-		"Link":   email.Link,
+		"Title":  envelope.Title,
+		"Header": envelope.Subject,
+		"Link":   envelope.Link,
 	}
 
 	slog.Info("Sending email...")
-	if err := s.mailer.SendHTML([]string{email.Address}, email.Subject, email.Template, data); err != nil {
+	if err := s.mailer.SendHTML([]string{envelope.Address}, envelope.Subject, envelope.Template, data); err != nil {
 		slog.Error("failed to send email", "reason", err)
 		return
 	}
@@ -267,7 +267,7 @@ func (s *service) Login(ctx context.Context, params LoginParams) (*Session, erro
 	return session, nil
 }
 
-func (s *service) creatSession(userID, email string) (*Session, error) {
+func (s *service) creatSession(userID, emailAdd string) (*Session, error) {
 	jwtConfig := s.cfgJWT
 	expiresIn := time.Now().Add(jwtConfig.TTL.Duration).Unix()
 
@@ -291,7 +291,7 @@ func (s *service) creatSession(userID, email string) (*Session, error) {
 
 	userInfo := &UserInfo{
 		ID:    userID,
-		Email: email,
+		Email: emailAdd,
 	}
 
 	session := &Session{
@@ -305,8 +305,8 @@ func (s *service) creatSession(userID, email string) (*Session, error) {
 	return session, nil
 }
 
-func (s *service) SendPasswordReset(ctx context.Context, email string) error {
-	u, err := s.userRepo.FindByEmail(ctx, email)
+func (s *service) SendPasswordReset(ctx context.Context, emailAdd string) error {
+	u, err := s.userRepo.FindByEmail(ctx, emailAdd)
 	if err != nil {
 		const format = "find user by email: %w"
 
@@ -329,7 +329,7 @@ func (s *service) SendPasswordReset(ctx context.Context, email string) error {
 	}
 
 	resetEmail := &HTMLEmail{
-		Address:  email,
+		Address:  emailAdd,
 		Subject:  "Reset Your Password",
 		Title:    "Password Reset",
 		Link:     url + "?token=" + token,
