@@ -274,7 +274,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshCookie := h.newRefreshCookie(data.RefreshToken, int(h.cfgJWT.RefreshTTL.Duration.Seconds()))
+	refreshCookie := h.newRefreshCookie(data.RefreshToken, int(h.cfgJWT.RefreshTTL.Seconds()))
 	http.SetCookie(w, refreshCookie)
 
 	msg := MsgLoggedIn
@@ -308,7 +308,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshCookie := h.newRefreshCookie(data.RefreshToken, int(h.cfgJWT.RefreshTTL.Duration.Seconds()))
+	refreshCookie := h.newRefreshCookie(data.RefreshToken, int(h.cfgJWT.RefreshTTL.Seconds()))
 	http.SetCookie(w, refreshCookie)
 
 	msg := MsgRefreshed
