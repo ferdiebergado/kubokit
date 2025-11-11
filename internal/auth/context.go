@@ -10,8 +10,6 @@ type ctxKey int
 const userCtxKey ctxKey = iota + 1
 
 // ContextWithUser returns a new context containing the authenticated user's ID.
-//
-//nolint:ireturn // returning context.Context is intentional: it's the standard context type
 func ContextWithUser(baseCtx context.Context, userID string) context.Context {
 	return context.WithValue(baseCtx, userCtxKey, userID)
 }
