@@ -796,23 +796,18 @@ func TestService_ResetPasswordSuccess(t *testing.T) {
 func TestService_ResetPasswordFails(t *testing.T) {
 	t.Parallel()
 
-	signer := &auth.StubSigner{
-		VerifyFunc: func(token string) (map[string]any, error) {
-			return map[string]any{
-				"sub":     "1",
-				"purpose": "reset",
-			}, nil
-		},
+	validClaim := map[string]any{
+		"sub":     "1",
+		"purpose": "reset",
 	}
 
 	tests := []struct {
 		name    string
 		deps    *auth.Dependencies
-		params  auth.ResetPasswordParams
 		wantErr error
 	}{
 		{
-			name: "user does not exist",
+			name: "user not found",
 			deps: &auth.Dependencies{
 				Repo: &auth.StubRepo{
 					ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
@@ -820,21 +815,21 @@ func TestService_ResetPasswordFails(t *testing.T) {
 					},
 				},
 				CfgApp:   mockAppCfg,
-				CfgJWT:   &config.JWT{},
-				CfgEmail: &config.Email{},
+				CfgJWT:   nil,
+				CfgEmail: nil,
 				Hasher: &auth.StubHasher{
 					HashFunc: func(plain string) (string, error) {
 						return mockHashed, nil
 					},
 				},
-				Mailer:   &email.SMTPMailer{},
-				Signer:   signer,
-				Txmgr:    &db.TxManager{},
+				Mailer: nil,
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return validClaim, nil
+					},
+				},
+				Txmgr:    nil,
 				UserRepo: nil,
-			},
-			params: auth.ResetPasswordParams{
-				Token:    "mock_token",
-				Password: mockPassword,
 			},
 			wantErr: auth.ErrUserNotFound,
 		},
@@ -847,27 +842,111 @@ func TestService_ResetPasswordFails(t *testing.T) {
 					},
 				},
 				CfgApp:   mockAppCfg,
-				CfgJWT:   mockJWTCfg,
-				CfgEmail: &config.Email{},
+				CfgJWT:   nil,
+				CfgEmail: nil,
 				Hasher: &auth.StubHasher{
 					HashFunc: func(plain string) (string, error) {
 						return mockHashed, nil
 					},
 				},
-				Mailer: &email.SMTPMailer{},
+				Mailer: nil,
 				Signer: &auth.StubSigner{
 					VerifyFunc: func(token string) (map[string]any, error) {
 						return nil, errors.New("invalid token")
 					},
 				},
-				Txmgr:    &db.TxManager{},
+				Txmgr:    nil,
 				UserRepo: nil,
 			},
-			params: auth.ResetPasswordParams{
-				Token:    "invalid_token",
-				Password: mockPassword,
+			wantErr: auth.ErrInvalidToken,
+		},
+		{
+			name: "missing purpose claim",
+			deps: &auth.Dependencies{
+				Repo: &auth.StubRepo{
+					ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
+						return nil
+					},
+				},
+				CfgApp:   mockAppCfg,
+				CfgJWT:   nil,
+				CfgEmail: nil,
+				Hasher: &auth.StubHasher{
+					HashFunc: func(plain string) (string, error) {
+						return mockHashed, nil
+					},
+				},
+				Mailer: nil,
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return map[string]any{
+							"sub": "1",
+						}, nil
+					},
+				},
+				Txmgr:    nil,
+				UserRepo: nil,
 			},
 			wantErr: auth.ErrInvalidToken,
+		},
+		{
+			name: "incorrect purpose claim",
+			deps: &auth.Dependencies{
+				Repo: &auth.StubRepo{
+					ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
+						return nil
+					},
+				},
+				CfgApp:   mockAppCfg,
+				CfgJWT:   nil,
+				CfgEmail: nil,
+				Hasher: &auth.StubHasher{
+					HashFunc: func(plain string) (string, error) {
+						return mockHashed, nil
+					},
+				},
+				Mailer: nil,
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return map[string]any{
+							"sub":     "1",
+							"purpose": "verify",
+						}, nil
+					},
+				},
+				Txmgr:    nil,
+				UserRepo: nil,
+			},
+			wantErr: auth.ErrInvalidToken,
+		},
+		{
+			name: "missing sub claim",
+			deps: &auth.Dependencies{
+				Repo: &auth.StubRepo{
+					ChangePasswordFunc: func(ctx context.Context, email, newPassword string) error {
+						return nil
+					},
+				},
+				CfgApp:   mockAppCfg,
+				CfgJWT:   nil,
+				CfgEmail: nil,
+				Hasher: &auth.StubHasher{
+					HashFunc: func(plain string) (string, error) {
+						return mockHashed, nil
+					},
+				},
+				Mailer: nil,
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return map[string]any{
+							"purpose": "reset",
+						}, nil
+					},
+				},
+				Txmgr:    nil,
+				UserRepo: nil,
+			},
+			wantErr: auth.ErrInvalidSubject,
 		},
 		{
 			name: "repo failure",
@@ -879,20 +958,20 @@ func TestService_ResetPasswordFails(t *testing.T) {
 				},
 				CfgApp:   mockAppCfg,
 				CfgJWT:   mockJWTCfg,
-				CfgEmail: &config.Email{},
+				CfgEmail: nil,
 				Hasher: &auth.StubHasher{
 					HashFunc: func(plain string) (string, error) {
 						return mockHashed, nil
 					},
 				},
-				Mailer:   &email.SMTPMailer{},
-				Signer:   signer,
-				Txmgr:    &db.TxManager{},
+				Mailer: nil,
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return validClaim, nil
+					},
+				},
+				Txmgr:    nil,
 				UserRepo: nil,
-			},
-			params: auth.ResetPasswordParams{
-				Token:    "mock_token",
-				Password: mockPassword,
 			},
 			wantErr: errMockRepoFailure,
 		},
@@ -903,13 +982,19 @@ func TestService_ResetPasswordFails(t *testing.T) {
 			t.Parallel()
 
 			svc := auth.NewService(tt.deps)
-			err := svc.ResetPassword(t.Context(), tt.params)
+
+			params := auth.ResetPasswordParams{
+				Token:    "mock_token",
+				Password: mockPassword,
+			}
+
+			err := svc.ResetPassword(t.Context(), params)
 			if err == nil {
 				t.Fatal("svc.ResetPassword did not return an error")
 			}
 
 			if !errors.Is(err, tt.wantErr) {
-				t.Errorf("svc.ResetPassword(t.Context(), %+v) = %v, want %v", tt.params, err, tt.wantErr)
+				t.Errorf("svc.ResetPassword(t.Context(), %+v) = %v, want %v", params, err, tt.wantErr)
 			}
 		})
 	}
