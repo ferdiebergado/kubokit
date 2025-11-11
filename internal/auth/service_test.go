@@ -942,11 +942,11 @@ func TestService_RefreshTokenSuccess(t *testing.T) {
 		Repo:     nil,
 		CfgApp:   &config.App{},
 		CfgJWT:   mockJWTCfg,
-		CfgEmail: &config.Email{},
+		CfgEmail: nil,
 		Hasher:   nil,
-		Mailer:   &email.SMTPMailer{},
+		Mailer:   nil,
 		Signer:   signer,
-		Txmgr:    &db.TxManager{},
+		Txmgr:    nil,
 		UserRepo: userRepo,
 	}
 
@@ -985,6 +985,175 @@ func TestService_RefreshTokenSuccess(t *testing.T) {
 
 	if !reflect.DeepEqual(*session.User, wantUser) {
 		t.Errorf("session.User = %+v, want: %+v", *session.User, wantUser)
+	}
+}
+
+func TestService_RefreshTokenFails(t *testing.T) {
+	t.Parallel()
+
+	errSignerFailed := errors.New("failed to sign token")
+
+	validClaim := map[string]any{
+		"sub":     mockUser.ID,
+		"purpose": "refresh",
+	}
+
+	tests := []struct {
+		name    string
+		deps    *auth.Dependencies
+		wantErr error
+	}{
+		{
+			name: "invalid token",
+			deps: &auth.Dependencies{
+				Repo:     nil,
+				CfgApp:   &config.App{},
+				CfgJWT:   mockJWTCfg,
+				CfgEmail: nil,
+				Hasher:   nil,
+				Mailer:   nil,
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return nil, errors.New("malformed token")
+					},
+				},
+				Txmgr:    nil,
+				UserRepo: nil,
+			},
+			wantErr: auth.ErrInvalidToken,
+		},
+		{
+			name: "missing purpose claim",
+			deps: &auth.Dependencies{
+				Repo:     nil,
+				CfgApp:   &config.App{},
+				CfgJWT:   mockJWTCfg,
+				CfgEmail: nil,
+				Hasher:   nil,
+				Mailer:   nil,
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return map[string]any{
+							"sub": mockUser.ID,
+						}, nil
+					},
+				},
+				Txmgr:    nil,
+				UserRepo: nil,
+			},
+			wantErr: auth.ErrInvalidToken,
+		},
+		{
+			name: "incorrect purpose claim",
+			deps: &auth.Dependencies{
+				Repo:     nil,
+				CfgApp:   &config.App{},
+				CfgJWT:   mockJWTCfg,
+				CfgEmail: nil,
+				Hasher:   nil,
+				Mailer:   nil,
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return map[string]any{
+							"sub":     mockUser.ID,
+							"purpose": "session",
+						}, nil
+					},
+				},
+				Txmgr:    nil,
+				UserRepo: nil,
+			},
+			wantErr: auth.ErrInvalidToken,
+		},
+		{
+			name: "user not found",
+			deps: &auth.Dependencies{
+				Repo:     nil,
+				CfgApp:   &config.App{},
+				CfgJWT:   mockJWTCfg,
+				CfgEmail: nil,
+				Hasher:   nil,
+				Mailer:   nil,
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return validClaim, nil
+					},
+				},
+				Txmgr: nil,
+				UserRepo: &user.StubRepo{
+					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+						return nil, user.ErrNotFound
+					},
+				},
+			},
+			wantErr: auth.ErrUserNotFound,
+		},
+		{
+			name: "repo failure",
+			deps: &auth.Dependencies{
+				Repo:     nil,
+				CfgApp:   &config.App{},
+				CfgJWT:   mockJWTCfg,
+				CfgEmail: nil,
+				Hasher:   nil,
+				Mailer:   nil,
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return validClaim, nil
+					},
+				},
+				Txmgr: nil,
+				UserRepo: &user.StubRepo{
+					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+						return nil, errMockRepoFailure
+					},
+				},
+			},
+			wantErr: errMockRepoFailure,
+		},
+		{
+			name: "signing error",
+			deps: &auth.Dependencies{
+				Repo:     nil,
+				CfgApp:   &config.App{},
+				CfgJWT:   mockJWTCfg,
+				CfgEmail: nil,
+				Hasher:   nil,
+				Mailer:   nil,
+				Signer: &auth.StubSigner{
+					VerifyFunc: func(token string) (map[string]any, error) {
+						return validClaim, nil
+					},
+					SignFunc: func(claims map[string]any, ttl time.Duration) (string, error) {
+						return "", errSignerFailed
+					},
+				},
+				Txmgr: nil,
+				UserRepo: &user.StubRepo{
+					FindFunc: func(ctx context.Context, userID string) (*user.User, error) {
+						return &mockUser, nil
+					},
+				},
+			},
+			wantErr: errSignerFailed,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			svc := auth.NewService(tt.deps)
+			const mockToken = "mock_refresh_token"
+			_, err := svc.RefreshToken(t.Context(), mockToken)
+			if err == nil {
+				t.Fatalf("err = %v, want: %v", err, tt.wantErr)
+			}
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("err = %v, want: %v", err, tt.wantErr)
+			}
+		})
 	}
 }
 
