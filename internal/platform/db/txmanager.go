@@ -7,15 +7,15 @@ import (
 	"log/slog"
 )
 
-type TxManager struct {
+type SQLTxManager struct {
 	db *sql.DB
 }
 
-func NewTxManager(db *sql.DB) *TxManager {
-	return &TxManager{db: db}
+func NewTxManager(db *sql.DB) *SQLTxManager {
+	return &SQLTxManager{db: db}
 }
 
-func (t *TxManager) RunInTx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+func (t *SQLTxManager) RunInTx(ctx context.Context, fn func(tx Executor) error) error {
 	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
