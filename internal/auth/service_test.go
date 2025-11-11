@@ -26,7 +26,7 @@ const (
 var (
 	errMockRepoFailure = errors.New("query failed")
 
-	now = time.Now().Truncate(0)
+	now = time.Now()
 
 	mockUser = user.User{
 		Model: model.Model{
