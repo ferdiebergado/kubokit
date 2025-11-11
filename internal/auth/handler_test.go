@@ -112,8 +112,6 @@ func TestHandler_ForgotPassword(t *testing.T) {
 func TestHandler_Register(t *testing.T) {
 	t.Parallel()
 
-	now := time.Now().Truncate(0)
-
 	tests := []struct {
 		name       string
 		service    auth.Service
