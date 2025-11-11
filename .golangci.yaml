@@ -1,13 +1,9 @@
 version: "2"
 run:
-  # Concurrently run upto 4
-  concurrency: 4
-  # Issue exit code
-  issues-exit-code: 1
-  # Lint tests
   tests: true
-  # Lint timeout
   timeout: 5m
+  build-tags:
+    - integration
 
 linters:
   enable:
@@ -81,11 +77,6 @@ linters:
       enable-all: true
       disable:
         - fieldalignment
-    ireturn:
-      allow:
-        - error
-    lll:
-      line-length: 160
     misspell:
       locale: US
     nolintlint:
