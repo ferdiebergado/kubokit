@@ -27,7 +27,7 @@ func Setup(t *testing.T) (*sql.DB, *sql.Tx) {
 		t.Fatalf("failed create database: %v", err)
 	}
 
-	tx, err := conn.Begin()
+	tx, err := conn.BeginTx(t.Context(), nil)
 	if err != nil {
 		t.Fatalf("failed to begin transaction: %v", err)
 	}
