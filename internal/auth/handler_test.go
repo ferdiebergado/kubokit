@@ -48,7 +48,7 @@ func TestHandler_ForgotPassword(t *testing.T) {
 			},
 			wantStatus: http.StatusOK,
 			wantBody: map[string]any{
-				"message": message.ResetSent,
+				"message": auth.MsgResetSent,
 			},
 		},
 		{

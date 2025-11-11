@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ferdiebergado/kubokit/internal/config"
-	"github.com/ferdiebergado/kubokit/internal/pkg/message"
 	"github.com/ferdiebergado/kubokit/internal/pkg/web"
 	"github.com/ferdiebergado/kubokit/internal/user"
 )
@@ -347,7 +346,7 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := message.ResetSent
+	msg := MsgResetSent
 	web.RespondOK[any](w, &msg, nil)
 }
 
