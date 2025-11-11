@@ -79,7 +79,7 @@ func (e *SMTPMailer) send(to []string, subject, body, contentType string) error 
 	return nil
 }
 
-func (e *SMTPMailer) SendHTML(to []string, subject string, tmplName string, data map[string]string) error {
+func (e *SMTPMailer) SendHTML(to []string, subject, tmplName string, data map[string]string) error {
 	tmpl, ok := e.templates[tmplName]
 	if !ok {
 		return fmt.Errorf("template does not exist: %s", tmplName)
@@ -97,7 +97,7 @@ func (e *SMTPMailer) SendHTML(to []string, subject string, tmplName string, data
 	return nil
 }
 
-func (e *SMTPMailer) SendPlain(to []string, subject string, body string) error {
+func (e *SMTPMailer) SendPlain(to []string, subject, body string) error {
 	return e.send(to, subject, body, "text/plain")
 }
 

@@ -158,7 +158,7 @@ func (h *StubHasher) Hash(plain string) (string, error) {
 	return h.HashFunc(plain)
 }
 
-func (h *StubHasher) Verify(plain string, hashed string) (bool, error) {
+func (h *StubHasher) Verify(plain, hashed string) (bool, error) {
 	if h.VerifyFunc == nil {
 		return false, errors.New("Verify not implemented by stub")
 	}
