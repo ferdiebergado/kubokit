@@ -604,7 +604,8 @@ func TestService_VerifySuccess(t *testing.T) {
 			signer := &auth.StubSigner{
 				VerifyFunc: func(token string) (map[string]any, error) {
 					return map[string]any{
-						"sub": "1",
+						"sub":     "1",
+						"purpose": "verify",
 					}, nil
 				},
 			}
@@ -677,7 +678,8 @@ func TestService_VerifyFails(t *testing.T) {
 				Signer: &auth.StubSigner{
 					VerifyFunc: func(token string) (map[string]any, error) {
 						return map[string]any{
-							"sub": "1",
+							"sub":     "1",
+							"purpose": "verify",
 						}, nil
 					},
 				},
@@ -706,7 +708,8 @@ func TestService_VerifyFails(t *testing.T) {
 				Signer: &auth.StubSigner{
 					VerifyFunc: func(token string) (map[string]any, error) {
 						return map[string]any{
-							"sub": "1",
+							"sub":     "1",
+							"purpose": "verify",
 						}, nil
 					},
 				},
@@ -756,7 +759,8 @@ func TestService_ResetPasswordSuccess(t *testing.T) {
 	signer := &auth.StubSigner{
 		VerifyFunc: func(token string) (map[string]any, error) {
 			return map[string]any{
-				"sub": "1",
+				"sub":     "1",
+				"purpose": "reset",
 			}, nil
 		},
 	}
@@ -790,7 +794,8 @@ func TestService_ResetPasswordFails(t *testing.T) {
 	signer := &auth.StubSigner{
 		VerifyFunc: func(token string) (map[string]any, error) {
 			return map[string]any{
-				"sub": "1",
+				"sub":     "1",
+				"purpose": "reset",
 			}, nil
 		},
 	}

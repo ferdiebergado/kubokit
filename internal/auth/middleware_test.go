@@ -28,7 +28,8 @@ func TestMiddleware_RequireToken(t *testing.T) {
 				},
 				VerifyFunc: func(tokenString string) (map[string]any, error) {
 					return map[string]any{
-						"sub": "1",
+						"sub":     "1",
+						"purpose": "session",
 					}, nil
 				},
 			},
